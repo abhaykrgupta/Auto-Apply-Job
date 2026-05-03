@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "Job Agent",
+  "version": "1.0.0",
+  "description": "AI job match scorer — see your match % on any job page, one-click apply",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://www.linkedin.com/*",
+    "https://www.indeed.com/*",
+    "https://jobs.lever.co/*",
+    "https://boards.greenhouse.io/*",
+    "https://www.glassdoor.com/*",
+    "https://www.workatastartup.com/*",
+    "https://wellfound.com/*",
+    "http://localhost:3000/*",
+    "https://*.vercel.app/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Job Agent"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.linkedin.com/jobs/*",
+        "https://www.indeed.com/viewjob*",
+        "https://jobs.lever.co/*/*",
+        "https://boards.greenhouse.io/*",
+        "https://www.glassdoor.com/job-listing/*",
+        "https://wellfound.com/jobs/*",
+        "https://www.workatastartup.com/jobs/*"
+      ],
+      "js": ["src/content.js"],
+      "css": ["src/content.css"]
+    }
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

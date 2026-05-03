@@ -1,0 +1,24 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/discover-companies",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/daily-pipeline",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/daily-digest",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/retry-failed",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-summary",
+      "schedule": "0 9 * * 0"
+    }
+  ]
+}
