@@ -8,7 +8,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Star, Zap } from 'lucide-react';
+import { Star, Zap, Layers } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -47,6 +47,28 @@ export default function MatchesPage() {
     enabled: !!activeResume?.id,
   });
 
+  const { mutate: bulkApply, isPending: isBulkApplying } = useMutation({
+    mutationFn: async () => {
+      if (!activeResume?.id) throw new Error('Upload a resume first');
+      const res = await fetch('/api/jobs/bulk-apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resumeId: activeResume.id }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Bulk apply failed');
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.queued > 0) {
+        toast.success(data.message);
+        qc.invalidateQueries({ queryKey: ['matches'] });
+      } else {
+        toast.info(data.message);
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   function runMatching() {
     if (!activeResume?.id) {
       toast.error('Upload a resume first');
@@ -67,10 +89,16 @@ export default function MatchesPage() {
           <h2 className="text-2xl font-bold">AI Matched Jobs</h2>
           <p className="text-muted-foreground">Jobs ranked by AI compatibility score</p>
         </div>
-        <Button onClick={runMatching} disabled={isMatching} className="shrink-0">
-          <Zap className="mr-2 h-4 w-4" />
-          {isMatching ? 'Matching...' : 'Run AI Match'}
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button onClick={() => bulkApply()} disabled={isBulkApplying || !matches?.length} variant="secondary">
+            {isBulkApplying ? <LoadingSpinner size="sm" fullPage={false} className="mr-2" /> : <Layers className="mr-2 h-4 w-4" />}
+            {isBulkApplying ? 'Starting...' : 'Bulk Auto-Apply'}
+          </Button>
+          <Button onClick={runMatching} disabled={isMatching}>
+            <Zap className="mr-2 h-4 w-4" />
+            {isMatching ? 'Matching...' : 'Run AI Match'}
+          </Button>
+        </div>
       </div>
 
       {!matches?.length ? (
