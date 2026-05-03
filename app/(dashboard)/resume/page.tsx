@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { useResumes, useUploadResume } from '@/lib/hooks/use-resume';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { FileText, Upload, CheckCircle } from 'lucide-react';
+import { FileText, Upload, CheckCircle, X } from 'lucide-react';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -34,18 +34,19 @@ export default function ResumePage() {
   if (isLoading) return <LoadingSpinner />;
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 md:p-8 space-y-6 relative">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold">Resume Manager</h2>
           <p className="text-muted-foreground">Upload and manage your resumes</p>
         </div>
-        <Button onClick={() => fileRef.current?.click()} disabled={isPending}>
+        <Button onClick={() => fileRef.current?.click()} disabled={isPending} className="shrink-0">
           <Upload className="mr-2 h-4 w-4" />
           {isPending ? 'Uploading...' : 'Upload Resume'}
         </Button>
         <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" onChange={handleUpload} />
       </div>
+
 
       {!resumes?.length ? (
         <EmptyState
@@ -99,7 +100,12 @@ export default function ResumePage() {
                   </div>
                 )}
                 <div className="flex gap-2 pt-2">
-                  <a href={resume.fileUrl} target="_blank" rel="noopener noreferrer" type="application/pdf" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>View</a>
+                  <a href={`/resume/view?url=${encodeURIComponent(resume.fileUrl)}`} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
+                    View
+                  </a>
+                  <a href={resume.fileUrl} download className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}>
+                    Download
+                  </a>
                 </div>
               </CardContent>
             </Card>

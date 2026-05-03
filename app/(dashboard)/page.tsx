@@ -21,13 +21,13 @@ export default async function DashboardPage() {
   }
 
   return (
-    <main className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
-      <div className="flex items-center justify-between">
+    <main className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold">Welcome back</h2>
           <p className="text-sm text-muted-foreground mt-1">Here is your job application overview</p>
         </div>
-        <Link href="/search" className={cn(buttonVariants())}>Find New Jobs</Link>
+        <Link href="/search" className={cn(buttonVariants(), 'shrink-0')}>Find New Jobs</Link>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -88,9 +88,11 @@ export default async function DashboardPage() {
               <p className="text-sm text-muted-foreground">No jobs yet. Start by searching for jobs.</p>
             ) : (
               recentJobs.map((job: any) => (
-                <Link
+                <a
                   key={job.id}
-                  href={`/jobs/${job.id}`}
+                  href={job.applyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="flex items-center justify-between rounded-lg p-3 hover:bg-accent transition-colors"
                 >
                   <div>
@@ -101,7 +103,7 @@ export default async function DashboardPage() {
                     <Badge variant="outline" className="text-xs">{job.source}</Badge>
                     <span className="text-xs text-muted-foreground">{timeAgo(job.createdAt)}</span>
                   </div>
-                </Link>
+                </a>
               ))
             )}
           </CardContent>

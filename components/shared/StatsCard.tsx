@@ -21,11 +21,11 @@ export function StatsCard({ title, value, subtitle, trend, icon: Icon, variant =
   const cfg = variantConfig[variant];
 
   return (
-    <div className="rounded-xl border border-border bg-card p-6 shadow-sm hover:shadow-md transition-all duration-200">
+    <div className="rounded-xl border border-border bg-card p-4 md:p-6 shadow-sm hover:shadow-md transition-all duration-200">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-muted-foreground truncate">{title}</p>
-          <p className="mt-2 text-3xl font-bold tracking-tight text-foreground">{value}</p>
+          <p className="mt-2 text-2xl md:text-3xl font-bold tracking-tight text-foreground">{value}</p>
           {subtitle && (
             <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
           )}

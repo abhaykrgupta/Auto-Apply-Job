@@ -73,7 +73,7 @@ export function Header() {
 
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden">
+        <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden animate-in slide-in-from-left duration-200">
           <div className="flex h-16 shrink-0 items-center justify-between px-4 sm:px-6 border-b border-border">
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">

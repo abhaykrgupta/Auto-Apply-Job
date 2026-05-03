@@ -129,7 +129,7 @@ export default function CompaniesPage() {
   if (isLoading) return <LoadingSpinner />;
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 md:p-8 space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -213,14 +213,14 @@ export default function CompaniesPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             <Input
               placeholder="https://company.com  or  https://boards.greenhouse.io/company"
               value={addUrl}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setAddUrl(e.target.value)}
-              className="flex-1"
+              className="flex-1 h-10"
             />
-            <Button onClick={() => addManual(addUrl)} disabled={isAdding || !addUrl.trim()}>
+            <Button className="h-10" onClick={() => addManual(addUrl)} disabled={isAdding || !addUrl.trim()}>
               {isAdding ? 'Detecting...' : 'Add'}
             </Button>
           </div>
@@ -235,6 +235,7 @@ export default function CompaniesPage() {
         placeholder="Search by name, industry, ATS, or source..."
         value={search}
         onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+        className="h-10"
       />
 
       {/* Table */}

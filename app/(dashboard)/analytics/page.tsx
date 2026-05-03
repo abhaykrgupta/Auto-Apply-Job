@@ -84,7 +84,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
         <StatsCard title="Total" value={appStats.total ?? 0} icon={BarChart3} />
         <StatsCard title="Applied" value={appStats.applied ?? 0} icon={CheckCircle} variant="success" />
         <StatsCard title="Interviewing" value={appStats.interviewing ?? 0} icon={Users} variant="warning" />

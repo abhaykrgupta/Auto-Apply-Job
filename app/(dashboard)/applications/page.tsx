@@ -16,10 +16,13 @@ export default function ApplicationsPage() {
   if (isLoading) return <LoadingSpinner />;
 
   return (
-    <div className="p-8 space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Applications</h2>
-        <p className="text-muted-foreground">{applications?.length ?? 0} total applications</p>
+    <div className="p-4 md:p-8 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold">Applications</h2>
+          <p className="text-muted-foreground">{applications?.length ?? 0} total applications</p>
+        </div>
+        <Link href="/jobs" className={cn(buttonVariants({ variant: 'outline' }), 'shrink-0')}>Browse Jobs</Link>
       </div>
 
       {!applications?.length ? (

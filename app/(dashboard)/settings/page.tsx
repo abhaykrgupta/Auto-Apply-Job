@@ -165,16 +165,15 @@ export default function SettingsPage() {
             </div>
             <Switch checked={s.headless} onCheckedChange={(v) => set('headless', v)} />
           </div>
-          <div>
+          <div className="space-y-1.5">
             <Label>Max Applications Per Day</Label>
             <Input
               type="number"
               value={s.maxApplicationsPerDay}
               onChange={(e: ChangeEvent<HTMLInputElement>) => set('maxApplicationsPerDay', parseInt(e.target.value) || 50)}
-              className="h-10 mt-1"
             />
           </div>
-          <div>
+          <div className="space-y-1.5">
             <Label>Minimum Match Score to Auto-Apply</Label>
             <Input
               type="number"
@@ -182,16 +181,15 @@ export default function SettingsPage() {
               max="100"
               value={s.minMatchScore}
               onChange={(e: ChangeEvent<HTMLInputElement>) => set('minMatchScore', parseInt(e.target.value) || 70)}
-              className="h-10 mt-1"
             />
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground">
               Only auto-apply to jobs scoring {s.minMatchScore}% or higher
             </p>
           </div>
-          <div>
+          <div className="space-y-1.5">
             <Label>Max Concurrent Applications</Label>
             <Select value={String(s.maxConcurrent)} onValueChange={(v) => set('maxConcurrent', parseInt(v ?? '3'))}>
-              <SelectTrigger className="h-10 mt-1">
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -256,10 +254,10 @@ export default function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
-          <div>
+          <div className="space-y-1.5">
             <Label>Remote Preference</Label>
             <Select value={s.remotePreference} onValueChange={(v) => set('remotePreference', v ?? 'any')}>
-              <SelectTrigger className="h-10 mt-1">
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -270,7 +268,7 @@ export default function SettingsPage() {
               </SelectContent>
             </Select>
           </div>
-          <div>
+          <div className="space-y-1.5">
             <Label>Minimum Salary (Optional)</Label>
             <Input
               type="number"
@@ -279,7 +277,6 @@ export default function SettingsPage() {
               onChange={(e: ChangeEvent<HTMLInputElement>) =>
                 set('salaryMin', e.target.value ? parseInt(e.target.value) : null)
               }
-              className="h-10 mt-1"
             />
           </div>
         </CardContent>
@@ -293,7 +290,7 @@ export default function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
-          <div>
+          <div className="space-y-1.5">
             <Label>Request Delay (ms)</Label>
             <Input
               type="number"
@@ -301,9 +298,8 @@ export default function SettingsPage() {
               onChange={(e: ChangeEvent<HTMLInputElement>) =>
                 set('requestDelayMs', parseInt(e.target.value) || 2000)
               }
-              className="h-10 mt-1"
             />
-            <p className="text-xs text-muted-foreground mt-1">Delay between requests to avoid rate limiting</p>
+            <p className="text-xs text-muted-foreground">Delay between requests to avoid rate limiting</p>
           </div>
         </CardContent>
       </Card>

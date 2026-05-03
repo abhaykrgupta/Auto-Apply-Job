@@ -39,13 +39,13 @@ export default function JobsPage() {
   if (isLoading) return <LoadingSpinner />;
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 md:p-8 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold">All Jobs</h2>
           <p className="text-muted-foreground">{jobs?.length ?? 0} jobs discovered</p>
         </div>
-        <Link href="/search" className={cn(buttonVariants({ variant: 'outline' }))}>Search More</Link>
+        <Link href="/search" className={cn(buttonVariants({ variant: 'outline' }), 'shrink-0')}>Search More</Link>
       </div>
 
       {!jobs?.length ? (
@@ -74,9 +74,9 @@ export default function JobsPage() {
               {jobs.map((job: any) => (
                 <tr key={job.id} className="border-t border-border hover:bg-accent/50 transition-colors">
                   <td className="p-3">
-                    <Link href={`/jobs/${job.id}`} className="font-medium hover:underline">
+                    <a href={job.applyUrl} target="_blank" rel="noopener noreferrer" className="font-medium hover:underline">
                       {job.title}
-                    </Link>
+                    </a>
                   </td>
                   <td className="p-3 text-muted-foreground">{job.company}</td>
                   <td className="p-3 text-muted-foreground">{job.location ?? 'Remote'}</td>
@@ -89,9 +89,6 @@ export default function JobsPage() {
                   <td className="p-3 text-muted-foreground">{timeAgo(job.createdAt)}</td>
                   <td className="p-3">
                     <div className="flex gap-2">
-                      <Link href={`/jobs/${job.id}`} className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
-                        Details
-                      </Link>
                       <button
                         onClick={() => setTailorJob({ id: job.id, title: job.title, company: job.company })}
                         className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'gap-1')}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useResumes } from '@/lib/hooks/use-resume';
 import { useMatchJobs } from '@/lib/hooks/use-jobs';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
@@ -17,6 +17,24 @@ export default function MatchesPage() {
   const { data: resumes } = useResumes();
   const activeResume = resumes?.find((r: any) => r.isActive) ?? resumes?.[0];
   const { mutate: matchJobs, isPending: isMatching } = useMatchJobs();
+  const qc = useQueryClient();
+
+  const { mutate: applyJob, isPending: applying } = useMutation({
+    mutationFn: async (jobId: string) => {
+      const res = await fetch(`/api/jobs/${jobId}/apply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Apply failed');
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success('Application queued! Check Applications page.');
+      qc.invalidateQueries({ queryKey: ['matches'] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const { data: matches, isLoading } = useQuery({
     queryKey: ['matches', activeResume?.id],
@@ -43,13 +61,13 @@ export default function MatchesPage() {
   if (isLoading) return <LoadingSpinner />;
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 md:p-8 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold">AI Matched Jobs</h2>
           <p className="text-muted-foreground">Jobs ranked by AI compatibility score</p>
         </div>
-        <Button onClick={runMatching} disabled={isMatching}>
+        <Button onClick={runMatching} disabled={isMatching} className="shrink-0">
           <Zap className="mr-2 h-4 w-4" />
           {isMatching ? 'Matching...' : 'Run AI Match'}
         </Button>
@@ -100,9 +118,11 @@ export default function MatchesPage() {
                       <p className="text-sm italic text-muted-foreground">{m.match.recommendation}</p>
                     )}
                   </div>
-                  <div className="flex flex-col gap-2 shrink-0">
-                    <Link href={`/jobs/${m.job.id}`} className={cn(buttonVariants({ size: 'sm' }))}>View Job</Link>
-                    <Link href={`/jobs/${m.job.id}/apply`} className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>Apply</Link>
+                  <div className="flex flex-col gap-2 shrink-0 min-w-[90px]">
+                    <a href={m.job.applyUrl} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ size: 'sm' }))}>View Job</a>
+                    <Button onClick={() => applyJob(m.job.id)} disabled={applying} variant="outline" size="sm">
+                      Apply
+                    </Button>
                   </div>
                 </div>
               </CardContent>

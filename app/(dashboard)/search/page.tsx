@@ -80,7 +80,7 @@ export default function SearchPage() {
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">
       <div>
         <h2 className="text-2xl font-bold">Search Jobs</h2>
         <p className="text-sm text-muted-foreground mt-1">
@@ -94,28 +94,26 @@ export default function SearchPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div>
+            <div className="space-y-1.5">
               <Label>Job Title / Role</Label>
               <Input
-                className="h-10 mt-1"
                 placeholder="e.g. Software Engineer"
                 value={role}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setRole(e.target.value)}
               />
             </div>
-            <div>
+            <div className="space-y-1.5">
               <Label>Location (Optional)</Label>
               <Input
-                className="h-10 mt-1"
                 placeholder="e.g. San Francisco"
                 value={location}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setLocation(e.target.value)}
               />
             </div>
-            <div>
+            <div className="space-y-1.5">
               <Label>Remote Preference</Label>
               <Select value={remote} onValueChange={(v) => setRemote(v ?? 'any')}>
-                <SelectTrigger className="h-10 mt-1">
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -176,16 +174,18 @@ export default function SearchPage() {
             Optionally add specific Greenhouse or Lever job board URLs to scrape directly.
           </p>
           {boardUrls.map((url, i) => (
-            <div key={i} className="flex gap-2">
-              <Input
-                className="h-10"
-                placeholder="https://boards.greenhouse.io/company or https://jobs.lever.co/company"
-                value={url}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => updateBoardUrl(i, e.target.value)}
-              />
-              <Button size="icon" variant="ghost" onClick={() => removeBoardUrl(i)}>
-                <X className="h-4 w-4" />
-              </Button>
+            <div key={i} className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Board URL {boardUrls.length > 1 ? i + 1 : ''}</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="https://boards.greenhouse.io/company or https://jobs.lever.co/company"
+                  value={url}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => updateBoardUrl(i, e.target.value)}
+                />
+                <Button size="icon" variant="ghost" onClick={() => removeBoardUrl(i)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           ))}
         </CardContent>
@@ -194,7 +194,7 @@ export default function SearchPage() {
       <Button
         onClick={handleSearch}
         disabled={isPending}
-        className="h-10 px-8 text-sm font-medium w-full md:w-auto"
+        className="h-10 px-8 text-sm font-medium w-full"
       >
         <Search className="mr-2 h-4 w-4" />
         {isPending ? 'Scraping...' : 'Start Auto-Search'}
