@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
         sources: body.sources,
         boardUrls: body.boardUrls,
         limit: body.limit ?? 50,
+        datePosted: body.datePosted,
       });
       return NextResponse.json({ success: true, ...result });
     }
@@ -26,6 +27,7 @@ export async function POST(req: NextRequest) {
       location: body.location,
       remote: body.remote,
       boardUrls: body.boardUrls,
+      datePosted: body.datePosted,
     });
     return NextResponse.json({ success: true, ...result });
   } catch (err) {

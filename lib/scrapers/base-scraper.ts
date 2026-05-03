@@ -19,6 +19,7 @@ export interface JobFilters {
   location?: string;
   remote?: string;
   limit?: number;
+  datePosted?: string; // '1d', '3d', '7d', '30d', 'all'
 }
 
 export abstract class BaseScraper {

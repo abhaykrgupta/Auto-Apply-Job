@@ -19,7 +19,7 @@ export default function JobsPage() {
   const [tailorJob, setTailorJob] = useState<{ id: string; title: string; company: string } | null>(null);
   const qc = useQueryClient();
 
-  const { mutate: applyJob, isPending: applying } = useMutation({
+  const { mutate: applyJob, isPending: applying, variables: applyingId } = useMutation({
     mutationFn: async (jobId: string) => {
       const res = await fetch(`/api/jobs/${jobId}/apply`, {
         method: 'POST',
@@ -100,11 +100,11 @@ export default function JobsPage() {
                         size="sm"
                         variant="default"
                         onClick={() => applyJob(job.id)}
-                        disabled={applying}
+                        disabled={applying && applyingId === job.id}
                         className="gap-1"
                       >
-                        <Send className="h-3 w-3" />
-                        Apply
+                        {applying && applyingId === job.id ? <LoadingSpinner size="sm" fullPage={false} /> : <Send className="h-3 w-3" />}
+                        {applying && applyingId === job.id ? 'Applying...' : 'Apply'}
                       </Button>
                       <a
                         href={job.applyUrl}

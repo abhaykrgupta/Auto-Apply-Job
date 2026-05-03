@@ -25,6 +25,7 @@ export default function SearchPage() {
   const [role, setRole] = useState('');
   const [location, setLocation] = useState('');
   const [remote, setRemote] = useState('any');
+  const [datePosted, setDatePosted] = useState('all');
   const [boardUrls, setBoardUrls] = useState<string[]>(['']);
   const [selectedSources, setSelectedSources] = useState<string[]>(['remoteok', 'weworkremotely']);
 
@@ -66,6 +67,7 @@ export default function SearchPage() {
         boardUrls: validUrls,
         sources: useSources ? selectedSources : undefined,
         query: role,
+        datePosted: datePosted === 'all' ? undefined : datePosted,
       } as any,
       {
         onSuccess: (data: any) => {
@@ -93,7 +95,7 @@ export default function SearchPage() {
           <CardTitle>Search Filters</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-1.5">
               <Label>Job Title / Role</Label>
               <Input
@@ -114,13 +116,28 @@ export default function SearchPage() {
               <Label>Remote Preference</Label>
               <Select value={remote} onValueChange={(v) => setRemote(v ?? 'any')}>
                 <SelectTrigger className="w-full">
-                  <SelectValue />
+                  <SelectValue placeholder="Select preference" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="any">Any</SelectItem>
                   <SelectItem value="remote">Remote Only</SelectItem>
                   <SelectItem value="hybrid">Hybrid</SelectItem>
                   <SelectItem value="onsite">On-site</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Date Posted</Label>
+              <Select value={datePosted} onValueChange={(v) => setDatePosted(v ?? 'all')}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select date range" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any Time</SelectItem>
+                  <SelectItem value="1d">Past 24 Hours</SelectItem>
+                  <SelectItem value="2d">Past 48 Hours</SelectItem>
+                  <SelectItem value="7d">Past Week</SelectItem>
+                  <SelectItem value="30d">Past Month</SelectItem>
                 </SelectContent>
               </Select>
             </div>

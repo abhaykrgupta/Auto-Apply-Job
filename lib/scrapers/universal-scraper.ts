@@ -35,6 +35,7 @@ export interface UniversalScrapeFilters {
   sources?: ScraperSource[];
   boardUrls?: string[];
   limit?: number;
+  datePosted?: string;
 }
 
 export interface UniversalScrapeResult {
@@ -55,6 +56,7 @@ export class UniversalScraper {
       location: filters.location,
       remote: filters.remote ? 'remote' : undefined,
       limit: filters.limit ?? 50,
+      datePosted: filters.datePosted,
     };
 
     for (const source of sources) {
@@ -103,13 +105,33 @@ export class UniversalScraper {
       }
     }
 
-    const unique = this.deduplicate(allJobs);
+    let filteredJobs = allJobs;
+    if (filters.datePosted) {
+      const now = new Date().getTime();
+      const msPerDay = 24 * 60 * 60 * 1000;
+      let maxAgeDays = 365;
+
+      switch (filters.datePosted) {
+        case '1d': maxAgeDays = 1; break;
+        case '2d': maxAgeDays = 2; break;
+        case '7d': maxAgeDays = 7; break;
+        case '30d': maxAgeDays = 30; break;
+      }
+
+      filteredJobs = allJobs.filter((j) => {
+        if (!j.postedAt) return true; // Keep if date is unknown
+        const ageDays = (now - j.postedAt.getTime()) / msPerDay;
+        return ageDays <= maxAgeDays;
+      });
+    }
+
+    const unique = this.deduplicate(filteredJobs);
     const saved = await this.saveJobs(unique);
 
-    logger.info({ total: allJobs.length, unique: unique.length, saved }, 'Universal scrape complete');
+    logger.info({ total: allJobs.length, filtered: filteredJobs.length, unique: unique.length, saved }, 'Universal scrape complete');
 
     return {
-      total: allJobs.length,
+      total: filteredJobs.length,
       unique: unique.length,
       saved,
       bySource,

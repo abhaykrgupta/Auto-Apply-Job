@@ -190,7 +190,7 @@ export default function SettingsPage() {
             <Label>Max Concurrent Applications</Label>
             <Select value={String(s.maxConcurrent)} onValueChange={(v) => set('maxConcurrent', parseInt(v ?? '3'))}>
               <SelectTrigger className="w-full">
-                <SelectValue />
+                <SelectValue placeholder="Select max concurrent" />
               </SelectTrigger>
               <SelectContent>
                 {[1, 3, 5, 10].map((n) => (
@@ -258,7 +258,7 @@ export default function SettingsPage() {
             <Label>Remote Preference</Label>
             <Select value={s.remotePreference} onValueChange={(v) => set('remotePreference', v ?? 'any')}>
               <SelectTrigger className="w-full">
-                <SelectValue />
+                <SelectValue placeholder="Select preference" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="any">Any</SelectItem>

@@ -19,7 +19,7 @@ export default function MatchesPage() {
   const { mutate: matchJobs, isPending: isMatching } = useMatchJobs();
   const qc = useQueryClient();
 
-  const { mutate: applyJob, isPending: applying } = useMutation({
+  const { mutate: applyJob, isPending: applying, variables: applyingId } = useMutation({
     mutationFn: async (jobId: string) => {
       const res = await fetch(`/api/jobs/${jobId}/apply`, {
         method: 'POST',
@@ -120,8 +120,8 @@ export default function MatchesPage() {
                   </div>
                   <div className="flex flex-col gap-2 shrink-0 min-w-[90px]">
                     <a href={m.job.applyUrl} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ size: 'sm' }))}>View Job</a>
-                    <Button onClick={() => applyJob(m.job.id)} disabled={applying} variant="outline" size="sm">
-                      Apply
+                    <Button onClick={() => applyJob(m.job.id)} disabled={applying && applyingId === m.job.id} variant="outline" size="sm" className="gap-1">
+                      {applying && applyingId === m.job.id ? 'Applying...' : 'Apply'}
                     </Button>
                   </div>
                 </div>

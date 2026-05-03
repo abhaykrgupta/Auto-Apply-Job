@@ -1,5 +1,7 @@
 import { cn } from '@/lib/utils';
 
+import { Bot } from 'lucide-react';
+
 interface LoadingSpinnerProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg';
@@ -7,24 +9,36 @@ interface LoadingSpinnerProps {
 }
 
 export function LoadingSpinner({ className, size = 'md', fullPage = true }: LoadingSpinnerProps) {
-  const sizeClasses = { sm: 'h-4 w-4 border-2', md: 'h-8 w-8 border-2', lg: 'h-12 w-12 border-3' };
+  const sizeClasses = { sm: 'h-4 w-4 border-2', md: 'h-8 w-8 border-[3px]', lg: 'h-12 w-12 border-[3px]' };
 
-  const spinner = (
-    <div className={cn(
-      'rounded-full border-muted border-t-primary animate-spin',
-      sizeClasses[size],
-      className
-    )} />
-  );
-
-  if (!fullPage) return spinner;
+  if (fullPage) {
+    return (
+      <div className="flex h-full min-h-[400px] w-full flex-col items-center justify-center gap-6">
+        <div className="relative flex items-center justify-center">
+          {/* Outer spinning rings */}
+          <div className="absolute h-20 w-20 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+          <div className="absolute h-16 w-16 rounded-full border-2 border-transparent border-b-primary/50 border-r-primary/50 animate-[spin_1.5s_linear_infinite_reverse]" />
+          {/* Inner pulsing icon */}
+          <div className="relative flex h-12 w-12 items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/30">
+            <Bot className="h-6 w-6 text-primary-foreground animate-pulse" />
+          </div>
+        </div>
+        <div className="flex flex-col items-center gap-1">
+          <p className="text-sm font-medium tracking-wide text-foreground">
+            Job Agent AI
+          </p>
+          <p className="text-xs text-muted-foreground animate-pulse">
+            Processing...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex h-full min-h-[400px] items-center justify-center w-full">
-      <div className="flex flex-col items-center gap-3">
-        {spinner}
-        <p className="text-sm text-muted-foreground animate-pulse">Loading...</p>
-      </div>
+    <div className={cn("relative flex items-center justify-center", className)}>
+      <div className={cn("absolute inset-0 rounded-full border-primary/20", sizeClasses[size])} />
+      <div className={cn("rounded-full border-primary border-t-transparent animate-spin", sizeClasses[size])} />
     </div>
   );
 }
