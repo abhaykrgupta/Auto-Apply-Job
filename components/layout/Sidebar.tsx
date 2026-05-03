@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 
-const navGroups = [
+export const navGroups = [
   {
     label: 'Overview',
     items: [
@@ -60,32 +60,31 @@ export function Sidebar() {
 
   return (
     <aside className={cn(
-      'flex h-full shrink-0 flex-col border-r border-border bg-card transition-all duration-200',
+      'hidden md:flex relative h-full shrink-0 flex-col border-r border-border bg-card transition-all duration-200',
       collapsed ? 'w-16' : 'w-64'
     )}>
+      {/* Toggle Button */}
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className="absolute -right-3 top-5 z-50 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background shadow-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+        aria-label="Toggle sidebar"
+      >
+        {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
+      </button>
+
       {/* Logo */}
-      <div className="flex h-16 items-center border-b border-border px-3 gap-2.5">
+      <div className={cn("flex h-16 shrink-0 items-center border-b border-border", collapsed ? "justify-center" : "px-3 gap-2.5")}>
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
           <Bot className="h-4 w-4 text-primary-foreground" />
         </div>
         {!collapsed && (
           <>
             <span className="text-base font-bold tracking-tight">Job Agent</span>
-            <span className="ml-auto flex h-5 items-center rounded-full bg-primary/10 px-1.5 text-[10px] font-semibold text-primary">
+            <span className="flex h-5 items-center rounded-full bg-primary/10 px-1.5 text-[10px] font-semibold text-primary">
               AI
             </span>
           </>
         )}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className={cn(
-            'ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors',
-            collapsed && 'mx-auto ml-0'
-          )}
-          aria-label="Toggle sidebar"
-        >
-          {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
-        </button>
       </div>
 
       {/* Nav */}

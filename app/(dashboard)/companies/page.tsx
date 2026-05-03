@@ -255,7 +255,8 @@ export default function CompaniesPage() {
           <div className="px-4 py-2 bg-muted text-xs text-muted-foreground border-b border-border">
             Showing {Math.min(filtered.length, 300)} of {filtered.length} companies
           </div>
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1000px] text-sm">
             <thead className="bg-muted/50">
               <tr>
                 <th className="p-3 text-left font-medium">Company</th>
@@ -323,7 +324,8 @@ export default function CompaniesPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
       )}
     </div>

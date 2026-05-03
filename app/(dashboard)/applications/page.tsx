@@ -31,7 +31,8 @@ export default function ApplicationsPage() {
         />
       ) : (
         <div className="rounded-lg border border-border overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[800px] text-sm">
             <thead className="bg-muted">
               <tr>
                 <th className="p-3 text-left font-medium">Job</th>
@@ -62,7 +63,8 @@ export default function ApplicationsPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
       )}
     </div>

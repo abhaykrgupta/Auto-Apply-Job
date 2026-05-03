@@ -60,21 +60,21 @@ export default function AnalyticsPage() {
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold">Analytics & Insights</h2>
           <p className="text-sm text-muted-foreground mt-1">Track your job search performance</p>
         </div>
-        <div className="flex gap-1 rounded-lg border border-border p-1">
+        <div className="flex gap-1 rounded-lg border border-border p-1 w-full md:w-auto bg-muted/20 overflow-x-auto">
           {RANGE_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               onClick={() => setRange(opt.value)}
               className={cn(
-                'px-3 py-1.5 text-sm rounded-full transition-colors',
+                'flex-1 md:flex-none whitespace-nowrap px-3 py-1.5 text-xs md:text-sm rounded-md transition-colors',
                 range === opt.value
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
               )}
             >
               {opt.label}
@@ -143,18 +143,20 @@ export default function AnalyticsPage() {
               <CardTitle>Job Match Distribution</CardTitle>
             </CardHeader>
             <CardContent className="pt-0 pb-6 px-6">
-              <div className="flex items-center gap-4">
-                <ResponsiveContainer width="60%" height={220}>
-                  <PieChart>
-                    <Pie data={pieData} cx="50%" cy="50%" outerRadius={80} dataKey="value">
-                      {pieData.map((_, i) => (
-                        <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="space-y-2">
+              <div className="flex flex-col md:flex-row items-center gap-4">
+                <div className="w-full md:w-[60%] h-[220px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={pieData} cx="50%" cy="50%" outerRadius={80} dataKey="value">
+                        {pieData.map((_, i) => (
+                          <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="space-y-2 w-full md:w-[40%]">
                   {pieData.map((d, i) => (
                     <div key={d.name} className="flex items-center gap-2 text-sm">
                       <div className="h-3 w-3 rounded-full" style={{ background: PIE_COLORS[i] }} />
@@ -162,7 +164,7 @@ export default function AnalyticsPage() {
                       <span className="font-semibold ml-auto">{d.value}</span>
                     </div>
                   ))}
-                  <div className="pt-2 border-t border-border">
+                  <div className="pt-2 border-t border-border mt-2">
                     <p className="text-xs text-muted-foreground">Avg Score</p>
                     <p className="text-2xl font-bold">{matchingStats.avgScore ?? 0}%</p>
                   </div>
