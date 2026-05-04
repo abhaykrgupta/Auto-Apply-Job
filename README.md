@@ -1,201 +1,160 @@
 <div align="center">
 
-# Job Agent AI Platform
+<br/>
 
-*Your Personal AI-Powered Career Copilot*
+# Job Agent AI
 
-[![Next.js](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue.svg)](https://typescriptlang.org)
-[![Supabase](https://img.shields.io/badge/Database-Supabase-green.svg)](https://supabase.com)
-[![OpenAI](https://img.shields.io/badge/AI-GPT--4o-purple.svg)](https://openai.com)
-[![Status](https://img.shields.io/badge/Status-Active-success.svg)]()
+### The autonomous job search platform that works while you sleep.
+
+<br/>
+
+[![Next.js](https://img.shields.io/badge/Next.js%2016-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
+[![OpenAI](https://img.shields.io/badge/GPT--4o-412991?style=for-the-badge&logo=openai&logoColor=white)](https://openai.com)
+[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
+
+<br/>
+
+*Stop manually searching job boards. Stop writing the same cover letter 50 times. Stop copy-pasting your resume into forms.*
+*Job Agent does all of it — automatically, intelligently, at scale.*
+
+<br/>
 
 </div>
 
 ---
 
-## Overview
+## What is this?
 
-Job Agent is a full-stack AI automation platform that handles the entire job search pipeline — from scraping listings across 8+ job boards, to generating tailored resumes and cover letters, to auto-submitting applications. Upload your resume, set your preferences, and let the agent work while you sleep.
+Job Agent is a personal AI career automation system. It continuously discovers jobs across the internet, ranks them against your profile, rewrites your application materials per company, and submits applications — all without you touching a single form.
 
----
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Framework | Next.js 16 (App Router, Turbopack) |
-| Language | TypeScript 5 |
-| Styling | Tailwind CSS v4 |
-| UI Components | ShadCN UI v4 |
-| Database | Supabase (PostgreSQL) |
-| ORM | Drizzle ORM + postgres.js |
-| AI | OpenAI GPT-4o |
-| State | TanStack Query v5 |
-| Charts | Recharts |
-| Automation | Playwright |
-| Email | Resend |
+You set your preferences once. The platform runs the entire job search pipeline for you.
 
 ---
 
-## Features
+## The Problem It Solves
 
-### Multi-Resume Smart Selection
-Upload multiple resumes (e.g. "Frontend", "Backend", "Fullstack"). When applying to any job, the platform automatically scores each active resume against the job description using keyword matching and picks the best one — no API calls, runs in under 1ms per resume. You can label, activate/deactivate, and delete resumes individually.
+The average job seeker spends **11 hours per week** on repetitive application tasks — searching the same boards daily, copy-pasting the same resume, writing near-identical cover letters, and manually tracking status in spreadsheets.
 
-### Job Search — 8+ Sources
-Search across RemoteOK, WeWorkRemotely, Indeed, LinkedIn, Glassdoor, Greenhouse, and Lever simultaneously. Filters include role, location, remote preference, date posted, and experience level (Fresher, 1–2 yrs, 2–3 yrs, 3–5 yrs, 5–7 yrs, Senior, or custom). Add specific Greenhouse/Lever board URLs for direct scraping.
+None of that work requires human judgment. Job Agent automates all of it.
 
-### Saved Searches
-Save any combination of search filters with a name. Reload them instantly with one click — useful when searching for multiple different role types regularly.
+---
 
-### AI Resume Tailoring
-One click rewrites your resume for a specific job using GPT-4o — highlighting the exact skills and keywords the employer is looking for.
+## Core Capabilities
 
-### AI Cover Letter Generator
-Generate a tailored, professional cover letter for any job in seconds. Copy to clipboard or regenerate as many times as you want.
+<br/>
+
+### Intelligent Multi-Source Job Discovery
+Simultaneously searches RemoteOK, WeWorkRemotely, Indeed, LinkedIn, Glassdoor, Greenhouse, and Lever with a single query. Filters by role, location, remote preference, date posted, and experience level. Every result is deduplicated and stored — you never see the same job twice.
+
+<br/>
+
+### Smart Resume Selection
+Upload multiple versions of your resume — one for frontend roles, one for backend, one for leadership. When applying to any job, the platform automatically scores each resume against the job description and selects the most relevant one. No manual switching. No guesswork. Every application goes out with the resume most likely to pass screening.
+
+<br/>
+
+### AI-Powered Resume Tailoring
+Your master resume is rewritten for each specific job using GPT-4o. The AI restructures your experience, brings forward the most relevant skills, and mirrors the language in the job description — so your resume looks like it was written for that role specifically, not adapted from a generic template.
+
+<br/>
+
+### AI Cover Letter Generation
+A tailored, professional cover letter for any job in seconds. The AI reads the job description, understands what the company values, and writes something genuine — not a template with your name swapped in. Regenerate as many times as you want until it's right.
+
+<br/>
+
+### Autonomous Application Engine
+The platform navigates job application forms, fills in your details, attaches the right resume, and submits — powered by browser automation. Applications go out 24/7 without you sitting at a computer.
+
+<br/>
 
 ### Batch Apply
-Select multiple jobs with checkboxes, then apply to all of them at once. Each job independently gets the best-matching resume via Smart Selection.
+Select any number of jobs from your list and apply to all of them in one click. Smart Resume Selection runs independently per job — each application gets the best-fit resume automatically.
 
-### Application Tracker
-Full pipeline view of every application — status from `pending` → `applied` → `interviewing` → `accepted`/`rejected`. Click any application for the detail view with status management buttons. Export all applications as CSV.
+<br/>
 
-### Analytics Dashboard
-- Applications over time (line chart)
-- Status breakdown (pie chart)
-- Response rate by job source — see which board actually replies
-- Best day of week to apply — combo bar + line chart showing application count vs response rate
+### Saved Searches
+Save your exact search configuration — role, location, filters, sources — with a name. Switch between job types instantly. Useful when you're open to multiple tracks (e.g. "Senior Frontend" and "Founding Engineer") without re-entering everything each time.
 
-### Duplicate Job Detector
-Jobs are deduplicated at the database level during every scrape. Same job from the same source is silently skipped — your jobs list stays clean.
+<br/>
 
-### Chrome Extension — LinkedIn Easy Apply Bot
-A Manifest v3 Chrome extension that watches for LinkedIn Easy Apply modals and automatically fills in phone number, location, work authorization (Yes), and visa sponsorship (No). Shows a brief confirmation badge when it fills a form. Set up your profile details once in the extension popup.
+### Full Application Pipeline Tracker
+Every application is tracked from the moment it's submitted — through screening, interview, offer, and outcome. Update statuses manually or let the automation update them. Export your entire history as a CSV at any time.
 
----
+<br/>
 
-## Getting Started
+### Analytics That Actually Help
+Understand where your search is working and where it isn't. See response rates broken down by job board — so you know which sources are worth your time. See which days of the week yield the highest response rates. Make decisions based on your own data, not generic career advice.
 
-### 1. Prerequisites
+<br/>
 
-- Node.js 20+
-- A [Supabase](https://supabase.com) project (free tier works)
-- An [OpenAI](https://platform.openai.com) API key (GPT-4o access)
-- A [Resend](https://resend.com) API key (for email notifications, optional)
-
-### 2. Install dependencies
-
-```bash
-cd job-agent
-npm install
-```
-
-### 3. Configure environment
-
-Create `.env.local` in the `job-agent` directory:
-
-```env
-# Supabase — use the Transaction Pooler URL (port 6543) from Connect > ORM tab
-DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-1-[region].pooler.supabase.com:6543/postgres
-
-NEXT_PUBLIC_SUPABASE_URL=https://[project-ref].supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
-
-# OpenAI
-OPENAI_API_KEY=sk-...
-
-# Resend (optional — for email notifications)
-RESEND_API_KEY=re_...
-USER_EMAIL=you@example.com
-
-# Telegram (optional — for Telegram notifications)
-TELEGRAM_BOT_TOKEN=...
-TELEGRAM_CHAT_ID=...
-```
-
-### 4. Push database schema
-
-```bash
-npx tsx scripts/create-saved-searches.ts
-npx tsx scripts/add-resume-label.ts
-npm run db:push
-```
-
-> Note: If `db:push` fails with a constraint parsing error (known drizzle-kit bug on some Supabase plans), the migration scripts above handle the required tables directly.
-
-### 5. Start the dev server
-
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000).
+### LinkedIn Easy Apply Chrome Extension
+A browser extension that detects LinkedIn's Easy Apply modal and auto-fills your details — phone, location, work authorization, visa status. Set your profile once in the extension. Every Easy Apply form is handled automatically from that point forward.
 
 ---
 
-## Usage Flow
+## How It Works
 
-1. **Upload resume** — go to `/resume`, upload a PDF. AI parses skills, experience, and education automatically. Upload multiple resumes and label them.
+**Step 1 — Set up your profile**
+Upload your resume. The AI extracts your skills, experience, and background. Upload multiple versions if you're targeting different role types. Label each one and set which are active.
 
-2. **Search for jobs** — go to `/search`, enter a role, select sources and filters, click Start Auto-Search. Jobs are saved to your database.
+**Step 2 — Define your search**
+Choose your target role, preferred locations, experience level, remote preference, and which job boards to search. Save the configuration if you want to run it regularly.
 
-3. **Review jobs** — go to `/jobs`, browse the table. Click Tailor to rewrite your resume for that role, Letter to generate a cover letter, or Apply to auto-submit.
+**Step 3 — Run the search**
+Hit search. The platform scrapes all selected sources simultaneously, deduplicates results, and populates your job list in seconds.
 
-4. **Batch apply** — check multiple jobs and use the sticky Apply bar at the bottom to apply to all at once.
+**Step 4 — Apply**
+Apply to individual jobs with one click, or select multiple and batch apply. For each job, the best-matching resume is selected automatically. Cover letters and tailored resumes are generated on demand.
 
-5. **Track progress** — go to `/applications` to see all applications and update statuses. Export as CSV anytime.
-
-6. **Analyze** — go to `/analytics` to see response rates by source and the best days to apply.
-
----
-
-## Chrome Extension
-
-1. Open Chrome and go to `chrome://extensions`
-2. Enable **Developer Mode** (top right)
-3. Click **Load unpacked** → select the `chrome-extension/` folder
-4. Click the extension icon → enter your phone number and location
-5. Go to LinkedIn → open any Easy Apply job → the extension auto-fills the form
+**Step 5 — Track and analyze**
+Monitor your pipeline on the Applications page. Watch your response rates by source and by day on the Analytics page. Iterate on your search strategy based on real data.
 
 ---
 
-## Project Structure
+## Setup
 
-```
-job-agent/
-├── app/
-│   ├── (dashboard)/          # All main pages (resume, jobs, search, analytics, etc.)
-│   └── api/                  # API routes
-│       ├── jobs/             # Scrape, apply, batch-apply, cover-letter, tailor
-│       ├── resume/           # Upload, parse, PATCH (label/active), DELETE
-│       ├── applications/     # List, detail, status update
-│       ├── saved-searches/   # CRUD for saved search filters
-│       └── analytics/        # Stats aggregation
-├── lib/
-│   ├── db/                   # Drizzle schema + queries
-│   ├── scrapers/             # Job board scrapers (Greenhouse, Lever, universal)
-│   ├── openai/               # Resume parsing, matching, tailoring, cover letters
-│   ├── analytics/            # Analytics engine
-│   ├── automation/           # Playwright auto-apply engine
-│   └── utils/
-│       ├── resume-matcher.ts # Fast keyword-based resume scoring
-│       └── file-upload.ts    # Resume file handling
-├── components/
-│   ├── layout/               # Sidebar, Header
-│   ├── jobs/                 # CoverLetterModal
-│   ├── resume/               # TailoredResumeModal
-│   └── ui/                   # ShadCN components
-└── chrome-extension/         # LinkedIn Easy Apply bot
-```
+You need accounts with three services — all have free tiers:
+
+- **[Supabase](https://supabase.com)** — the database
+- **[OpenAI](https://platform.openai.com)** — GPT-4o for all AI features
+- **[Resend](https://resend.com)** — email notifications (optional)
+
+Once you have your API keys, install dependencies, add them to your environment configuration file, initialize the database, and start the development server. The full setup takes under 10 minutes.
+
+For the Chrome extension — load it as an unpacked extension from the `chrome-extension` folder in Chrome's developer mode, enter your details in the popup once, and it will handle LinkedIn Easy Apply forms automatically from then on.
 
 ---
 
-## Available Scripts
+## Platform Modules
 
-```bash
-npm run dev          # Start development server
-npm run build        # Production build
-npm run db:push      # Push schema changes to database
-npm run db:studio    # Open Drizzle Studio (database GUI)
-```
+| Module | What it does |
+|---|---|
+| **Dashboard** | Live overview — active applications, recent matches, pipeline health |
+| **Resume Manager** | Upload, label, activate/deactivate, and delete resumes. AI parses each one automatically |
+| **Search** | Multi-source job discovery with filters and saved search configurations |
+| **All Jobs** | Full table of discovered jobs with apply, tailor, cover letter, and batch select actions |
+| **AI Matches** | Jobs ranked by compatibility score against your resume |
+| **Applications** | Full pipeline tracker with status management and CSV export |
+| **Analytics** | Response rates, application trends, best days to apply |
+| **Settings** | Notification preferences, automation limits, application criteria |
+| **Companies** | Track target companies, career pages, and hiring activity |
+
+---
+
+## Built With
+
+Next.js · TypeScript · Tailwind CSS · ShadCN UI · Supabase · Drizzle ORM · OpenAI GPT-4o · TanStack Query · Recharts · Playwright · Resend
+
+---
+
+<div align="center">
+
+<br/>
+
+*Built for people who treat their job search like a system, not a prayer.*
+
+<br/>
+
+</div>
