@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { applications, jobs, jobMatches } from '@/lib/db/schema';
-import { gte, eq, desc } from 'drizzle-orm';
+import { gte, eq } from 'drizzle-orm';
 
 export type TimeRange = 'week' | 'month' | 'all';
 
@@ -15,14 +15,16 @@ export class AnalyticsEngine {
   async getAdvancedStats(timeRange: TimeRange = 'week') {
     const since = getTimeRangeDate(timeRange);
 
-    const [appStats, platformStats, matchingStats, trends] = await Promise.all([
+    const [appStats, platformStats, matchingStats, trends, responseRateBySource, bestTimeData] = await Promise.all([
       this.getApplicationStats(since),
       this.getPlatformStats(since),
       this.getMatchingStats(since),
       this.getTrends(since),
+      this.getResponseRateBySource(since),
+      this.getBestTimeToApply(since),
     ]);
 
-    return { appStats, platformStats, matchingStats, trends };
+    return { appStats, platformStats, matchingStats, trends, responseRateBySource, bestTimeData };
   }
 
   private async getApplicationStats(since: Date) {
@@ -112,5 +114,69 @@ export class AnalyticsEngine {
     }
 
     return Object.values(byDate);
+  }
+
+  private async getResponseRateBySource(since: Date) {
+    const rows = await db
+      .select({
+        status: applications.status,
+        source: jobs.source,
+      })
+      .from(applications)
+      .leftJoin(jobs, eq(applications.jobId, jobs.id))
+      .where(gte(applications.createdAt, since));
+
+    const bySource: Record<string, { total: number; responded: number }> = {};
+
+    for (const row of rows) {
+      const src = row.source ?? 'unknown';
+      if (!bySource[src]) bySource[src] = { total: 0, responded: 0 };
+      bySource[src].total++;
+      if (row.status === 'interviewing' || row.status === 'accepted' || row.status === 'rejected') {
+        bySource[src].responded++;
+      }
+    }
+
+    // responseRateBySource: { source, total, responded, rate }[]
+    return Object.entries(bySource).map(([source, s]) => ({
+      source,
+      total: s.total,
+      responded: s.responded,
+      rate: s.total > 0 ? Math.round((s.responded / s.total) * 100) : 0,
+    }));
+  }
+
+  private async getBestTimeToApply(since: Date) {
+    const rows = await db
+      .select({ status: applications.status, appliedAt: applications.createdAt })
+      .from(applications)
+      .where(gte(applications.createdAt, since));
+
+    const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    // Index 0=Sun … 6=Sat, but we want Mon-Sun order for display
+    const ORDER = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    const byDay: Record<string, { applications: number; responses: number }> = {};
+    for (const label of ORDER) byDay[label] = { applications: 0, responses: 0 };
+
+    for (const row of rows) {
+      if (!row.appliedAt) continue;
+      const dayIndex = row.appliedAt.getDay(); // 0=Sun
+      const label = DAY_LABELS[dayIndex];
+      byDay[label].applications++;
+      if (row.status === 'interviewing' || row.status === 'accepted' || row.status === 'rejected') {
+        byDay[label].responses++;
+      }
+    }
+
+    // bestTimeData: { day, applications, responses, rate }[] ordered Mon-Sun
+    return ORDER.map((day) => ({
+      day,
+      applications: byDay[day].applications,
+      responses: byDay[day].responses,
+      rate: byDay[day].applications > 0
+        ? Math.round((byDay[day].responses / byDay[day].applications) * 100)
+        : 0,
+    }));
   }
 }

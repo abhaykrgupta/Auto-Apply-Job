@@ -6,6 +6,7 @@ import {
   Line,
   BarChart,
   Bar,
+  ComposedChart,
   PieChart,
   Pie,
   Cell,
@@ -50,6 +51,8 @@ export default function AnalyticsPage() {
   const platformStats: any[] = data?.platformStats ?? [];
   const matchingStats = data?.matchingStats ?? {};
   const trends: any[] = data?.trends ?? [];
+  const responseRateBySource: any[] = data?.responseRateBySource ?? [];
+  const bestTimeData: any[] = data?.bestTimeData ?? [];
 
   const pieData = [
     { name: 'High (80%+)', value: matchingStats.highMatches ?? 0 },
@@ -214,6 +217,53 @@ export default function AnalyticsPage() {
           ))}
         </CardContent>
       </Card>
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {/* Response Rate by Source */}
+        <Card className="rounded-xl shadow-sm">
+          <CardHeader>
+            <CardTitle>Response Rate by Source</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 pb-6 px-6">
+            {responseRateBySource.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={responseRateBySource}>
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                  <XAxis dataKey="source" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} domain={[0, 100]} unit="%" />
+                  <Tooltip formatter={(v) => [`${v}%`, 'Response Rate']} />
+                  <Bar dataKey="rate" fill="var(--chart-3, #10b981)" radius={[4, 4, 0, 0]} name="Response Rate" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">
+                No response data yet.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Best Day to Apply */}
+        <Card className="rounded-xl shadow-sm">
+          <CardHeader>
+            <CardTitle>Best Day to Apply</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 pb-6 px-6">
+            <ResponsiveContainer width="100%" height={250}>
+              <ComposedChart data={bestTimeData}>
+                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
+                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} unit="%" domain={[0, 100]} />
+                <Tooltip />
+                <Legend />
+                <Bar yAxisId="left" dataKey="applications" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Applications" />
+                <Line yAxisId="right" type="monotone" dataKey="rate" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} name="Response Rate %" />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

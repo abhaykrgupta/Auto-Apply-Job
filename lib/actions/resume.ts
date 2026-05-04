@@ -18,7 +18,6 @@ export async function uploadResume(formData: FormData) {
 
   const { filePath, fileUrl } = await saveUploadedFile(buffer, file.name);
 
-  // Get or create default profile
   let [existingProfile] = await db.select().from(profile).limit(1);
   if (!existingProfile) {
     [existingProfile] = await db
@@ -27,15 +26,16 @@ export async function uploadResume(formData: FormData) {
       .returning();
   }
 
-  // Extract text from PDF, then parse with AI
   let parsedData = null;
   try {
     const pdf = await pdfParse(buffer);
-    const fileContent = pdf.text;
-    parsedData = await parseResume(fileContent);
+    parsedData = await parseResume(pdf.text);
   } catch (e) {
     console.error('[uploadResume] parse failed:', e);
   }
+
+  // Use filename (without extension) as default label
+  const baseName = file.name.replace(/\.[^.]+$/, '');
 
   const [resume] = await db
     .insert(resumes)
@@ -45,6 +45,7 @@ export async function uploadResume(formData: FormData) {
       filePath,
       fileUrl,
       parsedData,
+      label: baseName,
       isActive: true,
     })
     .returning();
@@ -57,6 +58,10 @@ export async function getResumes() {
   return db.select().from(resumes).orderBy(resumes.createdAt);
 }
 
+export async function getActiveResumes() {
+  return db.select().from(resumes).where(eq(resumes.isActive, true));
+}
+
 export async function getResumeById(id: string) {
   const [resume] = await db.select().from(resumes).where(eq(resumes.id, id));
   return resume;
@@ -67,8 +72,12 @@ export async function deleteResume(id: string) {
   revalidatePath('/resume');
 }
 
-export async function setActiveResume(id: string) {
-  await db.update(resumes).set({ isActive: false });
-  await db.update(resumes).set({ isActive: true }).where(eq(resumes.id, id));
+export async function toggleResumeActive(id: string, isActive: boolean) {
+  await db.update(resumes).set({ isActive, updatedAt: new Date() }).where(eq(resumes.id, id));
+  revalidatePath('/resume');
+}
+
+export async function updateResumeLabel(id: string, label: string) {
+  await db.update(resumes).set({ label: label.trim() || null, updatedAt: new Date() }).where(eq(resumes.id, id));
   revalidatePath('/resume');
 }

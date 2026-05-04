@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useScrapeJobs } from '@/lib/hooks/use-jobs';
 import { toast } from 'sonner';
-import { Search, Plus, X, Zap } from 'lucide-react';
+import { Search, Plus, X, Zap, Bookmark, Play } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const ALL_SOURCES = [
   { id: 'remoteok', label: 'RemoteOK' },
@@ -26,8 +27,85 @@ export default function SearchPage() {
   const [location, setLocation] = useState('');
   const [remote, setRemote] = useState('any');
   const [datePosted, setDatePosted] = useState('all');
+  const [experience, setExperience] = useState('any');
+  const [customExp, setCustomExp] = useState('');
   const [boardUrls, setBoardUrls] = useState<string[]>(['']);
   const [selectedSources, setSelectedSources] = useState<string[]>(['remoteok', 'weworkremotely']);
+  const [savingName, setSavingName] = useState('');
+  const [showSaveInput, setShowSaveInput] = useState(false);
+
+  const qc = useQueryClient();
+
+  const { data: savedSearchesList = [] } = useQuery<any[]>({
+    queryKey: ['saved-searches'],
+    queryFn: () => fetch('/api/saved-searches').then((r) => r.json()),
+  });
+
+  const { mutate: saveSearch, isPending: isSaving } = useMutation({
+    mutationFn: async (name: string) => {
+      const validUrls = boardUrls.filter((u) => u.trim().length > 0);
+      const body = {
+        name,
+        role,
+        location,
+        remote,
+        sources: selectedSources,
+        experience: experience === 'any' ? null : experience === 'custom' ? customExp.trim() : experience,
+        datePosted,
+        boardUrls: validUrls,
+      };
+      const res = await fetch('/api/saved-searches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Save failed');
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success('Search saved!');
+      setSavingName('');
+      setShowSaveInput(false);
+      qc.invalidateQueries({ queryKey: ['saved-searches'] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const { mutate: deleteSearch } = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch('/api/saved-searches', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Delete failed');
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['saved-searches'] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  function loadSavedSearch(s: any) {
+    if (s.role) setRole(s.role);
+    if (s.location) setLocation(s.location);
+    if (s.remote) setRemote(s.remote);
+    if (s.datePosted) setDatePosted(s.datePosted);
+    if (s.sources && Array.isArray(s.sources)) setSelectedSources(s.sources);
+    if (s.boardUrls && Array.isArray(s.boardUrls) && s.boardUrls.length > 0) {
+      setBoardUrls(s.boardUrls);
+    }
+    if (s.experience) {
+      const knownValues = ['any', 'fresher', '1-2', '2-3', '3-5', '5-7', 'senior'];
+      if (knownValues.includes(s.experience)) {
+        setExperience(s.experience);
+      } else {
+        setExperience('custom');
+        setCustomExp(s.experience);
+      }
+    }
+  }
 
   function toggleSource(id: string) {
     setSelectedSources((prev) =>
@@ -59,6 +137,8 @@ export default function SearchPage() {
       return;
     }
 
+    const expValue = experience === 'custom' ? customExp.trim() : experience === 'any' ? undefined : experience;
+
     scrapeJobs(
       {
         role,
@@ -68,6 +148,7 @@ export default function SearchPage() {
         sources: useSources ? selectedSources : undefined,
         query: role,
         datePosted: datePosted === 'all' ? undefined : datePosted,
+        experience: expValue,
       } as any,
       {
         onSuccess: (data: any) => {
@@ -90,12 +171,76 @@ export default function SearchPage() {
         </p>
       </div>
 
+      {/* Saved Searches */}
+      {(savedSearchesList.length > 0 || role.trim()) && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground shrink-0">
+            <Bookmark className="h-3.5 w-3.5" />
+            <span>Saved:</span>
+          </div>
+          <div className="flex items-center gap-2 overflow-x-auto flex-1 min-w-0 pb-0.5">
+            {savedSearchesList.map((s: any) => (
+              <div
+                key={s.id}
+                className="flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-sm shrink-0"
+              >
+                <span className="max-w-[160px] truncate">{s.name}</span>
+                <button
+                  onClick={() => { loadSavedSearch(s); toast.info(`Loaded "${s.name}"`); }}
+                  className="ml-1 rounded p-0.5 hover:text-primary transition-colors"
+                  title="Load this search"
+                >
+                  <Play className="h-3 w-3" />
+                </button>
+                <button
+                  onClick={() => deleteSearch(s.id)}
+                  className="rounded p-0.5 hover:text-destructive transition-colors"
+                  title="Delete"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+          {role.trim() && (
+            <div className="flex items-center gap-2 shrink-0">
+              {showSaveInput ? (
+                <>
+                  <Input
+                    className="h-8 w-40 text-sm"
+                    placeholder="Search name..."
+                    value={savingName}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setSavingName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && savingName.trim()) saveSearch(savingName.trim()); }}
+                    autoFocus
+                  />
+                  <Button
+                    size="sm"
+                    disabled={!savingName.trim() || isSaving}
+                    onClick={() => saveSearch(savingName.trim())}
+                  >
+                    Save
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setShowSaveInput(false); setSavingName(''); }}>
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </>
+              ) : (
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowSaveInput(true)}>
+                  <Bookmark className="h-3.5 w-3.5" /> Save Search
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <Card className="rounded-xl border border-border bg-card shadow-sm">
         <CardHeader>
           <CardTitle>Search Filters</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-1.5">
               <Label>Job Title / Role</Label>
               <Input
@@ -141,6 +286,44 @@ export default function SearchPage() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Experience Level */}
+          <div className="space-y-2">
+            <Label>Experience Level</Label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: 'any',      label: 'Any' },
+                { value: 'fresher',  label: 'Fresher' },
+                { value: '1-2',      label: '1–2 yrs' },
+                { value: '2-3',      label: '2–3 yrs' },
+                { value: '3-5',      label: '3–5 yrs' },
+                { value: '5-7',      label: '5–7 yrs' },
+                { value: 'senior',   label: 'Senior (7+)' },
+                { value: 'custom',   label: '✏ Custom' },
+              ].map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setExperience(value)}
+                  className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                    experience === value
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'border-border text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {experience === 'custom' && (
+              <Input
+                className="mt-2 max-w-xs"
+                placeholder="e.g. 4 years, 6-8 yrs, 10+"
+                value={customExp}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setCustomExp(e.target.value)}
+              />
+            )}
           </div>
         </CardContent>
       </Card>

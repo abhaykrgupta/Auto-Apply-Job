@@ -115,3 +115,67 @@
     }, 8000);
   }
 })();
+
+// ── LinkedIn Easy Apply Bot ──────────────────────────────────
+function initLinkedInEasyApply() {
+  if (!window.location.href.includes('linkedin.com/jobs')) return;
+
+  // Watch for Easy Apply modal to open
+  const observer = new MutationObserver(() => {
+    const modal = document.querySelector('.jobs-easy-apply-modal, [data-test-modal="easy-apply-modal"]');
+    if (modal && !modal.dataset.jobAgentProcessed) {
+      modal.dataset.jobAgentProcessed = 'true';
+      handleEasyApplyModal(modal);
+    }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+}
+
+function handleEasyApplyModal(modal) {
+  // Get stored profile from chrome storage
+  chrome.storage.local.get(['profile', 'apiUrl'], (data) => {
+    if (!data.profile) return;
+    const profile = data.profile;
+
+    // Fill phone number if field exists
+    const phoneField = modal.querySelector('input[id*="phoneNumber"], input[name*="phone"]');
+    if (phoneField && profile.phone && !phoneField.value) {
+      phoneField.value = profile.phone;
+      phoneField.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    // Fill city/location if field exists
+    const cityField = modal.querySelector('input[id*="city"], input[name*="location"]');
+    if (cityField && profile.location && !cityField.value) {
+      cityField.value = profile.location;
+      cityField.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    // Handle radio buttons for common questions (yes/no)
+    const radioGroups = modal.querySelectorAll('fieldset');
+    radioGroups.forEach((group) => {
+      const label = group.querySelector('legend, label')?.textContent?.toLowerCase() ?? '';
+      // Auto-select "Yes" for authorization/eligible to work questions
+      if (label.includes('authorized') || label.includes('eligible') || label.includes('legally')) {
+        const yesRadio = group.querySelector('input[value="Yes"], input[value="true"]');
+        if (yesRadio) { yesRadio.checked = true; yesRadio.dispatchEvent(new Event('change', { bubbles: true })); }
+      }
+      // Auto-select "No" for sponsorship questions
+      if (label.includes('sponsorship') || label.includes('visa')) {
+        const noRadio = group.querySelector('input[value="No"], input[value="false"]');
+        if (noRadio) { noRadio.checked = true; noRadio.dispatchEvent(new Event('change', { bubbles: true })); }
+      }
+    });
+
+    // Inject floating hint badge
+    const badge = document.createElement('div');
+    badge.style.cssText = 'position:absolute;top:8px;right:48px;background:#4f46e5;color:white;font-size:11px;padding:3px 8px;border-radius:20px;z-index:9999;font-family:sans-serif;';
+    badge.textContent = '🤖 Job Agent filled';
+    modal.style.position = 'relative';
+    modal.appendChild(badge);
+    setTimeout(() => badge.remove(), 3000);
+  });
+}
+
+// Init on page load
+initLinkedInEasyApply();

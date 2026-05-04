@@ -28,16 +28,19 @@ export async function getApplicationById(id: string) {
   return result;
 }
 
-export async function createApplication(jobId: string, resumeId: string) {
+export async function createApplication(jobId: string, resumeId: string, resumeMatchScore?: number) {
+  const meta = resumeMatchScore !== undefined ? { resumeMatchScore } : undefined;
   const [app] = await db
     .insert(applications)
-    .values({ jobId, resumeId, status: 'pending', method: 'auto' })
+    .values({ jobId, resumeId, status: 'pending', method: 'auto', metadata: meta })
     .returning();
 
   await db.insert(applicationLogs).values({
     applicationId: app.id,
     level: 'info',
-    message: 'Application created, pending processing.',
+    message: resumeMatchScore !== undefined
+      ? `Application created. Resume match score: ${resumeMatchScore}%`
+      : 'Application created, pending processing.',
   });
 
   revalidatePath('/applications');

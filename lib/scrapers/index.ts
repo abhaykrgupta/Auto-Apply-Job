@@ -10,6 +10,7 @@ export interface ScrapeConfig {
   location?: string;
   remote?: string;
   boardUrls?: string[];
+  datePosted?: string;
 }
 
 export async function scrapeAndSaveJobs(config: ScrapeConfig) {

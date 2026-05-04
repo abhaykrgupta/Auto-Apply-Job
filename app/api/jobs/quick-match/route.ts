@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { resumes } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
 import { scoreJobMatch } from '@/lib/openai/job-matcher';
+import { getActiveResumes, getResumes } from '@/lib/actions/resume';
+import { pickBestResume } from '@/lib/utils/resume-matcher';
 
 // Called by the Chrome extension to score a job on-the-fly
 export async function POST(req: NextRequest) {
@@ -13,12 +12,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Job title required' }, { status: 400 });
     }
 
-    // Get active resume
-    const [resume] = await db
-      .select()
-      .from(resumes)
-      .where(eq(resumes.isActive, true))
-      .limit(1);
+    const activeResumes = await getActiveResumes();
+    const candidates = activeResumes.length > 0 ? activeResumes : await getResumes();
+    const jobForMatch = { title: job.title ?? '', description: job.description ?? '', requirements: job.requirements };
+    const picked = pickBestResume(candidates, jobForMatch);
+    const resume = picked?.resume ?? candidates[0];
 
     if (!resume?.parsedData) {
       return NextResponse.json({

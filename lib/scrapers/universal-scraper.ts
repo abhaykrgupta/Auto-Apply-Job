@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { jobs as jobsTable } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { IndeedScraper } from './sources/indeed';
 import { LinkedInScraper } from './sources/linkedin';
 import { GlassdoorScraper } from './sources/glassdoor';
@@ -166,6 +166,18 @@ export class UniversalScraper {
             .select({ id: jobsTable.id })
             .from(jobsTable)
             .where(eq(jobsTable.externalId, job.externalId))
+            .limit(1);
+          if (existing.length > 0) continue;
+        }
+
+        // Check for duplicate by company + title (case-insensitive)
+        if (job.company && job.title) {
+          const existing = await db
+            .select({ id: jobsTable.id })
+            .from(jobsTable)
+            .where(
+              sql`lower(${jobsTable.company}) = lower(${job.company}) AND lower(${jobsTable.title}) = lower(${job.title})`
+            )
             .limit(1);
           if (existing.length > 0) continue;
         }

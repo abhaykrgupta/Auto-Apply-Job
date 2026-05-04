@@ -4,11 +4,31 @@ import { useApplications } from '@/lib/hooks/use-applications';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Badge } from '@/components/ui/badge';
-import { buttonVariants } from '@/components/ui/button';
-import { SendHorizontal } from 'lucide-react';
+import { buttonVariants, Button } from '@/components/ui/button';
+import { SendHorizontal, Download } from 'lucide-react';
 import Link from 'next/link';
 import { getStatusColor, timeAgo } from '@/lib/utils/helpers';
 import { cn } from '@/lib/utils';
+
+function exportCSV(apps: any[]) {
+  const headers = ['Job Title', 'Company', 'Status', 'Method', 'Applied Date', 'Source'];
+  const rows = apps.map((a) => [
+    `"${a.job?.title ?? ''}"`,
+    `"${a.job?.company ?? ''}"`,
+    a.application?.status ?? '',
+    a.application?.method ?? '',
+    a.application?.appliedAt ? new Date(a.application.appliedAt).toLocaleDateString() : '',
+    a.job?.source ?? '',
+  ]);
+  const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `applications-${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function ApplicationsPage() {
   const { data: applications, isLoading } = useApplications();
@@ -22,7 +42,19 @@ export default function ApplicationsPage() {
           <h2 className="text-2xl font-bold">Applications</h2>
           <p className="text-muted-foreground">{applications?.length ?? 0} total applications</p>
         </div>
-        <Link href="/jobs" className={cn(buttonVariants({ variant: 'outline' }), 'shrink-0')}>Browse Jobs</Link>
+        <div className="flex items-center gap-2 shrink-0">
+          {applications && applications.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => exportCSV(applications)}
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Export CSV
+            </Button>
+          )}
+          <Link href="/jobs" className={cn(buttonVariants({ variant: 'outline' }))}>Browse Jobs</Link>
+        </div>
       </div>
 
       {!applications?.length ? (

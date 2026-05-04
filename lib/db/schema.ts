@@ -43,6 +43,7 @@ export const resumes = pgTable('resumes', {
   filePath: text('file_path').notNull(),
   fileUrl: text('file_url'),
   parsedData: jsonb('parsed_data'),
+  label: text('label'),
   isActive: boolean('is_active').default(true),
   version: integer('version').default(1),
   createdAt: timestamp('created_at').defaultNow(),
@@ -163,6 +164,19 @@ export const settings = pgTable('settings', {
   value: jsonb('value').notNull(),
   description: text('description'),
   updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const savedSearches = pgTable('saved_searches', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  role: text('role'),
+  location: text('location'),
+  remote: text('remote').default('any'),
+  sources: jsonb('sources').default([]),
+  experience: text('experience'),
+  datePosted: text('date_posted').default('all'),
+  boardUrls: jsonb('board_urls').default([]),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 export const companyDiscoverySources = pgTable('company_discovery_sources', {

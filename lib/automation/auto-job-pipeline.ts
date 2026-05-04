@@ -1,8 +1,9 @@
 import { db } from '@/lib/db';
-import { jobs, resumes, jobMatches } from '@/lib/db/schema';
-import { eq, gte, notExists } from 'drizzle-orm';
+import { jobs, jobMatches } from '@/lib/db/schema';
+import { gte, notExists } from 'drizzle-orm';
 import { scoreJobMatch } from '@/lib/openai/job-matcher';
 import { logger } from '@/lib/utils/logger';
+import { getActiveResumes, getResumes } from '@/lib/actions/resume';
 
 export interface PipelineResult {
   jobsScraped: number;
@@ -14,15 +15,13 @@ export class AutoJobPipeline {
   async runDailyPipeline(): Promise<PipelineResult> {
     logger.info('Starting daily job pipeline');
 
-    // 1. Get active resume
-    const [activeResume] = await db
-      .select()
-      .from(resumes)
-      .where(eq(resumes.isActive, true))
-      .limit(1);
+    // 1. Get active resume (first active one is used for pipeline matching)
+    const activeResumes = await getActiveResumes();
+    const candidates = activeResumes.length > 0 ? activeResumes : await getResumes();
+    const activeResume = candidates[0];
 
     if (!activeResume) {
-      logger.warn('No active resume — skipping match phase');
+      logger.warn('No resume found — skipping match phase');
       return { jobsScraped: 0, jobsMatched: 0, highMatches: 0 };
     }
 

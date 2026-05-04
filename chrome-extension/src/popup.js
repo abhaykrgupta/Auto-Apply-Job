@@ -70,6 +70,14 @@ function renderSetup() {
       <label>Job Agent App URL</label>
       <input id="app-url" type="text" placeholder="http://localhost:3000" />
     </div>
+    <div class="form-group">
+      <label>Phone Number</label>
+      <input id="phone-input" type="tel" placeholder="+1 555 000 0000" />
+    </div>
+    <div class="form-group">
+      <label>Preferred Location</label>
+      <input id="location-input" type="text" placeholder="San Francisco, CA" />
+    </div>
     <button class="btn btn-primary" id="save-btn">Connect</button>
     <p style="font-size:11px;color:#64748b;margin-top:8px;text-align:center">
       Enter the URL where your Job Agent app is running
@@ -79,7 +87,12 @@ function renderSetup() {
   document.getElementById('save-btn').addEventListener('click', async () => {
     const url = document.getElementById('app-url').value.replace(/\/$/, '');
     if (!url) return;
-    await setStorage({ appUrl: url });
+    const phone = document.getElementById('phone-input').value.trim();
+    const location = document.getElementById('location-input').value.trim();
+    const profile = {};
+    if (phone) profile.phone = phone;
+    if (location) profile.location = location;
+    await setStorage({ appUrl: url, profile });
     init();
   });
 }
