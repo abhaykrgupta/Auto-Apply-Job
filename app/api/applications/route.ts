@@ -5,7 +5,9 @@ export async function GET() {
   try {
     const applications = await getApplications();
     return NextResponse.json(applications);
-  } catch {
-    return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[API Applications GET]', message);
+    return NextResponse.json({ error: `Database error: ${message}` }, { status: 500 });
   }
 }

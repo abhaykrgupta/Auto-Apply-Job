@@ -16,8 +16,10 @@ export async function GET(req: NextRequest) {
 
     const allJobs = await getJobs();
     return NextResponse.json(allJobs);
-  } catch {
-    return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[API Jobs GET]', message);
+    return NextResponse.json({ error: `Database error: ${message}` }, { status: 500 });
   }
 }
 
@@ -31,8 +33,25 @@ export async function DELETE(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
-    await db.delete(jobs).where(inArray(jobs.id, parsed.data.ids));
-    return NextResponse.json({ deleted: parsed.data.ids.length });
+    const ids = parsed.data.ids;
+
+    // Manual Cascade for bulk delete
+    const { jobMatches, applications, generatedContent, applicationLogs } = await import('@/lib/db/schema');
+    
+    // Find all application IDs for these jobs
+    const jobApps = await db.select({ id: applications.id }).from(applications).where(inArray(applications.jobId, ids));
+    const appIds = jobApps.map(a => a.id);
+    
+    if (appIds.length > 0) {
+        await db.delete(applicationLogs).where(inArray(applicationLogs.applicationId, appIds));
+    }
+
+    await db.delete(jobMatches).where(inArray(jobMatches.jobId, ids));
+    await db.delete(applications).where(inArray(applications.jobId, ids));
+    await db.delete(generatedContent).where(inArray(generatedContent.jobId, ids));
+
+    await db.delete(jobs).where(inArray(jobs.id, ids));
+    return NextResponse.json({ deleted: ids.length });
   } catch {
     return NextResponse.json({ error: 'Failed to delete jobs' }, { status: 500 });
   }
