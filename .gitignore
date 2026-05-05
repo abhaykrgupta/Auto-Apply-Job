@@ -44,3 +44,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# User data and screenshots
+/public/uploads/
+/public/screenshots/
+
+# Test artifacts
+/test-results/
+/playwright-report/

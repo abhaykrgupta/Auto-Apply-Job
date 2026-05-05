@@ -1,9 +1,14 @@
+import { scrapeJobsSchema } from '@/lib/validations/jobs';
 import { NextRequest, NextResponse } from 'next/server';
 import { scrapeAndSaveJobs } from '@/lib/scrapers';
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const parsed = scrapeJobsSchema.safeParse(await req.json().catch(() => ({})));
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    }
+    const body = parsed.data;
 
     // Support universal scraper if sources array is provided
     if (body.sources?.length) {
@@ -13,7 +18,7 @@ export async function POST(req: NextRequest) {
         query: body.query ?? body.role,
         location: body.location,
         remote: body.remote === 'remote' || body.remote === true,
-        sources: body.sources,
+        sources: body.sources as any[],
         boardUrls: body.boardUrls,
         limit: body.limit ?? 50,
         datePosted: body.datePosted,
@@ -25,7 +30,7 @@ export async function POST(req: NextRequest) {
     const result = await scrapeAndSaveJobs({
       role: body.role,
       location: body.location,
-      remote: body.remote,
+      remote: body.remote as any,
       boardUrls: body.boardUrls,
       datePosted: body.datePosted,
     });

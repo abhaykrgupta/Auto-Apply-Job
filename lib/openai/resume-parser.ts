@@ -1,4 +1,5 @@
 import { openai } from './client';
+import { rateLimitedOpenAI } from './rate-limiter';
 
 export async function parseResume(fileContent: string) {
   const prompt = `You are a resume parser. Extract structured data from this resume.
@@ -49,12 +50,12 @@ Return ONLY valid JSON (no markdown, no explanation):
 Resume content:
 ${fileContent}`;
 
-  const response = await openai.chat.completions.create({
+  const response = await rateLimitedOpenAI(() => openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.1,
     response_format: { type: 'json_object' },
-  });
+  }));
 
   return JSON.parse(response.choices[0].message.content!);
 }

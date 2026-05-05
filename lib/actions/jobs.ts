@@ -3,7 +3,8 @@
 import { db } from '@/lib/db';
 import { jobs, jobMatches, resumes } from '@/lib/db/schema';
 import { scoreJobMatch } from '@/lib/openai/job-matcher';
-import { eq, desc, and, gte } from 'drizzle-orm';
+import { getEmbedding } from '@/lib/openai/embeddings';
+import { eq, desc, and, gte, ilike } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 
 export async function getJobs(filters?: { status?: string; source?: string }) {
@@ -25,6 +26,12 @@ export async function matchJobsToResume(resumeId: string) {
   const results = [];
   for (const job of allJobs) {
     try {
+      let jobEmbedding = job.jobEmbedding;
+      if (!jobEmbedding) {
+        jobEmbedding = await getEmbedding(`${job.title} ${job.description} ${job.requirements ?? ''}`);
+        await db.update(jobs).set({ jobEmbedding }).where(eq(jobs.id, job.id));
+      }
+
       const matchResult = await scoreJobMatch(
         {
           company: job.company,

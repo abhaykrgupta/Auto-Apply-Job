@@ -3,15 +3,24 @@ import { getJobById } from '@/lib/actions/jobs';
 import { getResumeById, getActiveResumes, getResumes } from '@/lib/actions/resume';
 import { createApplication } from '@/lib/actions/applications';
 import { applyToJob } from '@/lib/automation/apply-engine';
-import { pickBestResume } from '@/lib/utils/resume-matcher';
+import { findBestResume } from '@/lib/utils/resume-matcher';
+
+import { singleApplyBodySchema } from '@/lib/validations/jobs';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const body = req.headers.get('content-length') !== '0'
-      ? await req.json().catch(() => ({}))
-      : {};
-    const { resumeId } = body;
+    
+    let body = {};
+    if (req.headers.get('content-length') !== '0') {
+      try { body = await req.json(); } catch (e) {}
+    }
+    
+    const parsed = singleApplyBodySchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    }
+    const { resumeId } = parsed.data;
 
     const job = await getJobById(id);
     if (!job) return NextResponse.json({ error: 'Job not found' }, { status: 404 });
@@ -24,11 +33,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     } else {
       const activeResumes = await getActiveResumes();
       const candidates = activeResumes.length > 0 ? activeResumes : await getResumes();
-      const picked = pickBestResume(candidates, {
-        title: job.title,
-        description: job.description,
-        requirements: job.requirements,
-      });
+      const picked = await findBestResume(`${job.title} ${job.description} ${job.requirements ?? ''}`, candidates);
       resume = picked?.resume ?? null;
       matchScore = picked?.score;
     }

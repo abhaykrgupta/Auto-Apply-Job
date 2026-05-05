@@ -1,4 +1,5 @@
 import { openai } from './client';
+import { rateLimitedOpenAI } from './rate-limiter';
 import { logger } from '@/lib/utils/logger';
 
 export interface TailoredResume {
@@ -54,12 +55,12 @@ Rules:
 - Keep bullets under 2 lines
 - tailoredBullets should cover the 3-5 most impactful changes`;
 
-  const response = await openai.chat.completions.create({
+  const response = await rateLimitedOpenAI(() => openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.3,
     max_tokens: 2000,
-  });
+  }));
 
   const raw = response.choices[0].message.content ?? '{}';
   const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();

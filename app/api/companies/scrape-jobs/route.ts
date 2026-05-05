@@ -1,3 +1,4 @@
+import { companyScrapeSchema } from '@/lib/validations/companies';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { companies, jobs } from '@/lib/db/schema';
@@ -8,7 +9,11 @@ import { logger } from '@/lib/utils/logger';
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => ({}));
+    const parsed = companyScrapeSchema.safeParse(await req.json().catch(() => ({})));
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    }
+    const body = parsed.data;
     const limit = body.limit ?? 20;
 
     const companiesToScrape = await db

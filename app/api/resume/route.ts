@@ -1,4 +1,5 @@
 import { getResumes, toggleResumeActive, updateResumeLabel, deleteResume } from '@/lib/actions/resume';
+import { resumeUpdateSchema, resumeDeleteSchema } from '@/lib/validations/resume';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET() {
@@ -14,8 +15,11 @@ export async function GET() {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const { id, isActive, label } = await req.json();
-    if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+    const parsed = resumeUpdateSchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    }
+    const { id, isActive, label } = parsed.data;
 
     if (typeof isActive === 'boolean') await toggleResumeActive(id, isActive);
     if (typeof label === 'string') await updateResumeLabel(id, label);
@@ -29,8 +33,11 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const { id } = await req.json();
-    if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+    const parsed = resumeDeleteSchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    }
+    const { id } = parsed.data;
     await deleteResume(id);
     return NextResponse.json({ ok: true });
   } catch (err) {

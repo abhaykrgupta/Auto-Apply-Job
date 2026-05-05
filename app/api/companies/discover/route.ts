@@ -1,10 +1,15 @@
+import { companyDiscoverSchema } from '@/lib/validations/companies';
 import { NextRequest, NextResponse } from 'next/server';
 import { discoveryEngine } from '@/lib/company-discovery/discovery-engine';
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const sources = body.sources ?? ['seed', 'yc', 'github'];
+    const parsed = companyDiscoverSchema.safeParse(await req.json().catch(() => ({})));
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    }
+    const body = parsed.data;
+    const sources = (body.sources as any[]) ?? ['seed', 'yc', 'github'];
 
     const result = await discoveryEngine.runFullDiscovery({
       sources,

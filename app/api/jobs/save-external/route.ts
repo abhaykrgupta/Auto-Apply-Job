@@ -1,3 +1,4 @@
+import { saveExternalJobSchema } from '@/lib/validations/jobs';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { jobs } from '@/lib/db/schema';
@@ -5,7 +6,9 @@ import { jobs } from '@/lib/db/schema';
 // Called by the Chrome extension to save a job found externally
 export async function POST(req: NextRequest) {
   try {
-    const { job } = await req.json();
+    const parsed = saveExternalJobSchema.safeParse(await req.json());
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    const { job } = parsed.data;
 
     if (!job?.title || !job?.applyUrl) {
       return NextResponse.json({ error: 'title and applyUrl required' }, { status: 400 });

@@ -2,13 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getJobById } from '@/lib/actions/jobs';
 import { getActiveResumes, getResumes } from '@/lib/actions/resume';
 import { createApplication } from '@/lib/actions/applications';
-import { pickBestResume } from '@/lib/utils/resume-matcher';
+import { findBestResume } from '@/lib/utils/resume-matcher';
+
+import { batchApplyBodySchema } from '@/lib/validations/jobs';
 
 export async function POST(req: NextRequest) {
   try {
-    const { jobIds } = await req.json();
-    if (!Array.isArray(jobIds) || jobIds.length === 0)
-      return NextResponse.json({ error: 'No job IDs provided' }, { status: 400 });
+    const parsed = batchApplyBodySchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    }
+    const { jobIds } = parsed.data;
 
     const activeResumes = await getActiveResumes();
     const candidates = activeResumes.length > 0 ? activeResumes : await getResumes();
@@ -20,11 +24,7 @@ export async function POST(req: NextRequest) {
         const job = await getJobById(jobId);
         if (!job) throw new Error(`Job ${jobId} not found`);
 
-        const picked = pickBestResume(candidates, {
-          title: job.title,
-          description: job.description,
-          requirements: job.requirements,
-        });
+        const picked = await findBestResume(`${job.title} ${job.description} ${job.requirements ?? ''}`, candidates);
         const resume = picked?.resume ?? candidates[0];
 
         return createApplication(jobId, resume.id);

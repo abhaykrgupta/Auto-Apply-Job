@@ -1,12 +1,15 @@
+import { quickMatchSchema } from '@/lib/validations/jobs';
 import { NextRequest, NextResponse } from 'next/server';
 import { scoreJobMatch } from '@/lib/openai/job-matcher';
 import { getActiveResumes, getResumes } from '@/lib/actions/resume';
-import { pickBestResume } from '@/lib/utils/resume-matcher';
+import { findBestResume } from '@/lib/utils/resume-matcher';
 
 // Called by the Chrome extension to score a job on-the-fly
 export async function POST(req: NextRequest) {
   try {
-    const job = await req.json();
+    const parsed = quickMatchSchema.safeParse(await req.json());
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    const job = parsed.data;
 
     if (!job.title) {
       return NextResponse.json({ error: 'Job title required' }, { status: 400 });
@@ -15,7 +18,7 @@ export async function POST(req: NextRequest) {
     const activeResumes = await getActiveResumes();
     const candidates = activeResumes.length > 0 ? activeResumes : await getResumes();
     const jobForMatch = { title: job.title ?? '', description: job.description ?? '', requirements: job.requirements };
-    const picked = pickBestResume(candidates, jobForMatch);
+    const picked = await findBestResume(`${jobForMatch.title} ${jobForMatch.description} ${jobForMatch.requirements ?? ''}`, candidates);
     const resume = picked?.resume ?? candidates[0];
 
     if (!resume?.parsedData) {

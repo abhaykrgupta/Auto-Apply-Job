@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useJobs } from '@/lib/hooks/use-jobs';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants, Button } from '@/components/ui/button';
-import { Briefcase, ExternalLink, Wand2, Send, FileText } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Briefcase, ExternalLink, Wand2, Send, FileText, Search, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { timeAgo, formatSalary } from '@/lib/utils/helpers';
 import { cn } from '@/lib/utils';
@@ -17,10 +18,22 @@ import { toast } from 'sonner';
 
 export default function JobsPage() {
   const { data: jobs, isLoading } = useJobs();
+  const [search, setSearch] = useState('');
   const [tailorJob, setTailorJob] = useState<{ id: string; title: string; company: string } | null>(null);
   const [coverLetterJob, setCoverLetterJob] = useState<{ id: string; title: string; company: string } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const qc = useQueryClient();
+
+  const filteredJobs = useMemo(() => {
+    if (!jobs) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return jobs;
+    return jobs.filter((j: any) =>
+      j.title?.toLowerCase().includes(q) ||
+      j.company?.toLowerCase().includes(q) ||
+      j.location?.toLowerCase().includes(q)
+    );
+  }, [jobs, search]);
 
   const { mutate: applyJob, isPending: applying, variables: applyingId } = useMutation({
     mutationFn: async (jobId: string) => {
@@ -58,7 +71,37 @@ export default function JobsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const allJobIds: string[] = jobs?.map((j: any) => j.id) ?? [];
+  const { mutate: deleteJob, isPending: deleting, variables: deletingId } = useMutation({
+    mutationFn: async (jobId: string) => {
+      const res = await fetch(`/api/jobs/${jobId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete failed');
+    },
+    onSuccess: () => {
+      toast.success('Job removed');
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+    },
+    onError: () => toast.error('Failed to delete job'),
+  });
+
+  const { mutate: bulkDelete, isPending: bulkDeleting } = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const res = await fetch('/api/jobs', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+      if (!res.ok) throw new Error('Bulk delete failed');
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast.success(`${data.deleted} job${data.deleted !== 1 ? 's' : ''} removed`);
+      setSelectedIds(new Set());
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+    },
+    onError: () => toast.error('Failed to delete jobs'),
+  });
+
+  const allJobIds: string[] = filteredJobs?.map((j: any) => j.id) ?? [];
   const allSelected = allJobIds.length > 0 && allJobIds.every((id) => selectedIds.has(id));
   const someSelected = selectedIds.size > 0;
 
@@ -89,17 +132,29 @@ export default function JobsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold">All Jobs</h2>
-          <p className="text-muted-foreground">{jobs?.length ?? 0} jobs discovered</p>
+          <p className="text-muted-foreground">
+            {filteredJobs.length} of {jobs?.length ?? 0} jobs
+          </p>
         </div>
         <Link href="/search" className={cn(buttonVariants({ variant: 'outline' }), 'shrink-0')}>Search More</Link>
       </div>
 
-      {!jobs?.length ? (
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+        <Input
+          placeholder="Search by title, company or location..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
+      {!filteredJobs.length ? (
         <EmptyState
           icon={Briefcase}
-          title="No jobs found yet"
-          description="Use the Search page to scrape job boards and discover new opportunities."
-          action={<Link href="/search" className={cn(buttonVariants())}>Search Jobs</Link>}
+          title={search ? 'No jobs match your search' : 'No jobs found yet'}
+          description={search ? 'Try different keywords.' : 'Use the Search page to scrape job boards and discover new opportunities.'}
+          action={!search ? <Link href="/search" className={cn(buttonVariants())}>Search Jobs</Link> : undefined}
         />
       ) : (
         <div className="rounded-lg border border-border overflow-hidden">
@@ -126,7 +181,7 @@ export default function JobsPage() {
               </tr>
             </thead>
             <tbody>
-              {jobs.map((job: any) => (
+              {filteredJobs.map((job: any) => (
                 <tr key={job.id} className={cn('border-t border-border hover:bg-accent/50 transition-colors', selectedIds.has(job.id) && 'bg-accent/30')}>
                   <td className="p-3">
                     <input
@@ -188,6 +243,16 @@ export default function JobsPage() {
                       >
                         <ExternalLink className="h-3 w-3" />
                       </a>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => deleteJob(job.id)}
+                        disabled={deleting && deletingId === job.id}
+                        className="gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        title="Remove this job"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -221,11 +286,20 @@ export default function JobsPage() {
           <span className="text-sm text-muted-foreground">{selectedIds.size} job{selectedIds.size !== 1 ? 's' : ''} selected</span>
           <Button
             onClick={() => batchApply(Array.from(selectedIds))}
-            disabled={batchApplying}
+            disabled={batchApplying || bulkDeleting}
             className="gap-2"
           >
             {batchApplying ? <LoadingSpinner size="sm" fullPage={false} /> : <Send className="h-4 w-4" />}
-            Apply {selectedIds.size} Selected Job{selectedIds.size !== 1 ? 's' : ''}
+            Apply {selectedIds.size} Selected
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => bulkDelete(Array.from(selectedIds))}
+            disabled={bulkDeleting || batchApplying}
+            className="gap-2"
+          >
+            {bulkDeleting ? <LoadingSpinner size="sm" fullPage={false} /> : <Trash2 className="h-4 w-4" />}
+            Delete {selectedIds.size} Selected
           </Button>
           <button
             onClick={() => setSelectedIds(new Set())}

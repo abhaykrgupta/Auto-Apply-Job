@@ -9,7 +9,20 @@ import {
   real,
   pgEnum,
   index,
+  customType,
 } from 'drizzle-orm/pg-core';
+
+export const vector = customType<{ data: number[]; driverData: string }>({
+  dataType() {
+    return 'vector(1536)';
+  },
+  toDriver(value: number[]) {
+    return JSON.stringify(value);
+  },
+  fromDriver(value: string) {
+    return JSON.parse(value);
+  },
+});
 
 export const jobStatusEnum = pgEnum('job_status', ['active', 'expired', 'filled']);
 export const applicationStatusEnum = pgEnum('application_status', [
@@ -43,6 +56,7 @@ export const resumes = pgTable('resumes', {
   filePath: text('file_path').notNull(),
   fileUrl: text('file_url'),
   parsedData: jsonb('parsed_data'),
+  embedding: vector('embedding'),
   label: text('label'),
   isActive: boolean('is_active').default(true),
   version: integer('version').default(1),
@@ -102,6 +116,7 @@ export const jobs = pgTable('jobs', {
   benefits: text('benefits'),
   applyUrl: text('apply_url').notNull(),
   status: jobStatusEnum('status').default('active'),
+  jobEmbedding: vector('job_embedding'),
   postedAt: timestamp('posted_at'),
   expiresAt: timestamp('expires_at'),
   createdAt: timestamp('created_at').defaultNow(),

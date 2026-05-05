@@ -100,10 +100,9 @@
     `;
 
     badge.addEventListener('click', () => {
-      // Just open the extension popup — can't do that from content script,
-      // so we open the dashboard instead
-      const appUrl = localStorage.getItem('jobAgentUrl') || 'http://localhost:3000';
-      window.open(`${appUrl}/jobs`, '_blank');
+      chrome.storage.sync.get('dashboardUrl', ({ dashboardUrl }) => {
+        window.open(`${dashboardUrl ?? 'http://localhost:3000'}/jobs`, '_blank');
+      });
     });
 
     document.body.appendChild(badge);

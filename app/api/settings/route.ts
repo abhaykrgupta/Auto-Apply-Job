@@ -17,9 +17,15 @@ export async function GET() {
   }
 }
 
+import { settingsUpdateSchema } from '@/lib/validations/settings';
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const parsed = settingsUpdateSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    }
+    const body = parsed.data;
 
     for (const [key, value] of Object.entries(body)) {
       const existing = await db

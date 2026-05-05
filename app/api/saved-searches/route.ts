@@ -1,3 +1,4 @@
+import { savedSearchSchema, savedSearchDeleteSchema } from '@/lib/validations/saved-searches';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { savedSearches } from '@/lib/db/schema';
@@ -14,7 +15,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const parsed = savedSearchSchema.safeParse(await req.json());
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    const body = parsed.data;
     const [search] = await db.insert(savedSearches).values(body).returning();
     return NextResponse.json(search);
   } catch (err) {
@@ -24,7 +27,9 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const { id } = await req.json();
+    const parsedDelete = savedSearchDeleteSchema.safeParse(await req.json());
+    if (!parsedDelete.success) return NextResponse.json({ error: parsedDelete.error.flatten() }, { status: 400 });
+    const { id } = parsedDelete.data;
     await db.delete(savedSearches).where(eq(savedSearches.id, id));
     return NextResponse.json({ ok: true });
   } catch (err) {

@@ -1,4 +1,5 @@
 import { openai } from './client';
+import { rateLimitedOpenAI } from './rate-limiter';
 
 export async function scoreJobMatch(job: {
   company: string;
@@ -31,12 +32,12 @@ Return ONLY valid JSON:
 
 score is 0-100, confidence is 0-1.`;
 
-  const response = await openai.chat.completions.create({
+  const response = await rateLimitedOpenAI(() => openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.3,
     response_format: { type: 'json_object' },
-  });
+  }));
 
   return JSON.parse(response.choices[0].message.content!);
 }

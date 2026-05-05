@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getJobById } from '@/lib/actions/jobs';
 import { getActiveResumes, getResumes } from '@/lib/actions/resume';
-import { pickBestResume } from '@/lib/utils/resume-matcher';
+import { findBestResume } from '@/lib/utils/resume-matcher';
 import OpenAI from 'openai';
 
 function getOpenAI() {
@@ -16,7 +16,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
     const activeResumes = await getActiveResumes();
     const candidates = activeResumes.length > 0 ? activeResumes : await getResumes();
-    const picked = pickBestResume(candidates, { title: job.title, description: job.description, requirements: job.requirements });
+    const picked = await findBestResume(`${job.title} ${job.description} ${job.requirements ?? ''}`, candidates);
     const resume = picked?.resume ?? candidates[0];
     if (!resume?.parsedData) return NextResponse.json({ error: 'No parsed resume found. Upload a resume first.' }, { status: 400 });
 

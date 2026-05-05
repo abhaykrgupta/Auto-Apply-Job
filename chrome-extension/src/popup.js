@@ -2,31 +2,31 @@ const content = document.getElementById('content');
 const statusEl = document.getElementById('connection-status');
 const dashboardLink = document.getElementById('open-dashboard');
 
-// ─── Storage helpers ───────────────────────────────────────────
+// ─── Storage helpers (sync — shared with background.js) ────────
 function getStorage(keys) {
-  return new Promise((resolve) => chrome.storage.local.get(keys, resolve));
+  return new Promise((resolve) => chrome.storage.sync.get(keys, resolve));
 }
 function setStorage(obj) {
-  return new Promise((resolve) => chrome.storage.local.set(obj, resolve));
+  return new Promise((resolve) => chrome.storage.sync.set(obj, resolve));
 }
 
 // ─── Init ──────────────────────────────────────────────────────
 async function init() {
-  const { appUrl, jobData } = await getStorage(['appUrl', 'jobData']);
+  const { dashboardUrl, jobData } = await getStorage(['dashboardUrl', 'jobData']);
 
   dashboardLink.addEventListener('click', (e) => {
     e.preventDefault();
-    if (appUrl) chrome.tabs.create({ url: appUrl });
+    if (dashboardUrl) chrome.tabs.create({ url: dashboardUrl });
   });
 
-  if (!appUrl) {
+  if (!dashboardUrl) {
     renderSetup();
     return;
   }
 
   // Check connection
   try {
-    const res = await fetch(`${appUrl}/api/health`, { signal: AbortSignal.timeout(3000) });
+    const res = await fetch(`${dashboardUrl}/api/health`, { signal: AbortSignal.timeout(3000) });
     if (res.ok) {
       statusEl.textContent = '● Connected';
       statusEl.className = 'connected';
@@ -39,14 +39,21 @@ async function init() {
     statusEl.className = 'disconnected';
   }
 
+  // Get badge count from background
+  chrome.runtime.sendMessage({ type: 'GET_BADGE_COUNT' }, (res) => {
+    if (res?.count > 0) {
+      statusEl.textContent += ` · ${res.count} match${res.count > 1 ? 'es' : ''}`;
+    }
+  });
+
   // Get current tab job data
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const extractedJob = await extractJobFromTab(tab);
 
   if (extractedJob) {
-    renderScore(appUrl, extractedJob);
+    renderScore(dashboardUrl, extractedJob);
   } else {
-    renderNoJob(appUrl);
+    renderNoJob(dashboardUrl);
   }
 }
 
@@ -92,12 +99,12 @@ function renderSetup() {
     const profile = {};
     if (phone) profile.phone = phone;
     if (location) profile.location = location;
-    await setStorage({ appUrl: url, profile });
+    await setStorage({ dashboardUrl: url, profile, autoSave: true });
     init();
   });
 }
 
-function renderNoJob(appUrl) {
+function renderNoJob(dashboardUrl) {
   content.innerHTML = `
     <div class="status status-loading">
       Navigate to a job posting on LinkedIn, Indeed, Greenhouse, or Lever to see your match score.
@@ -107,28 +114,27 @@ function renderNoJob(appUrl) {
   `;
 
   document.getElementById('go-jobs').addEventListener('click', () => {
-    chrome.tabs.create({ url: `${appUrl}/jobs` });
+    chrome.tabs.create({ url: `${dashboardUrl}/jobs` });
   });
   document.getElementById('go-settings').addEventListener('click', async () => {
-    await setStorage({ appUrl: null });
+    await setStorage({ dashboardUrl: null });
     renderSetup();
   });
 }
 
-async function renderScore(appUrl, job) {
+async function renderScore(dashboardUrl, job) {
   content.innerHTML = `<div class="status status-loading">🔍 Calculating match score...</div>`;
 
   try {
-    const res = await fetch(`${appUrl}/api/jobs/quick-match`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(job),
-      signal: AbortSignal.timeout(15000),
+    // Route through background.js to avoid CORS issues
+    const result = await new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage({ type: 'GET_MATCH_SCORE', jobData: job }, (res) => {
+        if (res?.success) resolve(res.data);
+        else reject(new Error(res?.error ?? 'Match failed'));
+      });
     });
 
-    if (!res.ok) throw new Error('Match API failed');
-    const data = await res.json();
-
+    const data = result;
     const score = data.score ?? 0;
     const scoreClass = score >= 80 ? 'score-high' : score >= 60 ? 'score-med' : 'score-low';
     const emoji = score >= 80 ? '🎯' : score >= 60 ? '👍' : '📊';
@@ -163,13 +169,13 @@ async function renderScore(appUrl, job) {
       <button class="btn btn-outline" id="tailor-btn" style="margin-top:6px">✨ Tailor Resume for This Job</button>
     `;
 
-    document.getElementById('save-job-btn').addEventListener('click', () => saveJob(appUrl, job, data));
-    document.getElementById('apply-btn').addEventListener('click', () => applyViaAgent(appUrl, job));
+    document.getElementById('save-job-btn').addEventListener('click', () => saveJob(job, data));
+    document.getElementById('apply-btn').addEventListener('click', () => applyViaAgent(dashboardUrl, job));
     document.getElementById('tailor-btn').addEventListener('click', () => {
-      chrome.tabs.create({ url: `${appUrl}/jobs` });
+      chrome.tabs.create({ url: `${dashboardUrl}/jobs` });
     });
 
-  } catch (err) {
+  } catch {
     content.innerHTML = `
       <div class="status status-error">Could not calculate score. Is the app running?</div>
       <div style="font-size:11px;color:#64748b;margin-bottom:10px">
@@ -177,27 +183,22 @@ async function renderScore(appUrl, job) {
       </div>
       <button class="btn btn-primary" id="save-only">💾 Save Job Without Score</button>
     `;
-    document.getElementById('save-only').addEventListener('click', () => saveJob(appUrl, job, {}));
+    document.getElementById('save-only').addEventListener('click', () => saveJob(job, {}));
   }
 }
 
-async function saveJob(appUrl, job, matchData) {
-  try {
-    const res = await fetch(`${appUrl}/api/jobs/save-external`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ job, matchData }),
-    });
-    if (res.ok) {
+async function saveJob(job, matchData) {
+  chrome.runtime.sendMessage({ type: 'SAVE_JOB', jobData: { ...job, matchData } }, (res) => {
+    if (res?.success) {
       content.innerHTML = `<div class="status" style="background:rgba(16,185,129,0.1);color:#10b981">✅ Job saved to Job Agent!</div>`;
+    } else {
+      content.innerHTML = `<div class="status status-error">Failed to save job</div>`;
     }
-  } catch {
-    content.innerHTML = `<div class="status status-error">Failed to save job</div>`;
-  }
+  });
 }
 
-async function applyViaAgent(appUrl, job) {
-  chrome.tabs.create({ url: `${appUrl}/search?autoApply=${encodeURIComponent(job.applyUrl || '')}` });
+async function applyViaAgent(dashboardUrl, job) {
+  chrome.tabs.create({ url: `${dashboardUrl}/search?autoApply=${encodeURIComponent(job.applyUrl || '')}` });
 }
 
 init();

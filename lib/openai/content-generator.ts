@@ -1,4 +1,5 @@
 import { openai } from './client';
+import { rateLimitedOpenAI } from './rate-limiter';
 
 export async function generateCoverLetter(
   job: { company: string; title: string; description: string },
@@ -28,11 +29,11 @@ Requirements:
 
 Return ONLY the cover letter text (no JSON, no markdown).`;
 
-  const response = await openai.chat.completions.create({
+  const response = await rateLimitedOpenAI(() => openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.7,
-  });
+  }));
 
   return response.choices[0].message.content;
 }
@@ -54,11 +55,12 @@ ${JSON.stringify(resumeData, null, 2)}
 
 Return only the answer text, no explanation.`;
 
-  const response = await openai.chat.completions.create({
+  const response = await rateLimitedOpenAI(() => openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.5,
-  });
+  }));
 
   return response.choices[0].message.content;
 }
+

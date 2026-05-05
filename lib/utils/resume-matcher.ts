@@ -1,71 +1,39 @@
-/**
- * Fast keyword-based resume scorer. No API calls — runs in <1ms per resume.
- * Returns a score 0–100 representing how well a resume matches a job.
- */
-export function scoreResumeAgainstJob(
-  resume: { parsedData: unknown; label?: string | null },
-  job: { title: string; description: string; requirements?: string | null }
-): number {
-  const jobText = `${job.title} ${job.description} ${job.requirements ?? ''}`.toLowerCase();
+import { getEmbedding } from '@/lib/openai/embeddings';
+import { cosineSimilarity } from '@/lib/openai/cosine-similarity';
 
-  if (!resume.parsedData || typeof resume.parsedData !== 'object') return 0;
+export type Resume = any; // or import type from schema if needed
 
-  const pd = resume.parsedData as Record<string, unknown>;
-  const skills: string[] = Array.isArray(pd.skills) ? (pd.skills as string[]) : [];
-  const experience: Array<{ title?: string; description?: string }> = Array.isArray(pd.experience)
-    ? (pd.experience as Array<{ title?: string; description?: string }>)
-    : [];
-
-  const jobWords = new Set(
-    jobText
-      .replace(/[^\w\s]/g, ' ')
-      .split(/\s+/)
-      .filter((w) => w.length > 2)
-  );
-
-  let hits = 0;
-  let total = 0;
-
-  for (const skill of skills) {
-    const skillLower = skill.toLowerCase();
-    total += 2;
-    if (jobWords.has(skillLower) || jobText.includes(skillLower)) hits += 2;
-  }
-
-  for (const exp of experience) {
-    const expText = `${exp.title ?? ''} ${exp.description ?? ''}`.toLowerCase();
-    const expWords = expText.split(/\s+/).filter((w) => w.length > 2);
-    for (const word of expWords) {
-      total += 1;
-      if (jobWords.has(word)) hits += 1;
-    }
-  }
-
-  if (total === 0) return 0;
-  return Math.min(100, Math.round((hits / total) * 150));
+function extractTextFromResume(resume: Resume): string {
+  if (!resume?.parsedData) return '';
+  return JSON.stringify(resume.parsedData);
 }
 
-/**
- * Given a list of active resumes, pick the best one for a job.
- * Returns the resume and its score.
- */
-export function pickBestResume<T extends { parsedData: unknown; label?: string | null }>(
-  resumes: T[],
-  job: { title: string; description: string; requirements?: string | null }
-): { resume: T; score: number } | null {
-  if (resumes.length === 0) return null;
-  if (resumes.length === 1) return { resume: resumes[0], score: scoreResumeAgainstJob(resumes[0], job) };
-
-  let best: T = resumes[0];
-  let bestScore = scoreResumeAgainstJob(resumes[0], job);
-
-  for (let i = 1; i < resumes.length; i++) {
-    const score = scoreResumeAgainstJob(resumes[i], job);
-    if (score > bestScore) {
-      bestScore = score;
-      best = resumes[i];
-    }
+export async function findBestResume(
+  jobDescription: string,
+  resumes: Resume[]
+): Promise<{ resume: Resume; score: number }> {
+  if (!resumes || resumes.length === 0) {
+    throw new Error('No resumes provided');
   }
 
-  return { resume: best, score: bestScore };
+  const jobEmbedding = await getEmbedding(jobDescription);
+
+  const scored = await Promise.all(
+    resumes.map(async (resume) => {
+      let resumeEmbedding: number[];
+      
+      // If the resume has a cached embedding in DB, use it
+      if (resume.embedding && Array.isArray(resume.embedding)) {
+        resumeEmbedding = resume.embedding;
+      } else {
+        const resumeText = extractTextFromResume(resume);
+        resumeEmbedding = await getEmbedding(resumeText);
+      }
+      
+      const score = cosineSimilarity(jobEmbedding, resumeEmbedding);
+      return { resume, score };
+    })
+  );
+
+  return scored.sort((a, b) => b.score - a.score)[0];
 }

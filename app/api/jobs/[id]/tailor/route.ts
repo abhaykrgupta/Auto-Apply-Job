@@ -4,7 +4,7 @@ import { jobs } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { tailorResumeToJob } from '@/lib/openai/resume-tailor';
 import { getActiveResumes, getResumes } from '@/lib/actions/resume';
-import { pickBestResume } from '@/lib/utils/resume-matcher';
+import { findBestResume } from '@/lib/utils/resume-matcher';
 
 export async function POST(
   _req: NextRequest,
@@ -18,7 +18,7 @@ export async function POST(
 
     const activeResumes = await getActiveResumes();
     const candidates = activeResumes.length > 0 ? activeResumes : await getResumes();
-    const picked = pickBestResume(candidates, { title: job.title, description: job.description, requirements: job.requirements });
+    const picked = await findBestResume(`${job.title} ${job.description} ${job.requirements ?? ''}`, candidates);
     const resume = picked?.resume ?? candidates[0];
 
     if (!resume) return NextResponse.json({ error: 'No resume found. Upload a resume first.' }, { status: 404 });

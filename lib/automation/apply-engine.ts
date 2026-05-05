@@ -4,9 +4,9 @@ import { db } from '@/lib/db';
 import { applications, applicationLogs } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
-// generateCoverLetter available if needed for cover letter integration
+import { telegramService } from '@/lib/notifications/telegram-service';
 import path from 'path';
-import { mkdir, writeFile } from 'fs/promises';
+import { mkdir } from 'fs/promises';
 
 export interface ApplyOptions {
   requireConfirmation?: boolean;
@@ -141,6 +141,7 @@ export async function applyToJob(
     });
 
     log(`Result: ${status}`);
+    telegramService.notifyApplicationStatus(job, status).catch(() => {});
     return { status, method: 'auto', logs, screenshotPath };
   } catch (err) {
     const error = err instanceof Error ? err.message : 'Unknown error';
@@ -157,6 +158,7 @@ export async function applyToJob(
       message: error,
     });
 
+    telegramService.notifyApplicationStatus(job, 'failed').catch(() => {});
     return { status: 'failed', method: 'auto', error, logs, screenshotPath };
   } finally {
     await page.close();

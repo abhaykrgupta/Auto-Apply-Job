@@ -1,3 +1,4 @@
+import { bulkApplyBodySchema } from '@/lib/validations/jobs';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { jobMatches, jobs, applications, settings } from '@/lib/db/schema';
@@ -9,7 +10,9 @@ import { logger } from '@/lib/utils/logger';
 
 export async function POST(req: NextRequest) {
   try {
-    const { resumeId, minMatchScore: overrideScore } = await req.json();
+    const parsed = bulkApplyBodySchema.safeParse(await req.json());
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    const { resumeId, minMatchScore: overrideScore } = parsed.data;
     
     if (!resumeId) {
       return NextResponse.json({ error: 'resumeId is required' }, { status: 400 });
