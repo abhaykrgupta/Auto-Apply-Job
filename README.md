@@ -10,8 +10,9 @@
 
 [![Next.js](https://img.shields.io/badge/Next.js%2016-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
 [![OpenAI](https://img.shields.io/badge/GPT--4o-412991?style=for-the-badge&logo=openai&logoColor=white)](https://openai.com)
-[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com)
+[![PostgreSQL](https://img.shields.io/badge/pgvector-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://supabase.com)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![Playwright](https://img.shields.io/badge/Playwright-45BA4B?style=for-the-badge&logo=playwright&logoColor=white)](https://playwright.dev)
 
 <br/>
 
@@ -26,7 +27,7 @@
 
 ## What is this?
 
-Job Agent is a personal AI career automation system. It continuously discovers jobs across the internet, ranks them against your profile, rewrites your application materials per company, and submits applications — all without you touching a single form.
+Job Agent is a personal AI career automation system. It continuously discovers jobs across the internet, ranks them against your profile using **Vector Mathematics**, rewrites your application materials per company, submits applications, and helps you build a stunning resume — all without you touching a single form.
 
 You set your preferences once. The platform runs the entire job search pipeline for you.
 
@@ -44,87 +45,108 @@ None of that work requires human judgment. Job Agent automates all of it.
 
 <br/>
 
-### Intelligent Multi-Source Job Discovery
-Simultaneously searches RemoteOK, WeWorkRemotely, Indeed, LinkedIn, Glassdoor, Greenhouse, and Lever with a single query. Filters by role, location, remote preference, date posted, and experience level. Every result is deduplicated and stored — you never see the same job twice.
+### AI-Powered Resume Builder (15 Templates)
+Design stunning, ATS-optimized resumes directly inside the platform. Choose from **15 professional templates** spanning Single-Column, Sidebar, Banner, Two-Column, Timeline, and Traditional layouts. Features include:
+- **Import existing PDF** → AI parses and pre-fills all sections automatically
+- **Live preview** with real-time rendering as you type
+- **AI Enhancement** → GPT-4o rewrites your bullet points for maximum impact
+- **One-click PDF download** with pixel-perfect fidelity
+- **Deploy feature** to share a live URL of your resume
+- **Multiple saved projects** (e.g., "Frontend Resume", "Leadership Resume")
+
+Available templates: Classic · Modern · Minimal · Executive · Sharp · Scholar · Compact · Banner · Teal Banner · Timeline · Atlantic · Slate · Sidebar Light · Two Column · Mercury · Traditional
+
+<br/>
+
+### Intelligent Multi-Source Job Discovery (11 Sources)
+Simultaneously searches **11 job boards** with a single query — RemoteOK, WeWorkRemotely, Indeed, LinkedIn, Glassdoor, Greenhouse, Lever, Adzuna, The Muse, Arbeitnow, and Naukri. Filters by role, location, remote preference, date posted, and **Experience Level** (Fresher · 1–2 yrs · 2–3 yrs · 3–5 yrs · 5–7 yrs · Senior · Custom). Every result is deduplicated and stored — you never see the same job twice.
+
+<br/>
+
+### Advanced Search Copilot & Saved Searches
+Never re-type your search filters. Save your favorite search configurations (Role, Location, Sources, Experience Level) and switch between them with a single click. Watch the system work in real-time with the **Search Progress Radar** — a visual modal showing proxy connections, bot-bypass steps, source scanning, and AI matching progress.
 
 <br/>
 
 ### Autonomous Company Discovery Engine
-Goes beyond job boards. The platform autonomously finds new companies hiring in your space by monitoring **Google Jobs Search**, **ProductHunt**, and **Startup Registries (YC, etc.)**. It builds a database of companies you didn't even know existed.
+Goes beyond job boards. The platform autonomously finds new companies hiring in your space by monitoring **Google Jobs Search**, **ProductHunt**, and **Startup Registries (YC, VC portfolios, GitHub)**. It builds a database of companies you didn't even know existed — automatically, every night.
 
 <br/>
 
 ### Universal Career Page Scraper
-The world's most powerful career page scraper. It automatically detects if a company uses a known ATS (Greenhouse, Lever) or a custom site. For custom sites, it uses an **AI-Hybrid engine** to navigate the page, find the jobs, and extract details—allowing it to scrape *any* career page in the world.
+The most powerful career page scraper available. It automatically detects if a company uses a known ATS (Greenhouse, Lever) and uses optimized API scrapers. For companies with **custom career pages**, it launches a Stealth Browser and uses an **AI-Hybrid engine** (GPT-4o) to navigate, identify, and extract job listings — scraping *any* career page in the world regardless of layout.
 
 <br/>
 
 ### Stealth Automation Pipeline
-Built with `playwright-extra` and advanced **Stealth Plugins**, the platform bypasses bot detection on sophisticated hiring platforms. It mimics human behavior to ensure your automation isn't blocked.
+Built with `playwright-extra` and advanced **Stealth Plugins**, the platform bypasses bot detection on sophisticated hiring platforms. It mimics human behavior — randomized keystroke delays, non-linear mouse paths, and human-like scroll patterns — to ensure your automation is never blocked.
 
 <br/>
 
 ### Smart Resume Selection
-Upload multiple versions of your resume — one for frontend roles, one for backend, one for leadership. When applying to any job, the platform automatically scores each resume against the job description and selects the most relevant one. No manual switching. No guesswork. Every application goes out with the resume most likely to pass screening.
+Upload multiple versions of your resume. When applying to any job, the platform automatically scores each resume against the job description using **pgvector Cosine Similarity** and selects the most relevant one. No manual switching. Every application goes out with the resume most likely to pass screening.
 
 <br/>
 
 ### AI-Powered Resume Tailoring
-Your master resume is rewritten for each specific job using GPT-4o. The AI restructures your experience, brings forward the most relevant skills, and mirrors the language in the job description — so your resume looks like it was written for that role specifically, not adapted from a generic template.
+Your master resume is rewritten for each specific job using GPT-4o. The AI restructures your experience, brings forward the most relevant skills, and mirrors the language in the job description — so your resume looks like it was written for that role specifically.
 
 <br/>
 
 ### AI Cover Letter Generation
-A tailored, professional cover letter for any job in seconds. The AI reads the job description, understands what the company values, and writes something genuine — not a template with your name swapped in. Regenerate as many times as you want until it's right.
+A tailored, professional cover letter for any job in seconds. The AI reads the job description, understands what the company values, and writes something genuine — not a template with your name swapped in.
 
 <br/>
 
-### Autonomous Daily Pipeline
-The system runs a **fully autonomous 24/7 loop**. At 3:00 AM every day, it discovers new companies, scrapes their latest job openings, calculates your match scores, and sends high-match notifications to your Telegram or Dashboard.
+### Autonomous Daily Pipeline (4:00 AM)
+The system runs a **fully autonomous 24/7 loop**. Every morning it discovers new companies, scrapes their latest job openings, calculates match scores, and sends a curated **Telegram digest** of your top "High-Match" roles.
 
 <br/>
 
 ### Batch Apply
-Select any number of jobs from your list and apply to all of them in one click. Smart Resume Selection runs independently per job — each application gets the best-fit resume automatically.
-
-<br/>
-
-### Saved Searches
-Save your exact search configuration — role, location, filters, sources — with a name. Switch between job types instantly. Useful when you're open to multiple tracks (e.g. "Senior Frontend" and "Founding Engineer") without re-entering everything each time.
+Select any number of jobs from your list and apply to all of them in one click. Smart Resume Selection runs independently per job. The system handles the full submission lifecycle — tailoring, form-filling, and stealth bypass.
 
 <br/>
 
 ### Full Application Pipeline Tracker
-Every application is tracked from the moment it's submitted — through screening, interview, offer, and outcome. Update statuses manually or let the automation update them. Export your entire history as a CSV at any time.
+Every application is tracked from submission through screening, interview, offer, and outcome. Update statuses manually or let automation update them. Export your entire history as a CSV at any time.
 
 <br/>
 
-### Analytics That Actually Help
-Understand where your search is working and where it isn't. See response rates broken down by job board — so you know which sources are worth your time. See which days of the week yield the highest response rates. Make decisions based on your own data, not generic career advice.
+### Analytics Dashboard
+Understand where your search is working and where it isn't. See response rates broken down by job board, best days to apply, and application trends over time. Make decisions based on your own data.
+
+<br/>
+
+### Telegram Notifications
+Real-time alerts when high-match jobs (80%+ score) are found, application status updates, daily summaries, and company discovery reports — all delivered directly to your Telegram.
 
 <br/>
 
 ### LinkedIn Easy Apply Chrome Extension (Copilot)
-A browser extension that detects LinkedIn's Easy Apply modal and auto-fills your details. It also injects a **Match Score UI** directly on LinkedIn and Greenhouse pages, so you know if a job is worth applying for before you even click.
+A browser extension that injects a **Match Score UI** directly on LinkedIn and Greenhouse pages — so you know if a job is worth applying for before you click. Handles LinkedIn Easy Apply forms automatically and allows triggering resume tailoring sessions without leaving your browser.
 
 ---
 
 ## How It Works
 
-**Step 1 — Set up your profile**
-Upload your resume. The AI extracts your skills, experience, and background. Upload multiple versions if you're targeting different role types. Label each one and set which are active.
+**Step 1 — Build or Import Your Resume**
+Use the Resume Builder to create a stunning ATS-optimized resume from scratch with 15 templates, or import your existing PDF and let AI pre-fill all sections instantly.
 
-**Step 2 — Configure Automation**
-Define your target roles and preferred sources. Enable the daily discovery pipeline to let the AI find companies and jobs while you sleep.
+**Step 2 — Set Up Your Profile**
+Upload multiple resume versions — one for Frontend, one for Backend, one for Leadership. The AI matches each to the right job automatically.
 
-**Step 3 — Review Matches**
-Wake up to a dashboard of "High-Match" jobs. The AI uses **Vector Mathematics (Cosine Similarity)** to rank jobs against your skills with scientific accuracy.
+**Step 3 — Configure & Save Your Search**
+Define your target roles, experience level, preferred sources, and locations. Save configurations as named "Saved Searches" to switch contexts instantly.
 
-**Step 4 — 1-Click Apply**
-Apply to individual jobs or batch-apply. For each job, the system tailors the resume, writes the cover letter, and bypasses bot protection to submit your application.
+**Step 4 — Let the Pipeline Run**
+Enable the daily discovery pipeline. At 4:00 AM, the system finds new companies, scrapes their career pages, runs AI match scoring, and sends you a curated Telegram digest.
 
-**Step 5 — Track and analyze**
-Monitor your pipeline on the Applications page. Watch your response rates by source and by day on the Analytics page. Iterate on your search strategy based on real data.
+**Step 5 — 1-Click Apply**
+Apply to individual jobs or batch-apply dozens at once. For each, the system selects the best resume, tailors it, writes a cover letter, and submits via Stealth Automation.
+
+**Step 6 — Track & Optimize**
+Monitor your pipeline on the Applications page. Use the Analytics dashboard to identify which sources yield the best response rates and optimize your strategy.
 
 ---
 
@@ -132,14 +154,30 @@ Monitor your pipeline on the Applications page. Watch your response rates by sou
 
 You need accounts with four services — all have free tiers:
 
-- **[PostgreSQL (pgvector)](https://supabase.com)** — Database with vector support
+- **[Supabase / PostgreSQL + pgvector](https://supabase.com)** — Database with vector support
 - **[OpenAI](https://platform.openai.com)** — GPT-4o for all AI features
-- **[SerpAPI / Serper](https://serper.dev)** — For Google Jobs discovery
+- **[SerpAPI / Serper](https://serper.dev)** — For Google Jobs & company discovery
 - **[Resend](https://resend.com)** — Email notifications (optional)
+- **[Telegram Bot](https://t.me/botfather)** — Real-time job alerts (optional)
 
-Once you have your API keys, install dependencies, add them to your environment configuration file, initialize the database, and start the development server. The full setup takes under 10 minutes.
+```bash
+# Clone and install
+git clone https://github.com/yourusername/job-agent.git
+cd job-agent
+npm install
 
-For the Chrome extension — load it as an unpacked extension from the `chrome-extension` folder in Chrome's developer mode, enter your details in the popup once, and it will handle LinkedIn Easy Apply forms automatically from then on.
+# Configure environment
+cp .env.example .env.local
+# Add: DATABASE_URL, OPENAI_API_KEY, SERPER_API_KEY, etc.
+
+# Push schema to database
+npx drizzle-kit push
+
+# Run development server
+npm run dev
+```
+
+For the Chrome extension — load it as an unpacked extension from the `chrome-extension/` folder in Chrome Developer Mode.
 
 ---
 
@@ -148,21 +186,46 @@ For the Chrome extension — load it as an unpacked extension from the `chrome-e
 | Module | What it does |
 |---|---|
 | **Dashboard** | Live overview — active applications, recent matches, pipeline health |
-| **Resume Manager** | Upload, label, activate/deactivate, and delete resumes. AI parses each one automatically |
-| **Search** | Multi-source job discovery with filters and saved search configurations |
-| **Discovery Engine** | Autonomous company finding via ProductHunt, VC registries, and Google |
-| **All Jobs** | Full table of discovered jobs with apply, tailor, cover letter, and batch select actions |
-| **AI Matches** | Jobs ranked by compatibility score against your resume using Vector Similarity |
-| **Applications** | Full pipeline tracker with status management and CSV export |
+| **Resume Builder** | Build resumes with 15 templates, live preview, AI enhancement, and PDF export |
+| **Resume Manager** | Upload, label, activate/deactivate, and delete parsed resume versions |
+| **Search** | 11-source discovery with Saved Searches, Radar Visualization, and Experience Filtering |
+| **Discovery Engine** | Autonomous company finding via ProductHunt, YC, VC registries, and Google Jobs |
+| **All Jobs** | Full table of all discovered jobs — apply, tailor, cover letter, and batch select |
+| **AI Matches** | Jobs ranked by Vector Cosine Similarity score against your resume |
+| **Applications** | Full pipeline tracker from submission to offer with CSV export |
 | **Analytics** | Response rates, application trends, best days to apply |
+| **Companies** | Track target companies, career pages, ATS types, and hiring activity |
+| **Manual Review** | Applications that need human review before submission |
 | **Settings** | Notification preferences, automation limits, application criteria |
-| **Companies** | Track target companies, career pages, and hiring activity |
+
+---
+
+## Resume Builder Templates
+
+| Template | Layout | Style |
+|---|---|---|
+| Classic | Single Column | Timeless serif, centered |
+| Modern | Single Column | Clean sans-serif, indigo |
+| Minimal | Single Column | Whitespace-forward |
+| Executive | Single Column | Bold serif, formal |
+| Sharp | Single Column | Left border accents |
+| Scholar | Single Column | Academic serif |
+| Compact | Single Column | Maximum density |
+| Banner | Banner Header | Bold colored header |
+| Teal Banner | Banner Header | Teal band + clean body |
+| Timeline | Timeline | Dot timeline experience |
+| Atlantic | Sidebar Dark | Navy sidebar |
+| Slate | Sidebar Dark | Charcoal sidebar |
+| Sidebar Light | Sidebar Light | Gray sidebar split |
+| Two Column | Two Column | Balanced split layout |
+| Mercury | Two Column | Narrow left panel |
+| Traditional | Traditional | ALL CAPS, skills-first |
 
 ---
 
 ## Built With
 
-Next.js · TypeScript · Tailwind CSS · ShadCN UI · PostgreSQL (pgvector) · Drizzle ORM · OpenAI GPT-4o · TanStack Query · Recharts · Playwright (Stealth) · Resend
+Next.js 16 · TypeScript · Tailwind CSS · ShadCN UI · PostgreSQL (pgvector) · Drizzle ORM · OpenAI GPT-4o · TanStack Query · Recharts · Playwright (Stealth) · Resend · Telegram Bot API · date-fns · Framer Motion · Vitest · Zod
 
 ---
 
