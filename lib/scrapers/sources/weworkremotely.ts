@@ -12,15 +12,18 @@ export class WeWorkRemotelyScraper extends BaseScraper {
     const jobs: ScrapedJob[] = [];
 
     try {
-      const category = filters.role?.includes('design') ? 'design' : 'programming';
-      const url = `https://weworkremotely.com/categories/remote-${category}-jobs`;
+      // Use search URL when role is provided for accurate results
+      const role = filters.role?.trim();
+      const url = role
+        ? `https://weworkremotely.com/remote-jobs/search?term=${encodeURIComponent(role)}`
+        : `https://weworkremotely.com/categories/remote-programming-jobs`;
       logger.info(`WeWorkRemotely: ${url}`);
 
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
       await this.delay(2000);
 
       const rawJobs = await page.evaluate(() => {
-        const items = document.querySelectorAll('section.jobs ul li:not(.view-all):not(.ad)');
+        const items = document.querySelectorAll('section.jobs ul li:not(.view-all):not(.ad), .new-listing-item');
         return Array.from(items).map((item) => {
           const link = item.querySelector('a') as HTMLAnchorElement;
           const href = link?.getAttribute('href') || '';

@@ -119,7 +119,7 @@ export class UniversalScraper {
       }
 
       filteredJobs = allJobs.filter((j) => {
-        if (!j.postedAt) return true; // Keep if date is unknown
+        if (!j.postedAt) return maxAgeDays >= 30; // Only keep unknown-date jobs for loose filters
         const ageDays = (now - j.postedAt.getTime()) / msPerDay;
         return ageDays <= maxAgeDays;
       });
