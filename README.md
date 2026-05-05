@@ -49,6 +49,21 @@ Simultaneously searches RemoteOK, WeWorkRemotely, Indeed, LinkedIn, Glassdoor, G
 
 <br/>
 
+### Autonomous Company Discovery Engine
+Goes beyond job boards. The platform autonomously finds new companies hiring in your space by monitoring **Google Jobs Search**, **ProductHunt**, and **Startup Registries (YC, etc.)**. It builds a database of companies you didn't even know existed.
+
+<br/>
+
+### Universal Career Page Scraper
+The world's most powerful career page scraper. It automatically detects if a company uses a known ATS (Greenhouse, Lever) or a custom site. For custom sites, it uses an **AI-Hybrid engine** to navigate the page, find the jobs, and extract details—allowing it to scrape *any* career page in the world.
+
+<br/>
+
+### Stealth Automation Pipeline
+Built with `playwright-extra` and advanced **Stealth Plugins**, the platform bypasses bot detection on sophisticated hiring platforms. It mimics human behavior to ensure your automation isn't blocked.
+
+<br/>
+
 ### Smart Resume Selection
 Upload multiple versions of your resume — one for frontend roles, one for backend, one for leadership. When applying to any job, the platform automatically scores each resume against the job description and selects the most relevant one. No manual switching. No guesswork. Every application goes out with the resume most likely to pass screening.
 
@@ -64,8 +79,8 @@ A tailored, professional cover letter for any job in seconds. The AI reads the j
 
 <br/>
 
-### Autonomous Application Engine
-The platform navigates job application forms, fills in your details, attaches the right resume, and submits — powered by browser automation. Applications go out 24/7 without you sitting at a computer.
+### Autonomous Daily Pipeline
+The system runs a **fully autonomous 24/7 loop**. At 3:00 AM every day, it discovers new companies, scrapes their latest job openings, calculates your match scores, and sends high-match notifications to your Telegram or Dashboard.
 
 <br/>
 
@@ -89,8 +104,8 @@ Understand where your search is working and where it isn't. See response rates b
 
 <br/>
 
-### LinkedIn Easy Apply Chrome Extension
-A browser extension that detects LinkedIn's Easy Apply modal and auto-fills your details — phone, location, work authorization, visa status. Set your profile once in the extension. Every Easy Apply form is handled automatically from that point forward.
+### LinkedIn Easy Apply Chrome Extension (Copilot)
+A browser extension that detects LinkedIn's Easy Apply modal and auto-fills your details. It also injects a **Match Score UI** directly on LinkedIn and Greenhouse pages, so you know if a job is worth applying for before you even click.
 
 ---
 
@@ -99,14 +114,14 @@ A browser extension that detects LinkedIn's Easy Apply modal and auto-fills your
 **Step 1 — Set up your profile**
 Upload your resume. The AI extracts your skills, experience, and background. Upload multiple versions if you're targeting different role types. Label each one and set which are active.
 
-**Step 2 — Define your search**
-Choose your target role, preferred locations, experience level, remote preference, and which job boards to search. Save the configuration if you want to run it regularly.
+**Step 2 — Configure Automation**
+Define your target roles and preferred sources. Enable the daily discovery pipeline to let the AI find companies and jobs while you sleep.
 
-**Step 3 — Run the search**
-Hit search. The platform scrapes all selected sources simultaneously, deduplicates results, and populates your job list in seconds.
+**Step 3 — Review Matches**
+Wake up to a dashboard of "High-Match" jobs. The AI uses **Vector Mathematics (Cosine Similarity)** to rank jobs against your skills with scientific accuracy.
 
-**Step 4 — Apply**
-Apply to individual jobs with one click, or select multiple and batch apply. For each job, the best-matching resume is selected automatically. Cover letters and tailored resumes are generated on demand.
+**Step 4 — 1-Click Apply**
+Apply to individual jobs or batch-apply. For each job, the system tailors the resume, writes the cover letter, and bypasses bot protection to submit your application.
 
 **Step 5 — Track and analyze**
 Monitor your pipeline on the Applications page. Watch your response rates by source and by day on the Analytics page. Iterate on your search strategy based on real data.
@@ -115,11 +130,12 @@ Monitor your pipeline on the Applications page. Watch your response rates by sou
 
 ## Setup
 
-You need accounts with three services — all have free tiers:
+You need accounts with four services — all have free tiers:
 
-- **[Supabase](https://supabase.com)** — the database
+- **[PostgreSQL (pgvector)](https://supabase.com)** — Database with vector support
 - **[OpenAI](https://platform.openai.com)** — GPT-4o for all AI features
-- **[Resend](https://resend.com)** — email notifications (optional)
+- **[SerpAPI / Serper](https://serper.dev)** — For Google Jobs discovery
+- **[Resend](https://resend.com)** — Email notifications (optional)
 
 Once you have your API keys, install dependencies, add them to your environment configuration file, initialize the database, and start the development server. The full setup takes under 10 minutes.
 
@@ -134,8 +150,9 @@ For the Chrome extension — load it as an unpacked extension from the `chrome-e
 | **Dashboard** | Live overview — active applications, recent matches, pipeline health |
 | **Resume Manager** | Upload, label, activate/deactivate, and delete resumes. AI parses each one automatically |
 | **Search** | Multi-source job discovery with filters and saved search configurations |
+| **Discovery Engine** | Autonomous company finding via ProductHunt, VC registries, and Google |
 | **All Jobs** | Full table of discovered jobs with apply, tailor, cover letter, and batch select actions |
-| **AI Matches** | Jobs ranked by compatibility score against your resume |
+| **AI Matches** | Jobs ranked by compatibility score against your resume using Vector Similarity |
 | **Applications** | Full pipeline tracker with status management and CSV export |
 | **Analytics** | Response rates, application trends, best days to apply |
 | **Settings** | Notification preferences, automation limits, application criteria |
@@ -145,7 +162,7 @@ For the Chrome extension — load it as an unpacked extension from the `chrome-e
 
 ## Built With
 
-Next.js · TypeScript · Tailwind CSS · ShadCN UI · Supabase · Drizzle ORM · OpenAI GPT-4o · TanStack Query · Recharts · Playwright · Resend
+Next.js · TypeScript · Tailwind CSS · ShadCN UI · PostgreSQL (pgvector) · Drizzle ORM · OpenAI GPT-4o · TanStack Query · Recharts · Playwright (Stealth) · Resend
 
 ---
 
