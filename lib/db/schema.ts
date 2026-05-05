@@ -194,6 +194,18 @@ export const savedSearches = pgTable('saved_searches', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+export const resumeProjects = pgTable('resume_projects', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  profileId: uuid('profile_id').references(() => profile.id).notNull(),
+  name: text('name').notNull().default('Untitled Resume'),
+  data: jsonb('data').notNull().default({}),
+  templateId: text('template_id').notNull().default('classic'),
+  status: text('status').notNull().default('draft'), // 'draft' | 'deployed'
+  deployedResumeId: uuid('deployed_resume_id').references(() => resumes.id),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
 export const companyDiscoverySources = pgTable('company_discovery_sources', {
   id: uuid('id').primaryKey().defaultRandom(),
   source: text('source').notNull(),           // 'yc' | 'github' | 'vc' | 'wellfound' | 'seed'

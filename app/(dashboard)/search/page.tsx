@@ -10,6 +10,7 @@ import { useScrapeJobs } from '@/lib/hooks/use-jobs';
 import { toast } from 'sonner';
 import { Search, Plus, X, Zap, Bookmark, Play } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { SearchProgressModal } from '@/components/search/SearchProgressModal';
 
 const ALL_SOURCES = [
   { id: 'remoteok', label: 'RemoteOK' },
@@ -399,6 +400,8 @@ export default function SearchPage() {
         <Search className="mr-2 h-4 w-4" />
         {isPending ? 'Scraping...' : 'Start Auto-Search'}
       </Button>
+
+      <SearchProgressModal isOpen={isPending} />
     </div>
   );
 }

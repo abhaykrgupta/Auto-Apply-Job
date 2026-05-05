@@ -18,6 +18,7 @@ import {
   Zap,
   ChevronLeft,
   ChevronRight,
+  PenLine,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -37,6 +38,7 @@ export const navGroups = [
       { href: '/search', label: 'Search Jobs', icon: Search },
       { href: '/jobs', label: 'All Jobs', icon: Briefcase },
       { href: '/matches', label: 'AI Matches', icon: Star },
+      { href: '/resume-builder', label: 'Resume Builder', icon: PenLine },
     ],
   },
   {

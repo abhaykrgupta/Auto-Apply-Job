@@ -1,0 +1,580 @@
+'use client';
+
+import { useState, useRef } from 'react';
+import { ResumeData, ExperienceEntry, EducationEntry, ProjectEntry } from './types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
+import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Sparkles, Loader2 } from 'lucide-react';
+import { nanoid } from 'nanoid';
+import { toast } from 'sonner';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CRITICAL: Field and Textarea MUST be defined OUTSIDE the BuilderForm component.
+// Defining them inside causes React to treat them as new component types on every
+// render → unmount/remount → input loses focus after each keystroke.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function Textarea({ className, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      className={cn(
+        'flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm',
+        'placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1',
+        'focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 resize-none',
+        className
+      )}
+      {...props}
+    />
+  );
+}
+
+function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={cn('flex flex-col gap-1.5 mb-4', className)}>
+      <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+const TABS = ['Personal', 'Summary', 'Experience', 'Education', 'Skills', 'Projects'] as const;
+type Tab = typeof TABS[number];
+
+interface Props { data: ResumeData; onChange: (data: ResumeData) => void; }
+
+export function BuilderForm({ data, onChange }: Props) {
+  const [activeTab, setActiveTab] = useState<Tab>('Personal');
+  const [openEntries, setOpenEntries] = useState<Record<string, boolean>>({});
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const dragSrc = useRef<{ section: 'experience' | 'education' | 'projects'; idx: number } | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [improvingBullets, setImprovingBullets] = useState<string | null>(null); // entry id being improved
+
+  const aiCall = async (action: string, payload: object) => {
+    const res = await fetch('/api/resume-builder/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, data: payload }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'AI request failed');
+    return json.result;
+  };
+
+  const update = (partial: Partial<ResumeData>) => onChange({ ...data, ...partial });
+  const toggleEntry = (id: string) => setOpenEntries(p => ({ ...p, [id]: !p[id] }));
+
+  function reorder<T>(arr: T[], from: number, to: number): T[] {
+    const next = [...arr];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    return next;
+  }
+
+  const handleDrop = (section: 'experience' | 'education' | 'projects', toIdx: number) => {
+    if (!dragSrc.current || dragSrc.current.section !== section || dragSrc.current.idx === toIdx) {
+      dragSrc.current = null;
+      setDragOverIdx(null);
+      return;
+    }
+    const from = dragSrc.current.idx;
+    if (section === 'experience') update({ experience: reorder(data.experience, from, toIdx) });
+    else if (section === 'education') update({ education: reorder(data.education, from, toIdx) });
+    else update({ projects: reorder(data.projects, from, toIdx) });
+    dragSrc.current = null;
+    setDragOverIdx(null);
+  };
+
+  // ── Personal ──────────────────────────────────────────────────────────────
+  const renderPersonal = () => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3">
+      <Field label="Full Name" className="sm:col-span-2">
+        <Input
+          value={data.personal.name}
+          onChange={e => update({ personal: { ...data.personal, name: e.target.value } })}
+          placeholder="Jane Smith"
+        />
+      </Field>
+      <Field label="Email">
+        <Input
+          value={data.personal.email}
+          onChange={e => update({ personal: { ...data.personal, email: e.target.value } })}
+          placeholder="jane@example.com"
+          type="email"
+        />
+      </Field>
+      <Field label="Phone">
+        <Input
+          value={data.personal.phone}
+          onChange={e => update({ personal: { ...data.personal, phone: e.target.value } })}
+          placeholder="+1 (555) 000-0000"
+        />
+      </Field>
+      <Field label="Location">
+        <Input
+          value={data.personal.location}
+          onChange={e => update({ personal: { ...data.personal, location: e.target.value } })}
+          placeholder="San Francisco, CA"
+        />
+      </Field>
+      <Field label="Website">
+        <Input
+          value={data.personal.website}
+          onChange={e => update({ personal: { ...data.personal, website: e.target.value } })}
+          placeholder="jane.dev"
+        />
+      </Field>
+      <Field label="LinkedIn">
+        <Input
+          value={data.personal.linkedin}
+          onChange={e => update({ personal: { ...data.personal, linkedin: e.target.value } })}
+          placeholder="linkedin.com/in/jane"
+        />
+      </Field>
+      <Field label="GitHub">
+        <Input
+          value={data.personal.github}
+          onChange={e => update({ personal: { ...data.personal, github: e.target.value } })}
+          placeholder="github.com/jane"
+        />
+      </Field>
+    </div>
+  );
+
+  // ── Summary ───────────────────────────────────────────────────────────────
+  const generateSummary = async () => {
+    if (data.experience.length === 0) { toast.error('Add at least one experience entry first'); return; }
+    setSummaryLoading(true);
+    try {
+      const result = await aiCall('generate-summary', { experience: data.experience, education: data.education, skills: data.skills });
+      update({ summary: { text: result } });
+      toast.success('Summary generated!');
+    } catch (e: any) { toast.error(e.message); }
+    finally { setSummaryLoading(false); }
+  };
+
+  const renderSummary = () => (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Write 2–3 sentences highlighting your expertise, key achievements, and career goals.
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={generateSummary}
+          disabled={summaryLoading}
+          className="shrink-0 ml-3 h-7 text-xs gap-1.5 border-violet-200 text-violet-700 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-400 dark:hover:bg-violet-950"
+        >
+          {summaryLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+          {summaryLoading ? 'Writing…' : 'Write with AI'}
+        </Button>
+      </div>
+      <Textarea
+        rows={7}
+        value={data.summary.text}
+        onChange={e => update({ summary: { text: e.target.value } })}
+        placeholder="Results-driven software engineer with 5+ years building scalable web applications. Passionate about clean architecture and developer experience. Looking for senior roles in fast-paced product teams."
+      />
+      <p className="text-[11px] text-muted-foreground mt-2">{data.summary.text.length} characters</p>
+    </div>
+  );
+
+  // ── Experience ────────────────────────────────────────────────────────────
+  const addExperience = () => {
+    const id = nanoid();
+    const entry: ExperienceEntry = { id, company: '', title: '', location: '', startDate: '', endDate: '', current: false, bullets: [''] };
+    update({ experience: [...data.experience, entry] });
+    setOpenEntries(p => ({ ...p, [id]: true }));
+  };
+
+  const updateExp = (id: string, partial: Partial<ExperienceEntry>) =>
+    update({ experience: data.experience.map(e => e.id === id ? { ...e, ...partial } : e) });
+
+  const renderExperience = () => (
+    <div>
+      {data.experience.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-10 text-center border-2 border-dashed border-border rounded-xl mb-4 bg-muted/20">
+          <p className="text-sm text-muted-foreground font-medium">No experience added yet</p>
+          <p className="text-xs text-muted-foreground mt-1">Add your work history below</p>
+        </div>
+      )}
+      {data.experience.map((exp, i) => (
+        <div
+          key={exp.id}
+          draggable
+          onDragStart={() => { dragSrc.current = { section: 'experience', idx: i }; }}
+          onDragOver={e => { e.preventDefault(); setDragOverIdx(i); }}
+          onDragLeave={() => setDragOverIdx(null)}
+          onDrop={() => handleDrop('experience', i)}
+          onDragEnd={() => { dragSrc.current = null; setDragOverIdx(null); }}
+          className={cn(
+            'border border-border rounded-xl mb-3 overflow-hidden bg-card shadow-sm transition-all',
+            dragOverIdx === i && dragSrc.current?.section === 'experience' && dragSrc.current.idx !== i
+              ? 'ring-2 ring-primary border-primary scale-[1.01]'
+              : ''
+          )}
+        >
+          <div
+            className="flex items-center gap-2 px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors select-none"
+            onClick={() => toggleEntry(exp.id)}
+          >
+            <GripVertical className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 cursor-grab active:cursor-grabbing" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold truncate">{exp.title || 'New Position'}</div>
+              <div className="text-xs text-muted-foreground truncate">
+                {exp.company || 'Company'}{(exp.current || exp.endDate) ? ` · ${exp.current ? 'Present' : exp.endDate}` : ''}
+              </div>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={e => { e.stopPropagation(); update({ experience: data.experience.filter(e => e.id !== exp.id) }); }}
+                className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+              {openEntries[exp.id]
+                ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+            </div>
+          </div>
+          {openEntries[exp.id] && (
+            <div className="border-t border-border p-4 bg-background space-y-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3">
+                <Field label="Job Title">
+                  <Input value={exp.title} onChange={e => updateExp(exp.id, { title: e.target.value })} placeholder="Software Engineer" />
+                </Field>
+                <Field label="Company">
+                  <Input value={exp.company} onChange={e => updateExp(exp.id, { company: e.target.value })} placeholder="Acme Corp" />
+                </Field>
+                <Field label="Location">
+                  <Input value={exp.location} onChange={e => updateExp(exp.id, { location: e.target.value })} placeholder="San Francisco, CA" />
+                </Field>
+                <Field label="Start Date">
+                  <Input value={exp.startDate} onChange={e => updateExp(exp.id, { startDate: e.target.value })} placeholder="Jan 2022" />
+                </Field>
+                <Field label="End Date">
+                  <Input value={exp.endDate} onChange={e => updateExp(exp.id, { endDate: e.target.value })} placeholder="Dec 2024" disabled={exp.current} />
+                </Field>
+                <Field label=" " className="flex justify-start items-end">
+                  <label className="flex items-center gap-2 cursor-pointer h-9 pb-0.5">
+                    <input
+                      type="checkbox"
+                      checked={exp.current}
+                      onChange={e => updateExp(exp.id, { current: e.target.checked, endDate: e.target.checked ? '' : exp.endDate })}
+                      className="rounded border-input h-4 w-4 accent-primary"
+                    />
+                    <span className="text-sm">Currently here</span>
+                  </label>
+                </Field>
+              </div>
+              <div className="flex flex-col gap-1.5 mb-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Bullet Points — one per line</Label>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const bullets = exp.bullets.filter(Boolean);
+                      if (!bullets.length) { toast.error('Add at least one bullet first'); return; }
+                      setImprovingBullets(exp.id);
+                      try {
+                        const improved = await aiCall('improve-bullets', { title: exp.title, company: exp.company, bullets });
+                        updateExp(exp.id, { bullets: improved });
+                        toast.success('Bullets improved!');
+                      } catch (e: any) { toast.error(e.message); }
+                      finally { setImprovingBullets(null); }
+                    }}
+                    disabled={improvingBullets === exp.id}
+                    className="flex items-center gap-1 text-[11px] font-medium text-violet-600 hover:text-violet-700 dark:text-violet-400 disabled:opacity-50 transition-colors"
+                  >
+                    {improvingBullets === exp.id
+                      ? <Loader2 className="h-3 w-3 animate-spin" />
+                      : <Sparkles className="h-3 w-3" />}
+                    {improvingBullets === exp.id ? 'Improving…' : '✨ Improve with AI'}
+                  </button>
+                </div>
+                <Textarea
+                  rows={5}
+                  value={exp.bullets.join('\n')}
+                  onChange={e => updateExp(exp.id, { bullets: e.target.value.split('\n') })}
+                  placeholder={"Increased system performance by 40% through query optimization\nLed a cross-functional team of 5 engineers\nShipped 3 major product features used by 500K+ users"}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={addExperience} className="w-full border-dashed h-9">
+        <Plus className="h-4 w-4 mr-2" />Add Experience
+      </Button>
+    </div>
+  );
+
+  // ── Education ─────────────────────────────────────────────────────────────
+  const addEducation = () => {
+    const id = nanoid();
+    const entry: EducationEntry = { id, school: '', degree: '', field: '', startDate: '', endDate: '', gpa: '' };
+    update({ education: [...data.education, entry] });
+    setOpenEntries(p => ({ ...p, [id]: true }));
+  };
+
+  const updateEdu = (id: string, partial: Partial<EducationEntry>) =>
+    update({ education: data.education.map(e => e.id === id ? { ...e, ...partial } : e) });
+
+  const renderEducation = () => (
+    <div>
+      {data.education.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-10 text-center border-2 border-dashed border-border rounded-xl mb-4 bg-muted/20">
+          <p className="text-sm text-muted-foreground font-medium">No education added yet</p>
+        </div>
+      )}
+      {data.education.map((edu, i) => (
+        <div
+          key={edu.id}
+          draggable
+          onDragStart={() => { dragSrc.current = { section: 'education', idx: i }; }}
+          onDragOver={e => { e.preventDefault(); setDragOverIdx(i + 1000); }}
+          onDragLeave={() => setDragOverIdx(null)}
+          onDrop={() => handleDrop('education', i)}
+          onDragEnd={() => { dragSrc.current = null; setDragOverIdx(null); }}
+          className={cn(
+            'border border-border rounded-xl mb-3 overflow-hidden bg-card shadow-sm transition-all',
+            dragOverIdx === i + 1000 && dragSrc.current?.section === 'education' && dragSrc.current.idx !== i
+              ? 'ring-2 ring-primary border-primary scale-[1.01]'
+              : ''
+          )}
+        >
+          <div
+            className="flex items-center gap-2 px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors select-none"
+            onClick={() => toggleEntry(edu.id)}
+          >
+            <GripVertical className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 cursor-grab active:cursor-grabbing" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold truncate">{edu.school || 'School Name'}</div>
+              <div className="text-xs text-muted-foreground">{edu.degree}{edu.field ? ` in ${edu.field}` : ''}</div>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={e => { e.stopPropagation(); update({ education: data.education.filter(e => e.id !== edu.id) }); }}
+                className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+              {openEntries[edu.id] ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+            </div>
+          </div>
+          {openEntries[edu.id] && (
+            <div className="border-t border-border p-4 bg-background">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3">
+                <Field label="School" className="sm:col-span-2">
+                  <Input value={edu.school} onChange={e => updateEdu(edu.id, { school: e.target.value })} placeholder="MIT" />
+                </Field>
+                <Field label="Degree">
+                  <Input value={edu.degree} onChange={e => updateEdu(edu.id, { degree: e.target.value })} placeholder="B.S." />
+                </Field>
+                <Field label="Field of Study">
+                  <Input value={edu.field} onChange={e => updateEdu(edu.id, { field: e.target.value })} placeholder="Computer Science" />
+                </Field>
+                <Field label="Start Date">
+                  <Input value={edu.startDate} onChange={e => updateEdu(edu.id, { startDate: e.target.value })} placeholder="Sep 2018" />
+                </Field>
+                <Field label="End Date">
+                  <Input value={edu.endDate} onChange={e => updateEdu(edu.id, { endDate: e.target.value })} placeholder="Jun 2022" />
+                </Field>
+                <Field label="GPA (optional)">
+                  <Input value={edu.gpa} onChange={e => updateEdu(edu.id, { gpa: e.target.value })} placeholder="3.9" />
+                </Field>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={addEducation} className="w-full border-dashed h-9">
+        <Plus className="h-4 w-4 mr-2" />Add Education
+      </Button>
+    </div>
+  );
+
+  // ── Skills ────────────────────────────────────────────────────────────────
+  const setSkills = (cat: keyof typeof data.skills, val: string) =>
+    update({ skills: { ...data.skills, [cat]: val.split(',').map(s => s.trim()).filter(Boolean) } });
+
+  const renderSkills = () => (
+    <div>
+      <p className="text-xs text-muted-foreground mb-4 leading-relaxed">Enter each skill separated by a comma. These appear in the Skills section of your resume.</p>
+      <Field label="Technical Skills">
+        <Input
+          value={data.skills.technical.join(', ')}
+          onChange={e => setSkills('technical', e.target.value)}
+          placeholder="React, TypeScript, Node.js, PostgreSQL, AWS, Docker"
+        />
+      </Field>
+      <Field label="Soft Skills">
+        <Input
+          value={data.skills.soft.join(', ')}
+          onChange={e => setSkills('soft', e.target.value)}
+          placeholder="Leadership, Communication, Problem Solving"
+        />
+      </Field>
+      <Field label="Languages">
+        <Input
+          value={data.skills.languages.join(', ')}
+          onChange={e => setSkills('languages', e.target.value)}
+          placeholder="English (Native), Spanish (B2), Hindi (Native)"
+        />
+      </Field>
+      <Field label="Certifications">
+        <Input
+          value={data.skills.certifications.join(', ')}
+          onChange={e => setSkills('certifications', e.target.value)}
+          placeholder="AWS Solutions Architect, Google Cloud Professional"
+        />
+      </Field>
+    </div>
+  );
+
+  // ── Projects ──────────────────────────────────────────────────────────────
+  const addProject = () => {
+    const id = nanoid();
+    const entry: ProjectEntry = { id, name: '', description: '', url: '', technologies: [], bullets: [] };
+    update({ projects: [...data.projects, entry] });
+    setOpenEntries(p => ({ ...p, [id]: true }));
+  };
+
+  const updateProj = (id: string, partial: Partial<ProjectEntry>) =>
+    update({ projects: data.projects.map(p => p.id === id ? { ...p, ...partial } : p) });
+
+  const renderProjects = () => (
+    <div>
+      {data.projects.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-10 text-center border-2 border-dashed border-border rounded-xl mb-4 bg-muted/20">
+          <p className="text-sm text-muted-foreground font-medium">No projects added yet</p>
+        </div>
+      )}
+      {data.projects.map((proj, i) => (
+        <div
+          key={proj.id}
+          draggable
+          onDragStart={() => { dragSrc.current = { section: 'projects', idx: i }; }}
+          onDragOver={e => { e.preventDefault(); setDragOverIdx(i + 2000); }}
+          onDragLeave={() => setDragOverIdx(null)}
+          onDrop={() => handleDrop('projects', i)}
+          onDragEnd={() => { dragSrc.current = null; setDragOverIdx(null); }}
+          className={cn(
+            'border border-border rounded-xl mb-3 overflow-hidden bg-card shadow-sm transition-all',
+            dragOverIdx === i + 2000 && dragSrc.current?.section === 'projects' && dragSrc.current.idx !== i
+              ? 'ring-2 ring-primary border-primary scale-[1.01]'
+              : ''
+          )}
+        >
+          <div
+            className="flex items-center gap-2 px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors select-none"
+            onClick={() => toggleEntry(proj.id)}
+          >
+            <GripVertical className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 cursor-grab active:cursor-grabbing" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold truncate">{proj.name || 'New Project'}</div>
+              {proj.technologies.length > 0 && <div className="text-xs text-muted-foreground truncate">{proj.technologies.join(', ')}</div>}
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={e => { e.stopPropagation(); update({ projects: data.projects.filter(p => p.id !== proj.id) }); }}
+                className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+              {openEntries[proj.id] ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+            </div>
+          </div>
+          {openEntries[proj.id] && (
+            <div className="border-t border-border p-4 bg-background">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3">
+                <Field label="Project Name">
+                  <Input value={proj.name} onChange={e => updateProj(proj.id, { name: e.target.value })} placeholder="OpenMetrics" />
+                </Field>
+                <Field label="URL (optional)">
+                  <Input value={proj.url} onChange={e => updateProj(proj.id, { url: e.target.value })} placeholder="github.com/jane/project" />
+                </Field>
+              </div>
+              <Field label="Technologies (comma-separated)">
+                <Input
+                  value={proj.technologies.join(', ')}
+                  onChange={e => updateProj(proj.id, { technologies: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                  placeholder="React, TypeScript, Tailwind"
+                />
+              </Field>
+              <Field label="Description">
+                <Input value={proj.description} onChange={e => updateProj(proj.id, { description: e.target.value })} placeholder="Brief one-line description" />
+              </Field>
+              <Field label="Bullets (optional, one per line)">
+                <Textarea
+                  rows={3}
+                  value={proj.bullets.join('\n')}
+                  onChange={e => updateProj(proj.id, { bullets: e.target.value.split('\n') })}
+                  placeholder="Built responsive UI with 99% Lighthouse score"
+                />
+              </Field>
+            </div>
+          )}
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={addProject} className="w-full border-dashed h-9">
+        <Plus className="h-4 w-4 mr-2" />Add Project
+      </Button>
+    </div>
+  );
+
+  const renders: Record<Tab, () => React.ReactNode> = {
+    Personal: renderPersonal,
+    Summary: renderSummary,
+    Experience: renderExperience,
+    Education: renderEducation,
+    Skills: renderSkills,
+    Projects: renderProjects,
+  };
+
+  const tabCounts: Partial<Record<Tab, number>> = {
+    Experience: data.experience.length || undefined,
+    Education: data.education.length || undefined,
+    Projects: data.projects.length || undefined,
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Tab bar */}
+      <div className="flex border-b border-border overflow-x-auto shrink-0 bg-muted/20 [&::-webkit-scrollbar]:hidden">
+        {TABS.map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={cn(
+              'relative flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium whitespace-nowrap border-b-2 transition-all shrink-0',
+              activeTab === tab
+                ? 'border-primary text-primary bg-background'
+                : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40'
+            )}
+          >
+            {tab}
+            {tabCounts[tab] !== undefined && (
+              <span className={cn(
+                'flex h-4 min-w-[16px] items-center justify-center rounded-full text-[10px] font-bold px-1',
+                activeTab === tab ? 'bg-primary text-primary-foreground' : 'bg-muted-foreground/20 text-muted-foreground'
+              )}>
+                {tabCounts[tab]}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-4">
+        {renders[activeTab]()}
+      </div>
+    </div>
+  );
+}
