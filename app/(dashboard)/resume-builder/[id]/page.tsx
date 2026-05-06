@@ -37,7 +37,12 @@ function ResumePreviewPanel({ data, templateId }: { data: ResumeData; templateId
 
   return (
     <div ref={wrapRef} className="flex-1 overflow-y-auto bg-slate-100 dark:bg-slate-900 p-4">
-      <div className="flex justify-center w-full">
+      <div className="flex flex-col items-center gap-3 w-full">
+        {/* Page label */}
+        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 self-center">
+          <span className="w-2 h-2 rounded-sm bg-slate-400/60" />
+          A4 Preview · Page breaks shown as dashed lines
+        </div>
         {/* Outer div shrinks to the scaled size so scroll is correct */}
         <div style={{ width: A4_W * scale, minHeight: A4_H * scale, position: 'relative' }}>
           <div
@@ -54,6 +59,30 @@ function ResumePreviewPanel({ data, templateId }: { data: ResumeData; templateId
             className="shadow-2xl ring-1 ring-black/8"
           >
             <HtmlPreview data={data} templateId={templateId} />
+            {/* A4 page break indicator lines every 1123px */}
+            {[1, 2, 3].map(page => (
+              <div
+                key={page}
+                style={{
+                  position: 'absolute',
+                  top: A4_H * page,
+                  left: 0,
+                  right: 0,
+                  pointerEvents: 'none',
+                  zIndex: 10,
+                }}
+              >
+                <div style={{ borderTop: '2px dashed rgba(99,102,241,0.5)', position: 'relative' }}>
+                  <span style={{
+                    position: 'absolute', top: -9, right: 8,
+                    fontSize: 9, color: 'rgba(99,102,241,0.7)',
+                    background: '#fff', padding: '0 4px', fontFamily: 'sans-serif',
+                  }}>
+                    Page {page + 1}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -75,8 +104,8 @@ export default function BuilderPage() {
   const [deploying, setDeploying] = useState(false);
   const [deployed, setDeployed] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  // Mobile: which panel is active (form or preview)
-  const [mobilePanel, setMobilePanel] = useState<'form' | 'preview' | 'templates'>('form');
+  // Mobile: which panel is active
+  const [mobilePanel, setMobilePanel] = useState<'form' | 'preview' | 'templates' | 'tailor'>('form');
   const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // AI Tailor state
@@ -131,6 +160,31 @@ export default function BuilderPage() {
     setProjectName(newName);
     scheduleAutoSave(data, templateId, newName);
   };
+
+  // Warn user before navigating away with unsaved changes
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (saveStatus === 'unsaved' || saveStatus === 'saving') {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [saveStatus]);
+
+  // Cmd+S / Ctrl+S to save immediately
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        clearTimeout(saveTimer.current);
+        save(data, templateId, projectName).then(() => toast.success('Saved'));
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [data, templateId, projectName, save]);
 
   const downloadPdf = async () => {
     setDownloading(true);
@@ -283,18 +337,19 @@ export default function BuilderPage() {
       </div>
 
       {/* ── Mobile bottom tab bar ───────────────────── */}
-      <div className="flex md:hidden border-b border-border bg-card shrink-0">
+      <div className="flex md:hidden border-b border-border bg-card shrink-0 overflow-x-auto">
         {([
           { id: 'form', label: 'Edit', icon: PenLine },
           { id: 'preview', label: 'Preview', icon: Eye },
           { id: 'templates', label: 'Templates', icon: LayoutTemplate },
+          { id: 'tailor', label: 'AI Tailor', icon: Sparkles },
         ] as const).map(({ id, label, icon: Icon }) => (
           <button
             key={id}
-            onClick={() => setMobilePanel(id)}
+            onClick={() => setMobilePanel(id as any)}
             className={cn(
-              'flex-1 flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors',
-              mobilePanel === id ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'
+              'flex-1 min-w-[72px] flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors whitespace-nowrap',
+              (mobilePanel as string) === id ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'
             )}
           >
             <Icon className="h-4 w-4" />
@@ -387,8 +442,8 @@ export default function BuilderPage() {
             </div>
           )}
 
-          {/* AI Tailor panel */}
-          {rightTab === 'tailor' && (
+          {/* AI Tailor panel — desktop: rightTab === 'tailor', mobile: mobilePanel === 'tailor' */}
+          {(rightTab === 'tailor' || mobilePanel === 'tailor') && (
             <div className="flex-1 overflow-y-auto p-5 space-y-5">
               {/* Header */}
               <div className="flex items-start gap-3">

@@ -36,3 +36,17 @@ export function getStatusColor(status: string) {
   };
   return map[status] ?? 'bg-gray-100 text-gray-800';
 }
+
+export function statusLabel(status: string): string {
+  const map: Record<string, string> = {
+    pending: 'Queued',
+    applied: 'Applied',
+    failed: 'Failed',
+    manual_review: 'Needs Attention',
+    pending_confirmation: 'Awaiting Review',
+    interviewing: 'Interviewing',
+    rejected: 'Rejected',
+    accepted: 'Accepted',
+  };
+  return map[status] ?? status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}

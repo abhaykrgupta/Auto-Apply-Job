@@ -1,6 +1,8 @@
 import { writeFile, mkdir, access } from 'fs/promises';
 import path from 'path';
 
+const ALLOWED_UPLOAD_EXTENSIONS = new Set(['.pdf', '.doc', '.docx', '.txt']);
+
 export async function saveUploadedFile(
   buffer: Buffer,
   fileName: string,
@@ -9,8 +11,13 @@ export async function saveUploadedFile(
   const uploadsDir = path.join(process.cwd(), 'public', folder);
   await mkdir(uploadsDir, { recursive: true });
 
-  // Clean name: keep original base name + extension only, replace spaces/special chars
-  const ext = path.extname(fileName) || '.pdf';
+  const ext = path.extname(fileName).toLowerCase() || '.pdf';
+
+  // Reject any file type not explicitly allowed
+  if (!ALLOWED_UPLOAD_EXTENSIONS.has(ext)) {
+    throw new Error(`File type "${ext}" is not allowed. Only PDF, DOC, DOCX, and TXT files are accepted.`);
+  }
+
   const base = path.basename(fileName, ext).replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
 
   // Add number suffix if file already exists: Resume.pdf → Resume_2.pdf → Resume_3.pdf

@@ -1,11 +1,11 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { applications, applicationLogs, jobs, resumes } from '@/lib/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { applications, applicationLogs, jobs } from '@/lib/db/schema';
+import { eq, desc, and, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 
-export async function getApplications() {
+export async function getApplications(limit = 100, offset = 0) {
   return db
     .select({
       application: applications,
@@ -13,22 +13,38 @@ export async function getApplications() {
     })
     .from(applications)
     .innerJoin(jobs, eq(applications.jobId, jobs.id))
-    .orderBy(desc(applications.createdAt));
+    .orderBy(desc(applications.createdAt))
+    .limit(limit)
+    .offset(offset);
 }
 
 export async function getApplicationById(id: string) {
   const [result] = await db
-    .select({
-      application: applications,
-      job: jobs,
-    })
+    .select({ application: applications, job: jobs })
     .from(applications)
     .innerJoin(jobs, eq(applications.jobId, jobs.id))
     .where(eq(applications.id, id));
-  return result;
+
+  if (!result) return null;
+
+  const logs = await db
+    .select()
+    .from(applicationLogs)
+    .where(eq(applicationLogs.applicationId, id))
+    .orderBy(applicationLogs.createdAt);
+
+  return { ...result, logs };
 }
 
 export async function createApplication(jobId: string, resumeId: string, resumeMatchScore?: number) {
+  // Prevent duplicate applications for the same job+resume pair
+  const [existing] = await db
+    .select({ id: applications.id })
+    .from(applications)
+    .where(and(eq(applications.jobId, jobId), eq(applications.resumeId, resumeId)))
+    .limit(1);
+  if (existing) return existing as typeof applications.$inferSelect;
+
   const meta = resumeMatchScore !== undefined ? { resumeMatchScore } : undefined;
   const [app] = await db
     .insert(applications)
@@ -69,18 +85,21 @@ export async function updateApplicationStatus(
 }
 
 export async function getApplicationStats() {
-  const allApps = await db
-    .select({
-      application: applications,
-    })
-    .from(applications);
+  // Single aggregation query instead of loading all rows into memory
+  const rows = await db
+    .select({ status: applications.status, count: sql<number>`count(*)::int` })
+    .from(applications)
+    .groupBy(applications.status);
 
-  const total = allApps.length;
-  const applied = allApps.filter((a) => a.application.status === 'applied').length;
-  const failed = allApps.filter((a) => a.application.status === 'failed').length;
-  const manualReview = allApps.filter((a) => a.application.status === 'manual_review').length;
-  const interviewing = allApps.filter((a) => a.application.status === 'interviewing').length;
-  const accepted = allApps.filter((a) => a.application.status === 'accepted').length;
+  const counts: Record<string, number> = {};
+  for (const r of rows) if (r.status) counts[r.status] = r.count;
+
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const applied = counts['applied'] ?? 0;
+  const failed = counts['failed'] ?? 0;
+  const manualReview = counts['manual_review'] ?? 0;
+  const interviewing = counts['interviewing'] ?? 0;
+  const accepted = counts['accepted'] ?? 0;
   const successRate = total > 0 ? Math.round((applied / total) * 100) : 0;
 
   return { total, applied, failed, manualReview, interviewing, accepted, successRate };

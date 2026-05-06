@@ -39,6 +39,65 @@ function Field({ label, children, className }: { label: string; children: React.
   );
 }
 
+// Tag chip input — press Enter or comma to add, click × to remove
+function TagInput({ value, onChange, placeholder }: { value: string[]; onChange: (v: string[]) => void; placeholder?: string }) {
+  const [input, setInput] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function add(raw: string) {
+    const tags = raw.split(',').map(s => s.trim()).filter(Boolean);
+    const next = [...value, ...tags.filter(t => !value.includes(t))];
+    onChange(next);
+    setInput('');
+  }
+
+  function handleKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      if (input.trim()) add(input);
+    } else if (e.key === 'Backspace' && !input && value.length > 0) {
+      onChange(value.slice(0, -1));
+    }
+  }
+
+  function remove(tag: string) {
+    onChange(value.filter(t => t !== tag));
+  }
+
+  return (
+    <div
+      className={cn(
+        'flex flex-wrap gap-1.5 min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm cursor-text',
+        'focus-within:ring-1 focus-within:ring-ring'
+      )}
+      onClick={() => inputRef.current?.focus()}
+    >
+      {value.map(tag => (
+        <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2.5 py-0.5 text-xs font-medium">
+          {tag}
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); remove(tag); }}
+            className="hover:text-destructive transition-colors leading-none"
+            aria-label={`Remove ${tag}`}
+          >
+            ×
+          </button>
+        </span>
+      ))}
+      <input
+        ref={inputRef}
+        value={input}
+        onChange={e => setInput(e.target.value)}
+        onKeyDown={handleKey}
+        onBlur={() => { if (input.trim()) add(input); }}
+        placeholder={value.length === 0 ? placeholder : ''}
+        className="flex-1 min-w-[120px] bg-transparent outline-none text-sm placeholder:text-muted-foreground"
+      />
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TABS = ['Personal', 'Summary', 'Experience', 'Education', 'Skills', 'Projects'] as const;
@@ -400,38 +459,38 @@ export function BuilderForm({ data, onChange }: Props) {
   );
 
   // ── Skills ────────────────────────────────────────────────────────────────
-  const setSkills = (cat: keyof typeof data.skills, val: string) =>
-    update({ skills: { ...data.skills, [cat]: val.split(',').map(s => s.trim()).filter(Boolean) } });
+  const setSkills = (cat: keyof typeof data.skills, val: string[]) =>
+    update({ skills: { ...data.skills, [cat]: val } });
 
   const renderSkills = () => (
     <div>
-      <p className="text-xs text-muted-foreground mb-4 leading-relaxed">Enter each skill separated by a comma. These appear in the Skills section of your resume.</p>
+      <p className="text-xs text-muted-foreground mb-4 leading-relaxed">Type a skill and press <kbd className="bg-muted px-1 rounded text-[10px]">Enter</kbd> or <kbd className="bg-muted px-1 rounded text-[10px]">,</kbd> to add it. Click the × on any tag to remove it.</p>
       <Field label="Technical Skills">
-        <Input
-          value={data.skills.technical.join(', ')}
-          onChange={e => setSkills('technical', e.target.value)}
-          placeholder="React, TypeScript, Node.js, PostgreSQL, AWS, Docker"
+        <TagInput
+          value={data.skills.technical}
+          onChange={v => setSkills('technical', v)}
+          placeholder="React, TypeScript, Node.js… (press Enter to add)"
         />
       </Field>
       <Field label="Soft Skills">
-        <Input
-          value={data.skills.soft.join(', ')}
-          onChange={e => setSkills('soft', e.target.value)}
-          placeholder="Leadership, Communication, Problem Solving"
+        <TagInput
+          value={data.skills.soft}
+          onChange={v => setSkills('soft', v)}
+          placeholder="Leadership, Communication… (press Enter to add)"
         />
       </Field>
       <Field label="Languages">
-        <Input
-          value={data.skills.languages.join(', ')}
-          onChange={e => setSkills('languages', e.target.value)}
-          placeholder="English (Native), Spanish (B2), Hindi (Native)"
+        <TagInput
+          value={data.skills.languages}
+          onChange={v => setSkills('languages', v)}
+          placeholder="English (Native), Spanish (B2)…"
         />
       </Field>
       <Field label="Certifications">
-        <Input
-          value={data.skills.certifications.join(', ')}
-          onChange={e => setSkills('certifications', e.target.value)}
-          placeholder="AWS Solutions Architect, Google Cloud Professional"
+        <TagInput
+          value={data.skills.certifications}
+          onChange={v => setSkills('certifications', v)}
+          placeholder="AWS Solutions Architect…"
         />
       </Field>
     </div>

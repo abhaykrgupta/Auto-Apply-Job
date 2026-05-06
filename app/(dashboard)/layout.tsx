@@ -1,5 +1,7 @@
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
+import { BackToTop } from '@/components/shared/BackToTop';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -8,7 +10,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
         <main className="flex-1 overflow-y-auto bg-background">
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
+          <BackToTop />
         </main>
       </div>
     </div>

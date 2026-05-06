@@ -53,6 +53,7 @@ export default function ResumeBuilderPage() {
       const res = await fetch('/api/resume/parse', { method: 'POST', body: formData });
       const parsed = await res.json();
       if (!res.ok) throw new Error(parsed.error || 'Parse failed');
+      if (parsed.parseWarning) toast.warning(parsed.parseWarning, { duration: 8000 });
 
       // Map parsed data to ResumeData structure
       const pd = parsed.parsedData || {};

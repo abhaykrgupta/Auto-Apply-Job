@@ -27,11 +27,17 @@ export async function uploadResume(formData: FormData) {
   }
 
   let parsedData = null;
+  let parseWarning: string | null = null;
   try {
     const pdf = await pdfParse(buffer);
-    parsedData = await parseResume(pdf.text);
+    if (!pdf.text?.trim()) {
+      parseWarning = 'Could not extract text from this PDF — it may be image-only or scanned. Auto-apply will work but skill matching will be limited.';
+    } else {
+      parsedData = await parseResume(pdf.text);
+    }
   } catch (e) {
     console.error('[uploadResume] parse failed:', e);
+    parseWarning = 'Resume text extraction failed. The file was saved but could not be parsed for auto-fill.';
   }
 
   // Use filename (without extension) as default label
@@ -51,7 +57,7 @@ export async function uploadResume(formData: FormData) {
     .returning();
 
   revalidatePath('/resume');
-  return resume;
+  return { ...resume, parseWarning };
 }
 
 export async function getResumes() {

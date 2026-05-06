@@ -3,7 +3,7 @@ import { getJobs } from '@/lib/actions/jobs';
 import { StatsCard } from '@/components/shared/StatsCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Briefcase, CheckCircle, AlertCircle, XCircle, TrendingUp } from 'lucide-react';
+import { Briefcase, CheckCircle, AlertCircle, XCircle, TrendingUp, ArrowRight, FileText, Search, Zap } from 'lucide-react';
 import { timeAgo } from '@/lib/utils/helpers';
 import Link from 'next/link';
 import { buttonVariants } from '@/components/ui/button';
@@ -110,21 +110,81 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      {stats.total === 0 && (
-        <Card className="rounded-xl border-dashed">
-          <CardContent className="py-16 text-center">
-            <Briefcase className="mx-auto mb-4 h-14 w-14 text-muted-foreground/40" />
-            <h3 className="text-lg font-semibold">Get Started</h3>
-            <p className="mt-2 text-sm text-muted-foreground max-w-xs mx-auto">
-              Upload your resume, then search and apply to jobs automatically.
-            </p>
-            <div className="mt-6 flex justify-center gap-3">
-              <Link href="/resume" className={cn(buttonVariants({ variant: 'outline' }))}>Upload Resume</Link>
-              <Link href="/search" className={cn(buttonVariants())}>Search Jobs</Link>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Quick Actions */}
+      <Card className="rounded-xl">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-4 w-4 text-primary" />
+            {stats.total === 0 ? 'Get Started — 3 Steps' : 'Quick Actions'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              {
+                step: '1',
+                icon: FileText,
+                title: 'Upload Your Resume',
+                desc: 'Parse your existing resume so the bot knows your background',
+                href: '/resume',
+                done: false,
+              },
+              {
+                step: '2',
+                icon: Search,
+                title: 'Search for Jobs',
+                desc: 'Scrape live listings from LinkedIn, Indeed, and 6 more sources',
+                href: '/search',
+                done: recentJobs.length > 0,
+              },
+              {
+                step: '3',
+                icon: Zap,
+                title: 'Enable Auto-Apply',
+                desc: 'Turn on the bot in Settings to apply automatically while you sleep',
+                href: '/settings',
+                done: stats.applied > 0,
+              },
+            ].map(({ step, icon: Icon, title, desc, href, done }) => (
+              <Link
+                key={step}
+                href={href}
+                className={cn(
+                  'group flex flex-col gap-2 rounded-xl border p-4 transition-all hover:shadow-md',
+                  done
+                    ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30'
+                    : 'border-border hover:border-primary/40'
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <div className={cn(
+                    'h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold',
+                    done ? 'bg-green-500 text-white' : 'bg-primary/10 text-primary'
+                  )}>
+                    {done ? <CheckCircle className="h-4 w-4" /> : step}
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">{title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{desc}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+          {stats.manualReview > 0 && (
+            <Link href="/manual-review" className="mt-4 flex items-center justify-between rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-3 hover:bg-amber-100 dark:hover:bg-amber-950 transition-colors group">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                <span className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                  {stats.manualReview} application{stats.manualReview !== 1 ? 's' : ''} need your attention
+                </span>
+              </div>
+              <ArrowRight className="h-4 w-4 text-amber-600 dark:text-amber-400 group-hover:translate-x-0.5 transition-transform" />
+            </Link>
+          )}
+        </CardContent>
+      </Card>
     </main>
   );
 }

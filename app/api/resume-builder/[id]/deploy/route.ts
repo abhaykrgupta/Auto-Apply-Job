@@ -20,6 +20,18 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const [project] = await db.select().from(resumeProjects).where(eq(resumeProjects.id, id)).limit(1);
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
+  // Server-side validation — must have name, email, and at least one experience or education entry
+  const d = project.data as any;
+  if (!d?.personal?.name?.trim()) {
+    return NextResponse.json({ error: 'Resume must have a name before deploying.' }, { status: 400 });
+  }
+  if (!d?.personal?.email?.trim()) {
+    return NextResponse.json({ error: 'Resume must have an email before deploying.' }, { status: 400 });
+  }
+  if (!d?.experience?.length && !d?.education?.length) {
+    return NextResponse.json({ error: 'Resume must have at least one experience or education entry.' }, { status: 400 });
+  }
+
   const [p] = await db.select().from(profile).limit(1);
   if (!p) return NextResponse.json({ error: 'No profile' }, { status: 400 });
 

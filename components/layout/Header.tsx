@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Moon, Sun, ChevronRight, Menu, X, Bot } from 'lucide-react';
+import { Moon, Sun, ChevronRight, Menu, X, Bot, Zap, ZapOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { navGroups } from './Sidebar';
 import { cn } from '@/lib/utils';
 
@@ -29,6 +30,18 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => setMounted(true), []);
+
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const res = await fetch('/api/settings');
+      if (!res.ok) return {};
+      return res.json();
+    },
+    staleTime: 30_000,
+  });
+
+  const autoApplyOn = settings?.autoApplyEnabled === true;
 
   const page = pageTitles[pathname] ?? { title: 'Job Agent', description: '' };
 
@@ -54,7 +67,24 @@ export function Header() {
           )}
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
+          {/* Auto-Apply status pill */}
+          {settings !== undefined && (
+            <Link
+              href="/settings"
+              title={autoApplyOn ? 'Auto-Apply is ON — click to configure' : 'Auto-Apply is OFF — click to enable'}
+              className={cn(
+                'hidden sm:flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold border transition-colors',
+                autoApplyOn
+                  ? 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900'
+                  : 'bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900'
+              )}
+            >
+              {autoApplyOn
+                ? <><Zap className="h-3 w-3" /> Auto-Apply: ON</>
+                : <><ZapOff className="h-3 w-3" /> Auto-Apply: OFF</>}
+            </Link>
+          )}
           <Button
             variant="ghost"
             size="icon"

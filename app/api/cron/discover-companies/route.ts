@@ -5,7 +5,7 @@ import { runAutoDiscovery } from '@/lib/company-discovery/auto-discovery-engine'
 // Add to vercel.json: { "path": "/api/cron/discover-companies", "schedule": "0 3 * * *" }
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

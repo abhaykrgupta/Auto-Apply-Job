@@ -1,12 +1,22 @@
 import { getBrowser } from './playwright-client';
 import { detectFormType } from './form-detector';
 import { db } from '@/lib/db';
-import { applications, applicationLogs } from '@/lib/db/schema';
+import { applications, applicationLogs, settings } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
 import { telegramService } from '@/lib/notifications/telegram-service';
 import path from 'path';
 import { mkdir } from 'fs/promises';
+
+async function getApplySettings() {
+  const rows = await db.select().from(settings);
+  const map: Record<string, string> = {};
+  for (const r of rows) map[r.key] = String(r.value);
+  return {
+    autoApplyEnabled: map['autoApplyEnabled'] === 'true',
+    requireConfirmation: map['requireConfirmation'] !== 'false', // default true (safe)
+  };
+}
 
 export interface ApplyOptions {
   requireConfirmation?: boolean;
@@ -49,14 +59,45 @@ export async function applyToJob(
   };
 
   try {
-    log(`Navigating to ${job.applyUrl}`);
-    await page.goto(job.applyUrl, { waitUntil: 'networkidle', timeout: 30000 });
+    // Read live settings from DB so UI toggles take effect immediately
+    const applySettings = await getApplySettings();
+    const autoApplyEnabled = applySettings.autoApplyEnabled;
+    const requireConfirmation = options.requireConfirmation ?? applySettings.requireConfirmation;
+
+    log(`Auto-apply enabled: ${autoApplyEnabled} | Require confirmation: ${requireConfirmation}`);
+
+    if (!autoApplyEnabled) {
+      await db
+        .update(applications)
+        .set({ status: 'manual_review', errorMessage: 'Auto-apply is disabled in Settings' })
+        .where(eq(applications.id, applicationId));
+      await db.insert(applicationLogs).values({
+        applicationId, level: 'warn',
+        message: 'Auto-apply is disabled. Enable it in Settings → Auto-Apply to let the bot fill and submit forms.',
+      });
+      return { status: 'manual_review', method: 'auto', logs };
+    }
+
+    // Validate URL before navigating — prevents file://, javascript:, data: attacks
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(job.applyUrl);
+    } catch {
+      throw new Error(`Invalid apply URL: ${job.applyUrl}`);
+    }
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      throw new Error(`Blocked unsafe URL protocol: ${parsedUrl.protocol}`);
+    }
+
+    log(`Navigating to ${parsedUrl.toString()}`);
+    await page.goto(parsedUrl.toString(), { waitUntil: 'networkidle', timeout: 30000 });
 
     // Take initial screenshot
     const screenshotDir = path.join(process.cwd(), 'public', 'screenshots');
     await mkdir(screenshotDir, { recursive: true });
     screenshotPath = path.join(screenshotDir, `${applicationId}-start.png`);
     await page.screenshot({ path: screenshotPath, fullPage: true });
+    log('Screenshot taken: page loaded');
 
     const formType = await detectFormType(page);
     log(`Detected form type: ${formType}`);
@@ -64,24 +105,24 @@ export async function applyToJob(
     if (formType === 'unknown' || formType === 'complex') {
       await db
         .update(applications)
-        .set({ status: 'manual_review', screenshotPath, errorMessage: 'Complex form detected' })
+        .set({ status: 'manual_review', screenshotPath, errorMessage: 'Complex form detected — needs manual review' })
         .where(eq(applications.id, applicationId));
-
       await db.insert(applicationLogs).values({
-        applicationId,
-        level: 'warn',
-        message: 'Complex form — manual review required',
+        applicationId, level: 'warn',
+        message: 'Complex or unsupported form detected. This application needs to be completed manually.',
       });
-
       return { status: 'manual_review', method: 'auto', logs, screenshotPath };
     }
 
-    if (options.requireConfirmation || process.env.APPLY_AUTO_SUBMIT !== 'true') {
+    if (requireConfirmation) {
       await db
         .update(applications)
-        .set({ status: 'manual_review', screenshotPath })
+        .set({ status: 'manual_review', screenshotPath, errorMessage: 'Awaiting manual confirmation before submit' })
         .where(eq(applications.id, applicationId));
-
+      await db.insert(applicationLogs).values({
+        applicationId, level: 'info',
+        message: 'Form ready but "Require Confirmation" is ON. Disable it in Settings to let the bot submit automatically.',
+      });
       return { status: 'pending_confirmation', method: 'auto', logs, screenshotPath };
     }
 
@@ -112,7 +153,11 @@ export async function applyToJob(
 
     // Click submit
     await page.click('button[type="submit"], input[type="submit"], button:has-text("Submit"), button:has-text("Apply")').catch(() => {});
-    await page.waitForLoadState('networkidle').catch(() => {});
+    // Cap wait at 10 s — some pages never reach networkidle due to polling scripts
+    await Promise.race([
+      page.waitForLoadState('networkidle'),
+      new Promise(r => setTimeout(r, 10000)),
+    ]);
 
     screenshotPath = path.join(screenshotDir, `${applicationId}-final.png`);
     await page.screenshot({ path: screenshotPath, fullPage: true });
@@ -161,6 +206,6 @@ export async function applyToJob(
     telegramService.notifyApplicationStatus(job, 'failed').catch(() => {});
     return { status: 'failed', method: 'auto', error, logs, screenshotPath };
   } finally {
-    await page.close();
+    await page.close().catch((e) => logger.error({ err: e }, 'Failed to close page'));
   }
 }

@@ -80,6 +80,19 @@ Rules:
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (e: any) {
+    // Surface rate-limit errors clearly so user knows to retry
+    if (e?.status === 429 || e?.message?.includes('429') || e?.message?.includes('rate limit')) {
+      return NextResponse.json(
+        { error: 'OpenAI rate limit reached. Please wait a moment and try again.' },
+        { status: 429 }
+      );
+    }
+    if (e?.status === 401 || e?.message?.includes('API key')) {
+      return NextResponse.json(
+        { error: 'OpenAI API key is invalid or missing. Check your .env.local file.' },
+        { status: 401 }
+      );
+    }
     return NextResponse.json({ error: e.message || 'AI request failed' }, { status: 500 });
   }
 }
