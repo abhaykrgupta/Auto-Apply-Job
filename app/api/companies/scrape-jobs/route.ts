@@ -1,7 +1,7 @@
 import { companyScrapeSchema } from '@/lib/validations/companies';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { companies, jobs } from '@/lib/db/schema';
+import { companies, jobs, profile } from '@/lib/db/schema';
 import { eq, and, isNotNull } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
 
@@ -202,6 +202,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
     const limit = parsed.data.limit ?? 20;
+    const query = parsed.data.query;
+
+    // If no query provided, try to use user's preferred role
+    let effectiveQuery = query;
+    if (!effectiveQuery) {
+      const userProfile = await db.select().from(profile).limit(1).then(r => r[0]);
+      if (userProfile?.preferredRoles?.length) {
+        effectiveQuery = userProfile.preferredRoles[0];
+        logger.info(`No query provided for company scraping, using preferred role: ${effectiveQuery}`);
+      }
+    }
+
+    const queryLower = effectiveQuery?.toLowerCase() || '';
+    const exp = parsed.data.experience?.toLowerCase() || 'any';
 
     const companiesToScrape = await db
       .select()
@@ -241,6 +255,42 @@ export async function POST(req: NextRequest) {
             results.skipped++;
             logger.info(`Skipping ${company.name} (atsType: ${company.atsType ?? 'none'} — no scraper)`);
             continue;
+        }
+
+        // Apply role/query filtering if specified
+        if (queryLower) {
+          const originalCount = foundJobs.length;
+          foundJobs = foundJobs.filter(j => 
+            j.title.toLowerCase().includes(queryLower) || 
+            (j.location && j.location.toLowerCase().includes(queryLower))
+          );
+          if (originalCount > 0 && foundJobs.length === 0) {
+            logger.info(`${company.name}: Filtered out all ${originalCount} jobs (no match for "${queryLower}")`);
+          } else if (foundJobs.length < originalCount) {
+            logger.info(`${company.name}: Filtered ${originalCount} -> ${foundJobs.length} jobs for "${queryLower}"`);
+          }
+        }
+
+        // Apply experience filtering
+        if (exp !== 'any') {
+          const originalCount = foundJobs.length;
+          foundJobs = foundJobs.filter(j => {
+            const title = j.title.toLowerCase();
+            if (exp === 'fresher') {
+              return title.includes('junior') || title.includes('entry') || title.includes('associate') || title.includes('grad') || title.includes('intern');
+            }
+            if (exp === 'senior') {
+              return title.includes('senior') || title.includes('lead') || title.includes('staff') || title.includes('principal') || title.includes('sr.');
+            }
+            if (['1-2', '2-3', '3-5', '5-7'].includes(exp)) {
+              if (exp === '1-2' || exp === '2-3') return !title.includes('senior') && !title.includes('staff') && !title.includes('principal');
+              if (exp === '3-5' || exp === '5-7') return title.includes('senior') || (!title.includes('junior') && !title.includes('intern'));
+            }
+            return true;
+          });
+          if (originalCount > 0 && foundJobs.length < originalCount) {
+            logger.info(`${company.name}: Filtered ${originalCount} -> ${foundJobs.length} jobs for experience: ${exp}`);
+          }
         }
 
         // Upsert jobs

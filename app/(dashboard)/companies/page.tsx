@@ -347,6 +347,9 @@ export default function CompaniesPage() {
   const qc = useQueryClient();
   const [search,  setSearch]  = useState('');
   const [addUrl,  setAddUrl]  = useState('');
+  const [roleQuery, setRoleQuery] = useState('');
+  const [experience, setExperience] = useState('any');
+  const [customExp, setCustomExp] = useState('');
   const [isAdding,  setIsAdding]  = useState(false);
 
   // Discovery state — per-source
@@ -438,7 +441,11 @@ export default function CompaniesPage() {
       const res = await fetch('/api/companies/scrape-jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ limit: 20 }),
+        body: JSON.stringify({ 
+          limit: 50, 
+          query: roleQuery,
+          experience: experience === 'custom' ? customExp : experience
+        }),
       });
       clearInterval(progressInterval);
       if (!res.ok) throw new Error('Failed');
@@ -489,11 +496,50 @@ export default function CompaniesPage() {
 
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold">Company Discovery</h2>
-          <p className="text-muted-foreground">
-            Auto-discover every startup & company — YC, GitHub, VC portfolios, and more
-          </p>
+        <div className="space-y-3">
+          <div>
+            <h2 className="text-2xl font-bold">Company Discovery</h2>
+            <p className="text-muted-foreground">
+              Auto-discover every startup & company — YC, GitHub, VC portfolios, and more
+            </p>
+          </div>
+          
+          {/* Experience Level Selector */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-muted-foreground mr-1 uppercase tracking-wider">Experience:</span>
+            {[
+              { value: 'any',      label: 'Any' },
+              { value: 'fresher',  label: 'Fresher' },
+              { value: '1-2',      label: '1–2 yrs' },
+              { value: '2-3',      label: '2–3 yrs' },
+              { value: '3-5',      label: '3–5 yrs' },
+              { value: '5-7',      label: '5–7 yrs' },
+              { value: 'senior',   label: 'Senior (7+)' },
+              { value: 'custom',   label: '✏ Custom' },
+            ].map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => setExperience(value)}
+                className={cn(
+                  'px-2.5 py-1 rounded-md text-[10px] font-bold uppercase transition-all border',
+                  experience === value
+                    ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/20'
+                    : 'bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-primary'
+                )}
+              >
+                {label}
+              </button>
+            ))}
+            {experience === 'custom' && (
+              <Input
+                className="h-6 w-24 text-[10px] px-2 py-0"
+                placeholder="Years..."
+                value={customExp}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setCustomExp(e.target.value)}
+                autoFocus
+              />
+            )}
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -528,17 +574,26 @@ export default function CompaniesPage() {
               : <Zap className="mr-2 h-4 w-4" />}
             {discovering ? 'Discovering…' : 'Auto-Discover All'}
           </Button>
-          <Button
-            onClick={scrapeJobs}
-            disabled={isScraping || discovering || companies.length === 0}
-            size="sm"
-            variant="secondary"
-          >
-            {isScraping
-              ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              : <Briefcase className="mr-2 h-4 w-4" />}
-            {isScraping ? 'Scraping Jobs…' : 'Scrape All Jobs'}
-          </Button>
+          <div className="flex items-center gap-2 bg-muted/50 rounded-lg p-1 border border-border shadow-sm">
+            <Input
+              placeholder="Job Title (e.g. Engineer)"
+              value={roleQuery}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setRoleQuery(e.target.value)}
+              className="h-8 w-44 bg-transparent border-none focus-visible:ring-0 shadow-none text-xs"
+            />
+            <Button
+              onClick={scrapeJobs}
+              disabled={isScraping || discovering || companies.length === 0}
+              size="sm"
+              variant="secondary"
+              className="h-7 text-xs px-3 shadow-none bg-background hover:bg-muted"
+            >
+              {isScraping
+                ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                : <Briefcase className="mr-1.5 h-3 w-3" />}
+              {isScraping ? 'Scraping…' : 'Scrape Jobs'}
+            </Button>
+          </div>
         </div>
       </div>
 

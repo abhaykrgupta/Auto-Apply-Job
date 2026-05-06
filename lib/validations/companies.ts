@@ -19,5 +19,7 @@ export const companyDiscoverSchema = z.object({
 
 export const companyScrapeSchema = z.object({
   companyId: z.string().uuid().optional(),
-  limit: z.number().optional()
+  limit: z.number().optional(),
+  query: z.string().optional(),
+  experience: z.string().optional(),
 }).strip();
