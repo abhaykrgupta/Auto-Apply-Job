@@ -1,6 +1,7 @@
 import { applicationStatusUpdateSchema } from '@/lib/validations/applications';
 import { NextRequest, NextResponse } from 'next/server';
 import { getApplicationById, updateApplicationStatus } from '@/lib/actions/applications';
+import { applicationIntelligence } from '@/lib/intelligence/application-intelligence';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -21,6 +22,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     const { status, errorMessage: notes } = parsed.data;
     const app = await updateApplicationStatus(id, status as any, notes);
+    // Record outcome event for intelligence tracking (fire-and-forget)
+    applicationIntelligence.recordOutcome({ applicationId: id, newStatus: status as any }).catch(() => {});
     return NextResponse.json(app);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed';

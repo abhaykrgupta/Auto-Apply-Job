@@ -1,6 +1,8 @@
 import { openai } from './client';
 import { rateLimitedOpenAI } from './rate-limiter';
 import { logger } from '@/lib/utils/logger';
+import { trackUsageFromResponse } from './usage-tracker';
+import { validateTailoredResume } from '@/lib/automation/resume-truth-validator';
 
 export interface TailoredResume {
   summary: string;
@@ -55,6 +57,7 @@ Rules:
 - Keep bullets under 2 lines
 - tailoredBullets should cover the 3-5 most impactful changes`;
 
+  const startTime = Date.now();
   const response = await rateLimitedOpenAI(() => openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [{ role: 'user', content: prompt }],
@@ -62,11 +65,14 @@ Rules:
     max_tokens: 2000,
   }));
 
+  trackUsageFromResponse('tailoring', 'gpt-4o', response, startTime);
+
   const raw = response.choices[0].message.content ?? '{}';
   const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
+  let parsed: TailoredResume;
   try {
-    return JSON.parse(cleaned) as TailoredResume;
+    parsed = JSON.parse(cleaned) as TailoredResume;
   } catch {
     logger.error({ raw }, 'Failed to parse tailored resume JSON');
     return {
@@ -78,4 +84,24 @@ Rules:
       matchBoost: 0,
     };
   }
+
+  // ── Truth validation: revert any hallucinated content ────────────────────
+  const validation = validateTailoredResume(resumeData, {
+    tailoredBullets: parsed.tailoredBullets ?? [],
+    skillsToHighlight: parsed.skillsToHighlight ?? [],
+    skillsToAdd: parsed.skillsToAdd ?? [],
+  });
+
+  if (!validation.passed) {
+    logger.warn(
+      { violationCount: validation.violations.length, violations: validation.violations },
+      'Resume truth violations detected — sanitized output'
+    );
+  }
+
+  return {
+    ...parsed,
+    tailoredBullets: validation.sanitizedBullets,
+    skillsToHighlight: validation.sanitizedSkills,
+  };
 }

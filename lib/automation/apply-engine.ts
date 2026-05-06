@@ -1,5 +1,7 @@
 import { getBrowser } from './playwright-client';
 import { detectFormType } from './form-detector';
+import { detectCaptcha } from './captcha-detector';
+import { classifyFailure, computeCooldownUntil } from './retry-classifier';
 import { db } from '@/lib/db';
 import { applications, applicationLogs, settings } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -99,6 +101,21 @@ export async function applyToJob(
     await page.screenshot({ path: screenshotPath, fullPage: true });
     log('Screenshot taken: page loaded');
 
+    // CAPTCHA / bot-protection detection — abort before wasting more Playwright time
+    const captchaResult = await detectCaptcha(page);
+    if (captchaResult.detected) {
+      const reason = `CAPTCHA detected (${captchaResult.vendor ?? 'generic'}): ${captchaResult.reason}`;
+      log(reason);
+      await db
+        .update(applications)
+        .set({ status: 'manual_review', screenshotPath, errorMessage: reason })
+        .where(eq(applications.id, applicationId));
+      await db.insert(applicationLogs).values({
+        applicationId, level: 'warn', message: reason,
+      });
+      return { status: 'manual_review', method: 'auto', logs, screenshotPath };
+    }
+
     const formType = await detectFormType(page);
     log(`Detected form type: ${formType}`);
 
@@ -192,15 +209,27 @@ export async function applyToJob(
     const error = err instanceof Error ? err.message : 'Unknown error';
     log(`Error: ${error}`);
 
+    // Classify the failure and compute retry cooldown
+    const failureType = classifyFailure(error);
+    const attemptCount = (await db.select({ c: applications.attemptCount }).from(applications).where(eq(applications.id, applicationId)).limit(1))[0]?.c ?? 0;
+    const cooldownUntil = computeCooldownUntil(failureType, attemptCount);
+
     await db
       .update(applications)
-      .set({ status: 'failed', errorMessage: error, lastAttemptAt: new Date() })
+      .set({
+        status: 'failed',
+        errorMessage: error,
+        lastFailureType: failureType,
+        cooldownUntil,
+        lastAttemptAt: new Date(),
+      })
       .where(eq(applications.id, applicationId));
 
     await db.insert(applicationLogs).values({
       applicationId,
       level: 'error',
-      message: error,
+      message: `[${failureType}] ${error}`,
+      metadata: { failureType, cooldownUntil },
     });
 
     telegramService.notifyApplicationStatus(job, 'failed').catch(() => {});

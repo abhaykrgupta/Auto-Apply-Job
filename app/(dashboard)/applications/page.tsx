@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { buttonVariants, Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SendHorizontal, Download, Search, CheckSquare, ChevronDown } from 'lucide-react';
+import { SendHorizontal, Download, Search, CheckSquare, ChevronDown, Play } from 'lucide-react';
 import Link from 'next/link';
 import { timeAgo } from '@/lib/utils/helpers';
 import { cn } from '@/lib/utils';
@@ -73,6 +73,25 @@ export default function ApplicationsPage() {
     return list;
   }, [applications, search, statusFilter]);
 
+  const pendingCount = useMemo(
+    () => applications?.filter((a: any) => a.application?.status === 'pending').length ?? 0,
+    [applications]
+  );
+
+  const { mutate: processQueue, isPending: isProcessing } = useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/queue/process', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Failed to start queue');
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message ?? 'Queue started');
+      qc.invalidateQueries({ queryKey: ['applications'] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   const { mutate: bulkUpdateStatus, isPending: bulkUpdating } = useMutation({
     mutationFn: async ({ ids, status }: { ids: string[]; status: string }) => {
       await Promise.all(ids.map(id =>
@@ -119,6 +138,25 @@ export default function ApplicationsPage() {
           <p className="text-muted-foreground">{applications?.length ?? 0} total applications</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {pendingCount > 0 && (
+            <Button
+              onClick={() => processQueue()}
+              disabled={isProcessing}
+              className="gap-2"
+            >
+              {isProcessing ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Starting...
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4" />
+                  Process Queue ({pendingCount})
+                </>
+              )}
+            </Button>
+          )}
           {applications && applications.length > 0 && (
             <Button variant="outline" onClick={() => exportCSV(applications)} className="gap-2">
               <Download className="h-4 w-4" />

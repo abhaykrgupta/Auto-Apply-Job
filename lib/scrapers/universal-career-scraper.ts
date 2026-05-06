@@ -7,6 +7,9 @@ import { LeverScraper } from './lever';
 import { type ScrapedJob, type JobFilters } from './base-scraper';
 import { rateLimitedOpenAI } from '@/lib/openai/rate-limiter';
 import { openai } from '@/lib/openai/client';
+import { scraperMemoryService } from './scraper-memory';
+import { fingerprintDOM, extractDomain } from './dom-fingerprint';
+import { trackUsageFromResponse } from '@/lib/openai/usage-tracker';
 
 chromium.use(StealthPlugin());
 
@@ -170,6 +173,7 @@ export class UniversalCareerScraper {
     try {
       const lowerUrl = url.toLowerCase();
 
+      // ── Tier 1: Known ATS — dedicated scrapers (fastest, most reliable) ──
       if (lowerUrl.includes('greenhouse.io') || lowerUrl.includes('boards.greenhouse.io')) {
         const scraper = new GreenhouseScraper();
         return await scraper.scrapePage(url);
@@ -179,23 +183,113 @@ export class UniversalCareerScraper {
         return await scraper.scrapePage(url);
       }
 
-      return await this.extractWithAI(companyName, url);
+      // ── Tier 2–4: Memory-assisted extraction ─────────────────────────────
+      return await this.extractWithMemory(companyName, url);
     } catch (err) {
       logger.debug({ err, url }, 'Failed to extract jobs from URL');
       return [];
     }
   }
 
-  private async extractWithAI(companyName: string, url: string): Promise<ScrapedJob[]> {
+  /**
+   * Multi-tier extraction with learning memory:
+   *  Tier 2 — common CSS patterns (no GPT, no memory lookup needed)
+   *  Tier 3 — stored domain-specific selectors from memory
+   *  Tier 4 — GPT extraction (expensive, last resort) + learn selectors for next time
+   */
+  private async extractWithMemory(companyName: string, url: string): Promise<ScrapedJob[]> {
+    const domain = extractDomain(url);
     const page = await this.newPage();
 
     try {
-      await page.goto(url, { waitUntil: 'networkidle', timeout: 10000 });
+      await page.goto(url, { waitUntil: 'networkidle', timeout: 12000 });
 
       if (await this.isBlocked(page)) {
         logger.warn({ url }, 'Bot protection detected — skipping page');
         await page.close();
         return [];
+      }
+
+      // Get DOM fingerprint for memory lookup
+      const html = await page.content();
+      const domHash = fingerprintDOM(html);
+
+      // ── Tier 3: Check scraper memory for domain-specific selectors ────────
+      const memoryRecord = await scraperMemoryService.lookup(domain, domHash);
+      if (memoryRecord) {
+        const memoryJobs = await scraperMemoryService.tryExtractWithSelectors(page, memoryRecord, companyName, url);
+        if (memoryJobs && memoryJobs.length > 0) {
+          await scraperMemoryService.record(domain, domHash, memoryRecord.selectors, 'selector', memoryRecord.atsType ?? undefined);
+          await page.close();
+          return memoryJobs.map((j) => ({
+            company: companyName,
+            title: j.title,
+            location: j.location,
+            description: j.description,
+            applyUrl: j.applyUrl,
+            source: 'custom' as const,
+            postedAt: new Date(),
+          }));
+        }
+        // Memory selectors failed — record failure and fall through to GPT
+        await scraperMemoryService.recordFailure(domain, domHash);
+      }
+
+      // ── Tier 2: Probe common patterns (no GPT needed) ─────────────────────
+      const patternResult = await scraperMemoryService.probeCommonPatterns(page, url);
+      if (patternResult && patternResult.jobs.length > 0) {
+        // Learn these selectors for future visits
+        scraperMemoryService.record(domain, domHash, patternResult.selectors, 'selector').catch(() => {});
+        await page.close();
+        return patternResult.jobs.map((j) => ({
+          company: companyName,
+          title: j.title,
+          location: j.location,
+          description: j.description,
+          applyUrl: j.applyUrl,
+          source: 'custom' as const,
+          postedAt: new Date(),
+        }));
+      }
+
+      // ── Tier 4: GPT extraction (fallback only) ────────────────────────────
+      logger.info({ domain, url }, 'No selector match — using GPT extraction');
+      const jobs = await this.extractWithAI(companyName, url, page);
+
+      if (jobs.length > 0) {
+        // Store a generic AI-extraction memory entry so we know GPT was needed here
+        scraperMemoryService.record(
+          domain,
+          domHash,
+          { jobContainer: 'body', title: 'h2,h3', location: '.location', applyLink: 'a' },
+          'ai'
+        ).catch(() => {});
+      }
+
+      return jobs;
+    } catch (err) {
+      await page.close().catch(() => {});
+      throw err;
+    }
+  }
+
+  /**
+   * GPT-powered extraction. Accepts an already-loaded page to avoid a
+   * redundant navigation when called from extractWithMemory.
+   */
+  private async extractWithAI(companyName: string, url: string, existingPage?: Page): Promise<ScrapedJob[]> {
+    const page = existingPage ?? await this.newPage();
+    const needsNav = !existingPage;
+
+    try {
+      if (needsNav) {
+        await page.goto(url, { waitUntil: 'networkidle', timeout: 10000 });
+
+        if (await this.isBlocked(page)) {
+          logger.warn({ url }, 'Bot protection detected — skipping page');
+          await page.close();
+          return [];
+        }
       }
 
       await page.evaluate(() => {
@@ -205,10 +299,11 @@ export class UniversalCareerScraper {
       });
 
       const textContent = await page.evaluate(() => document.body.innerText || '');
-      await page.close();
+      if (needsNav) await page.close();
 
       if (!textContent || textContent.length < 50) return [];
 
+      const startTime = Date.now();
       const response = await rateLimitedOpenAI(() =>
         openai.chat.completions.create({
           model: 'gpt-4o',
@@ -226,6 +321,8 @@ export class UniversalCareerScraper {
           response_format: { type: 'json_object' },
         })
       );
+
+      trackUsageFromResponse('scrape_extract', 'gpt-4o', response, startTime);
 
       const content = response.choices[0]?.message?.content || '{"jobs":[]}';
       let parsed: { jobs?: unknown[] };
@@ -251,7 +348,7 @@ export class UniversalCareerScraper {
         }))
         .filter((j) => j.title && j.applyUrl);
     } catch (err) {
-      await page.close().catch(() => {});
+      if (needsNav) await page.close().catch(() => {});
       throw err;
     }
   }

@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     }
     const body = parsed.data;
 
-    for (const [key, value] of Object.entries(body)) {
+    for (const [key, value] of Object.entries(body).filter(([, v]) => v !== null && v !== undefined)) {
       const existing = await db
         .select({ id: settings.id })
         .from(settings)

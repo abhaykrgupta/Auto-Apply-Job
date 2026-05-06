@@ -158,6 +158,9 @@ export const applications = pgTable('applications', {
   appliedAt: timestamp('applied_at'),
   screenshotPath: text('screenshot_path'),
   errorMessage: text('error_message'),
+  // Retry intelligence columns
+  lastFailureType: text('last_failure_type'),   // RetryClassifier.FailureType
+  cooldownUntil: timestamp('cooldown_until'),    // Do not retry before this time
   metadata: jsonb('metadata'),
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow(),
@@ -217,4 +220,139 @@ export const companyDiscoverySources = pgTable('company_discovery_sources', {
   durationMs: integer('duration_ms'),
   triggeredBy: text('triggered_by').default('manual'), // 'manual' | 'cron'
   createdAt: timestamp('created_at').defaultNow(),
+});
+
+// ── Scraper Memory ────────────────────────────────────────────────────────────
+// Stores learned extraction strategies per domain so GPT is only a fallback
+export const scraperMemory = pgTable(
+  'scraper_memory',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    domain: text('domain').notNull(),                     // e.g. "acme.com"
+    atsType: text('ats_type'),                            // 'greenhouse' | 'lever' | 'workday' | 'custom'
+    domHash: text('dom_hash').notNull(),                  // SHA-256 of structural DOM (no text)
+    selectorsJson: jsonb('selectors_json').notNull(),     // { jobContainer, title, location, applyLink, pagination }
+    paginationStrategy: text('pagination_strategy'),      // 'next-button' | 'load-more' | 'infinite-scroll' | 'none'
+    extractionStrategy: text('extraction_strategy').notNull().default('ai'), // 'selector' | 'ai' | 'api'
+    confidenceScore: real('confidence_score').notNull().default(0),
+    successCount: integer('success_count').notNull().default(0),
+    attemptCount: integer('attempt_count').notNull().default(0),
+    lastVerifiedAt: timestamp('last_verified_at').defaultNow(),
+    parserVersion: integer('parser_version').notNull().default(1),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    index('scraper_memory_domain_idx').on(t.domain),
+    index('scraper_memory_dom_hash_idx').on(t.domHash),
+  ]
+);
+
+// ── AI Usage Logs ─────────────────────────────────────────────────────────────
+// Tracks every OpenAI API call for cost visibility and optimization
+export const aiUsageLogs = pgTable('ai_usage_logs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  operationType: text('operation_type').notNull(), // 'resume_parse' | 'job_match' | 'tailoring' | 'cover_letter' | 'scrape_extract' | 'embedding' | 'form_detect'
+  model: text('model').notNull(),
+  tokensInput: integer('tokens_input').notNull().default(0),
+  tokensOutput: integer('tokens_output').notNull().default(0),
+  costUsd: real('cost_usd').notNull().default(0),
+  latencyMs: integer('latency_ms').notNull().default(0),
+  cacheHit: boolean('cache_hit').notNull().default(false),
+  retryCount: integer('retry_count').notNull().default(0),
+  relatedEntityId: text('related_entity_id'), // jobId | applicationId | resumeId
+  success: boolean('success').notNull().default(true),
+  errorMessage: text('error_message'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// ── Embedding Cache ───────────────────────────────────────────────────────────
+// Deduplicates embedding API calls — same text content = same vector
+export const embeddingCache = pgTable(
+  'embedding_cache',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    contentHash: text('content_hash').notNull().unique(), // SHA-256 of normalized text
+    model: text('model').notNull().default('text-embedding-3-small'),
+    embedding: vector('embedding').notNull(),
+    tokenCount: integer('token_count').notNull().default(0),
+    useCount: integer('use_count').notNull().default(1),
+    createdAt: timestamp('created_at').defaultNow(),
+    lastUsedAt: timestamp('last_used_at').defaultNow(),
+  },
+  (t) => [
+    index('embedding_cache_hash_idx').on(t.contentHash),
+  ]
+);
+
+// ── Worker Tasks ──────────────────────────────────────────────────────────────
+// DB-backed task queue for isolated worker processes.
+// Workers poll this table; Next.js APIs insert rows and return immediately.
+export const workerTasks = pgTable(
+  'worker_tasks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    taskType: text('task_type').notNull(), // 'apply_job' | 'scrape_jobs' | 'scrape_company' | 'match_jobs' | 'tailor_resume'
+    payload: jsonb('payload').notNull(),
+    status: text('status').notNull().default('pending'), // 'pending' | 'running' | 'completed' | 'failed'
+    workerId: text('worker_id'),           // identifies the worker process
+    priority: integer('priority').notNull().default(0), // higher = processed first
+    retryCount: integer('retry_count').notNull().default(0),
+    maxRetries: integer('max_retries').notNull().default(3),
+    result: jsonb('result'),
+    error: text('error'),
+    createdAt: timestamp('created_at').defaultNow(),
+    startedAt: timestamp('started_at'),
+    completedAt: timestamp('completed_at'),
+  },
+  (t) => [
+    index('worker_tasks_status_idx').on(t.status),
+    index('worker_tasks_type_idx').on(t.taskType),
+    index('worker_tasks_priority_idx').on(t.priority),
+  ]
+);
+
+// ── Application Intelligence ──────────────────────────────────────────────────
+// Tracks application outcomes for adaptive learning.
+
+export const resumePerformance = pgTable('resume_performance', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  resumeId: uuid('resume_id').references(() => resumes.id).notNull().unique(),
+  totalApplications: integer('total_applications').notNull().default(0),
+  successCount: integer('success_count').notNull().default(0),      // status = applied
+  responseCount: integer('response_count').notNull().default(0),    // status = interviewing | accepted
+  interviewCount: integer('interview_count').notNull().default(0),  // status = interviewing
+  acceptedCount: integer('accepted_count').notNull().default(0),    // status = accepted
+  avgMatchScore: real('avg_match_score'),
+  bestSource: text('best_source'),          // which job board converts best
+  bestJobTitle: text('best_job_title'),     // which role type converts best
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const keywordPerformance = pgTable(
+  'keyword_performance',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    keyword: text('keyword').notNull().unique(),
+    occurrences: integer('occurrences').notNull().default(0),   // # applications containing keyword
+    responseCount: integer('response_count').notNull().default(0),
+    responseRate: real('response_rate').notNull().default(0),   // responseCount / occurrences
+    avgMatchScore: real('avg_match_score').notNull().default(0),
+    lastUpdatedAt: timestamp('last_updated_at').defaultNow(),
+  },
+  (t) => [index('keyword_perf_keyword_idx').on(t.keyword)]
+);
+
+export const companyResponseMetrics = pgTable('company_response_metrics', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  companyId: uuid('company_id').references(() => companies.id),
+  companyName: text('company_name').notNull(),
+  totalApplications: integer('total_applications').notNull().default(0),
+  responseCount: integer('response_count').notNull().default(0),
+  responseRate: real('response_rate').notNull().default(0),
+  avgResponseDays: real('avg_response_days'),    // avg days from apply to response
+  interviewCount: integer('interview_count').notNull().default(0),
+  interviewRate: real('interview_rate').notNull().default(0),
+  lastUpdatedAt: timestamp('last_updated_at').defaultNow(),
 });

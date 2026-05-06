@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useState, useEffect, type ChangeEvent } from 'react';
 import { toast } from 'sonner';
-import { Settings, Key, Bot, Globe, Bell, Briefcase, CheckCircle2, Loader2, ExternalLink } from 'lucide-react';
+import { Settings, Key, Bot, Globe, Bell, Briefcase, CheckCircle2, Loader2, ExternalLink, Link2, Unlink, RefreshCw } from 'lucide-react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { format } from 'date-fns';
 
@@ -41,6 +41,113 @@ const DEFAULTS: AppSettings = {
   headless: true,
   requestDelayMs: 2000,
 };
+
+function LinkedInConnectionCard() {
+  const [status, setStatus] = useState<'loading' | 'no_creds' | 'connected' | 'disconnected' | 'connecting' | 'error'>('loading');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  async function fetchStatus() {
+    setStatus('loading');
+    try {
+      const res = await fetch('/api/linkedin/connect');
+      const d = await res.json();
+      setStatus(d.status);
+    } catch { setStatus('error'); }
+  }
+
+  async function connect() {
+    setStatus('connecting');
+    setErrorMsg('');
+    try {
+      const res = await fetch('/api/linkedin/connect', { method: 'POST' });
+      const d = await res.json();
+      if (d.ok) { setStatus('connected'); toast.success('LinkedIn connected! Full job descriptions will now be scraped.'); }
+      else { setStatus('error'); setErrorMsg(d.error ?? 'Connection failed'); toast.error(d.error ?? 'Connection failed'); }
+    } catch { setStatus('error'); toast.error('Failed to connect'); }
+  }
+
+  async function disconnect() {
+    await fetch('/api/linkedin/connect', { method: 'DELETE' });
+    setStatus('disconnected');
+    toast.info('LinkedIn session cleared');
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchStatus(); }, []);
+
+  const statusBadge = {
+    loading:      <span className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" />Checking…</span>,
+    no_creds:     <span className="text-xs text-amber-600 font-medium">⚠️ Credentials not set</span>,
+    connected:    <span className="text-xs text-green-600 font-medium flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" />Connected</span>,
+    disconnected: <span className="text-xs text-muted-foreground">Not connected</span>,
+    connecting:   <span className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" />Logging in…</span>,
+    error:        <span className="text-xs text-destructive">Error</span>,
+  }[status];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+          </svg>
+          LinkedIn Connection
+        </CardTitle>
+        <CardDescription>Connect your LinkedIn account to scrape full job descriptions and requirements</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Step 1: env setup */}
+        <div className="rounded-lg bg-muted/50 border border-border p-4 space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Step 1 — Add to .env.local</p>
+          <pre className="text-xs bg-background border border-border rounded p-3 overflow-x-auto select-all">
+{`LINKEDIN_EMAIL=your@email.com
+LINKEDIN_PASSWORD=yourpassword
+LINKEDIN_MAX_JOBS=20`}
+          </pre>
+          <p className="text-xs text-muted-foreground">
+            Max 20 jobs per scrape is recommended to stay under LinkedIn&apos;s radar. You can raise it but keep it under 50.
+          </p>
+        </div>
+
+        {/* Step 2: connect */}
+        <div className="space-y-1">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Step 2 — Connect session</p>
+          {status === 'connecting' && (
+            <div className="rounded-lg bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-700 dark:text-amber-300 space-y-1">
+              <p className="font-semibold">🪟 A browser window is opening on your screen</p>
+              <p>If LinkedIn asks for an OTP / email verification code, enter it in that window. The session will save automatically once you reach the LinkedIn feed. You have 3 minutes.</p>
+            </div>
+          )}
+          <div className="flex items-center gap-3 pt-1">
+            {statusBadge}
+            <div className="flex items-center gap-2 ml-auto">
+              <Button variant="outline" size="sm" onClick={fetchStatus} disabled={status === 'loading' || status === 'connecting'}>
+                <RefreshCw className="h-3.5 w-3.5" />
+              </Button>
+              {status === 'connected'
+                ? <Button variant="outline" size="sm" onClick={disconnect} className="gap-1.5 text-destructive border-destructive/40 hover:bg-destructive/10"><Unlink className="h-3.5 w-3.5" />Disconnect</Button>
+                : <Button size="sm" onClick={connect} disabled={status === 'connecting' || status === 'no_creds'} className="gap-1.5"><Link2 className="h-3.5 w-3.5" />{status === 'connecting' ? 'Connecting… (check for browser window)' : 'Connect LinkedIn'}</Button>
+              }
+            </div>
+          </div>
+          {errorMsg && <p className="text-xs text-destructive mt-1">{errorMsg}</p>}
+        </div>
+
+        {/* Safety info */}
+        <div className="rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 p-3 space-y-1">
+          <p className="text-xs font-semibold text-blue-700 dark:text-blue-300">Account safety measures</p>
+          <ul className="text-xs text-blue-600 dark:text-blue-400 space-y-0.5 list-disc list-inside">
+            <li>Login happens once — session is reused until it expires</li>
+            <li>2–5 second random delay between every job page</li>
+            <li>Pages visited one at a time (no parallel tabs)</li>
+            <li>Stops immediately if a CAPTCHA is detected</li>
+            <li>Stable browser fingerprint that never changes between runs</li>
+          </ul>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function TelegramTestButton() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle');
@@ -166,6 +273,9 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* LinkedIn */}
+      <LinkedInConnectionCard />
 
       {/* Auto-Apply */}
       <Card>
