@@ -8,11 +8,11 @@
 
 <br/>
 
-[![Next.js](https://img.shields.io/badge/Next.js%2016-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
+[![Next.js](https://img.shields.io/badge/Next.js-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
 [![OpenAI](https://img.shields.io/badge/GPT--4o-412991?style=for-the-badge&logo=openai&logoColor=white)](https://openai.com)
 [![PostgreSQL](https://img.shields.io/badge/pgvector-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://supabase.com)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
-[![Playwright](https://img.shields.io/badge/Playwright-45BA4B?style=for-the-badge&logo=playwright&logoColor=white)](https://playwright.dev)
+[![Drizzle](https://img.shields.io/badge/Drizzle_ORM-C5F74F?style=for-the-badge&logo=drizzle&logoColor=black)](https://orm.drizzle.team)
 
 <br/>
 
@@ -27,7 +27,7 @@
 
 ## What is this?
 
-Job Agent is a personal AI career automation system. It continuously discovers jobs across the internet, ranks them against your profile using **Vector Mathematics**, rewrites your application materials per company, submits applications, and helps you build a stunning resume — all without you touching a single form.
+Job Agent is a personal AI career automation system. It continuously discovers companies and jobs across the internet, ranks them against your profile using **vector cosine similarity**, rewrites your application materials per role, submits applications, and helps you build a stunning resume — all without you touching a single form.
 
 You set your preferences once. The platform runs the entire job search pipeline for you.
 
@@ -45,12 +45,12 @@ None of that work requires human judgment. Job Agent automates all of it.
 
 <br/>
 
-### AI-Powered Resume Builder (15 Templates)
-Design stunning, ATS-optimized resumes directly inside the platform. Choose from **15 professional templates** spanning Single-Column, Sidebar, Banner, Two-Column, Timeline, and Traditional layouts. Features include:
+### AI-Powered Resume Builder (16 Templates)
+Design stunning, ATS-optimized resumes directly inside the platform. Choose from **16 professional templates** spanning Single-Column, Sidebar, Banner, Two-Column, Timeline, and Traditional layouts. Every template renders identically in both the live HTML preview and the downloaded PDF. Features include:
 - **Import existing PDF** → AI parses and pre-fills all sections automatically
 - **Live preview** with real-time rendering as you type
 - **AI Enhancement** → GPT-4o rewrites your bullet points for maximum impact
-- **One-click PDF download** with pixel-perfect fidelity
+- **One-click PDF download** with pixel-perfect fidelity across all 16 layouts
 - **Deploy feature** to share a live URL of your resume
 - **Multiple saved projects** (e.g., "Frontend Resume", "Leadership Resume")
 
@@ -64,22 +64,38 @@ Simultaneously searches **11 job boards** with a single query — RemoteOK, WeWo
 <br/>
 
 ### Advanced Search Copilot & Saved Searches
-Never re-type your search filters. Save your favorite search configurations (Role, Location, Sources, Experience Level) and switch between them with a single click. Watch the system work in real-time with the **Search Progress Radar** — a visual modal showing proxy connections, bot-bypass steps, source scanning, and AI matching progress.
+Never re-type your search filters. Save your favorite search configurations (Role, Location, Sources, Experience Level) and switch between them with a single click. Watch the system work in real-time with the **Search Progress Radar** — a visual modal showing source scanning, deduplication, and AI matching progress.
 
 <br/>
 
-### Autonomous Company Discovery Engine
-Goes beyond job boards. The platform autonomously finds new companies hiring in your space by monitoring **Google Jobs Search**, **ProductHunt**, and **Startup Registries (YC, VC portfolios, GitHub)**. It builds a database of companies you didn't even know existed — automatically, every night.
+### Autonomous Company Discovery Engine (100+ Companies, 5 Sources)
+The platform autonomously builds a database of companies hiring in your space from five sources — each with a live animated progress card showing exactly what's running:
+
+| Source | What it finds |
+|---|---|
+| **Known Companies** | 100+ hand-verified tech companies with correct ATS board URLs (instant, zero scraping) |
+| **Y Combinator** | Full YC portfolio — current and alumni batches |
+| **GitHub Trending** | Companies behind trending open-source repositories |
+| **VC Portfolios** | a16z, Sequoia, Accel, Bessemer, and more |
+| **Wellfound** | Active hiring startups from the Wellfound (AngelList) board |
+
+Add any company manually by pasting its website or job board URL — ATS type is auto-detected.
 
 <br/>
 
-### Universal Career Page Scraper
-The most powerful career page scraper available. It automatically detects if a company uses a known ATS (Greenhouse, Lever) and uses optimized API scrapers. For companies with **custom career pages**, it launches a Stealth Browser and uses an **AI-Hybrid engine** (GPT-4o) to navigate, identify, and extract job listings — scraping *any* career page in the world regardless of layout.
+### Public API Job Scraper (6 ATS Types, Zero Browser Automation)
+Scrapes live job listings directly from each company's ATS via **public JSON APIs** — no browser, no proxy, no stealth needed. Supported ATS platforms:
 
-<br/>
+| ATS | API used | Example companies |
+|---|---|---|
+| **Greenhouse** | `boards-api.greenhouse.io/v1/boards/{slug}/jobs` | Stripe, Uber, Anthropic, OpenAI, Deel, GitLab, Discord, Canva, Rivian, Monzo |
+| **Lever** | `api.lever.co/v0/postings/{slug}?mode=json` | Netflix, Rippling, Brex, Plaid, Webflow, Notion, Cohere |
+| **Ashby** | `jobs.ashbyhq.com/api/non-admin/job-board` | Vercel, Linear, Supabase, ElevenLabs, Groq, Zed, Modal, Cursor |
+| **SmartRecruiters** | `api.smartrecruiters.com/v1/companies/{slug}/postings` | Twilio, Klarna, Zalando, Adyen, Booking |
+| **Workday** | `{tenant}.myworkdayjobs.com/wday/cxs/{tenant}/{board}/jobs` | Shopify, Snowflake, CrowdStrike, Palantir, ServiceNow |
+| **BambooHR** | `{slug}.bamboohr.com/careers/list` | Small-to-mid size companies on BambooHR |
 
-### Stealth Automation Pipeline
-Built with `playwright-extra` and advanced **Stealth Plugins**, the platform bypasses bot detection on sophisticated hiring platforms. It mimics human behavior — randomized keystroke delays, non-linear mouse paths, and human-like scroll patterns — to ensure your automation is never blocked.
+All jobs are upserted with `onConflictDoNothing` — re-running never creates duplicates.
 
 <br/>
 
@@ -104,7 +120,7 @@ The system runs a **fully autonomous 24/7 loop**. Every morning it discovers new
 <br/>
 
 ### Batch Apply
-Select any number of jobs from your list and apply to all of them in one click. Smart Resume Selection runs independently per job. The system handles the full submission lifecycle — tailoring, form-filling, and stealth bypass.
+Select any number of jobs from your list and apply to all of them in one click. Smart Resume Selection runs independently per job. The system handles the full submission lifecycle — tailoring, form-filling, and submission.
 
 <br/>
 
@@ -121,38 +137,36 @@ Understand where your search is working and where it isn't. See response rates b
 ### Telegram Notifications
 Real-time alerts when high-match jobs (80%+ score) are found, application status updates, daily summaries, and company discovery reports — all delivered directly to your Telegram.
 
-<br/>
-
-### LinkedIn Easy Apply Chrome Extension (Copilot)
-A browser extension that injects a **Match Score UI** directly on LinkedIn and Greenhouse pages — so you know if a job is worth applying for before you click. Handles LinkedIn Easy Apply forms automatically and allows triggering resume tailoring sessions without leaving your browser.
-
 ---
 
 ## How It Works
 
 **Step 1 — Build or Import Your Resume**
-Use the Resume Builder to create a stunning ATS-optimized resume from scratch with 15 templates, or import your existing PDF and let AI pre-fill all sections instantly.
+Use the Resume Builder to create a stunning ATS-optimized resume from scratch with 16 templates, or import your existing PDF and let AI pre-fill all sections instantly.
 
 **Step 2 — Set Up Your Profile**
 Upload multiple resume versions — one for Frontend, one for Backend, one for Leadership. The AI matches each to the right job automatically.
 
-**Step 3 — Configure & Save Your Search**
-Define your target roles, experience level, preferred sources, and locations. Save configurations as named "Saved Searches" to switch contexts instantly.
+**Step 3 — Discover Companies**
+Click **Load Known Companies** to instantly load 100+ top tech companies, or **Auto-Discover All** to pull from YC, GitHub Trending, VC portfolios, and Wellfound. Watch live per-source progress bars as each source completes.
 
-**Step 4 — Let the Pipeline Run**
+**Step 4 — Scrape Live Jobs**
+Click **Scrape All Jobs** — the platform hits each company's ATS public API directly, pulls live listings, and stores them with a real-time progress counter showing jobs found and companies processed.
+
+**Step 5 — Let the Pipeline Run**
 Enable the daily discovery pipeline. At 4:00 AM, the system finds new companies, scrapes their career pages, runs AI match scoring, and sends you a curated Telegram digest.
 
-**Step 5 — 1-Click Apply**
-Apply to individual jobs or batch-apply dozens at once. For each, the system selects the best resume, tailors it, writes a cover letter, and submits via Stealth Automation.
+**Step 6 — 1-Click Apply**
+Apply to individual jobs or batch-apply dozens at once. For each, the system selects the best resume, tailors it, writes a cover letter, and submits.
 
-**Step 6 — Track & Optimize**
+**Step 7 — Track & Optimize**
 Monitor your pipeline on the Applications page. Use the Analytics dashboard to identify which sources yield the best response rates and optimize your strategy.
 
 ---
 
 ## Setup
 
-You need accounts with four services — all have free tiers:
+You need accounts with the following services — all have free tiers:
 
 - **[Supabase / PostgreSQL + pgvector](https://supabase.com)** — Database with vector support
 - **[OpenAI](https://platform.openai.com)** — GPT-4o for all AI features
@@ -177,8 +191,6 @@ npx drizzle-kit push
 npm run dev
 ```
 
-For the Chrome extension — load it as an unpacked extension from the `chrome-extension/` folder in Chrome Developer Mode.
-
 ---
 
 ## Platform Modules
@@ -186,16 +198,14 @@ For the Chrome extension — load it as an unpacked extension from the `chrome-e
 | Module | What it does |
 |---|---|
 | **Dashboard** | Live overview — active applications, recent matches, pipeline health |
-| **Resume Builder** | Build resumes with 15 templates, live preview, AI enhancement, and PDF export |
+| **Resume Builder** | Build resumes with 16 templates, live preview, AI enhancement, and PDF export |
 | **Resume Manager** | Upload, label, activate/deactivate, and delete parsed resume versions |
 | **Search** | 11-source discovery with Saved Searches, Radar Visualization, and Experience Filtering |
-| **Discovery Engine** | Autonomous company finding via ProductHunt, YC, VC registries, and Google Jobs |
+| **Companies** | 100+ company database with per-source discovery progress, ATS breakdown, and live job scraping |
 | **All Jobs** | Full table of all discovered jobs — apply, tailor, cover letter, and batch select |
 | **AI Matches** | Jobs ranked by Vector Cosine Similarity score against your resume |
 | **Applications** | Full pipeline tracker from submission to offer with CSV export |
 | **Analytics** | Response rates, application trends, best days to apply |
-| **Companies** | Track target companies, career pages, ATS types, and hiring activity |
-| **Manual Review** | Applications that need human review before submission |
 | **Settings** | Notification preferences, automation limits, application criteria |
 
 ---
@@ -204,28 +214,46 @@ For the Chrome extension — load it as an unpacked extension from the `chrome-e
 
 | Template | Layout | Style |
 |---|---|---|
-| Classic | Single Column | Timeless serif, centered |
-| Modern | Single Column | Clean sans-serif, indigo |
-| Minimal | Single Column | Whitespace-forward |
+| Classic | Single Column | Timeless serif, centered header |
+| Modern | Single Column | Clean sans-serif, indigo accents |
+| Minimal | Single Column | Whitespace-forward, ultra-clean |
 | Executive | Single Column | Bold serif, formal |
 | Sharp | Single Column | Left border accents |
 | Scholar | Single Column | Academic serif |
-| Compact | Single Column | Maximum density |
-| Banner | Banner Header | Bold colored header |
+| Compact | Single Column | Maximum information density |
+| Banner | Banner Header | Bold full-width colored header |
 | Teal Banner | Banner Header | Teal band + clean body |
-| Timeline | Timeline | Dot timeline experience |
-| Atlantic | Sidebar Dark | Navy sidebar |
-| Slate | Sidebar Dark | Charcoal sidebar |
+| Timeline | Timeline | Dot-line timeline for experience |
+| Atlantic | Sidebar Dark | Navy sidebar, two-column |
+| Slate | Sidebar Dark | Charcoal sidebar, two-column |
 | Sidebar Light | Sidebar Light | Gray sidebar split |
-| Two Column | Two Column | Balanced split layout |
+| Two Column | Two Column | Balanced equal-split layout |
 | Mercury | Two Column | Narrow left panel |
-| Traditional | Traditional | ALL CAPS, skills-first |
+| Traditional | Traditional | ALL CAPS sections, ATS-safe |
+
+---
+
+## Supported ATS Platforms
+
+Companies using these ATS platforms are fully auto-scraped via public JSON APIs:
+
+**Greenhouse** — `boards.greenhouse.io` · Anthropic, OpenAI, Stripe, Uber, Lyft, Spotify, Cloudflare, Datadog, Deel, GitLab, Automattic, Zapier, Discord, Canva, DoorDash, Instacart, Monzo, Wise, Robinhood, Rivian, Waymo, Gusto, Lattice, Retool, PostHog, Chainalysis, Coinbase, Databricks, and 20+ more
+
+**Lever** — `jobs.lever.co` · Netflix, Rippling, Brex, Plaid, Notion, Cohere, Scale AI, Weights & Biases, Grafana Labs, Webflow, Kong, Front, and more
+
+**Ashby** — `jobs.ashbyhq.com` · Vercel, Linear, Supabase, Cursor, ElevenLabs, Groq, Zed, Modal, Railway, Cal.com, Hugging Face, Letta, Clerk, Resend, Neon, and more
+
+**SmartRecruiters** — Twilio, Klarna, Zalando, Booking.com, Adyen, IKEA
+
+**Workday** — Shopify, Snowflake, CrowdStrike, Palantir, ServiceNow, Workday
+
+**BambooHR** — Mid-size companies on BambooHR (auto-detected from URL)
 
 ---
 
 ## Built With
 
-Next.js 16 · TypeScript · Tailwind CSS · ShadCN UI · PostgreSQL (pgvector) · Drizzle ORM · OpenAI GPT-4o · TanStack Query · Recharts · Playwright (Stealth) · Resend · Telegram Bot API · date-fns · Framer Motion · Vitest · Zod
+Next.js · TypeScript · Tailwind CSS · ShadCN UI · PostgreSQL (pgvector) · Drizzle ORM · OpenAI GPT-4o · TanStack Query · Recharts · @react-pdf/renderer · Resend · Telegram Bot API · Zod · pLimit · date-fns
 
 ---
 
