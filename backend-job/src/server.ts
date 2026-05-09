@@ -19,7 +19,11 @@ server.register(rateLimit, {
   max: 100,
   timeWindow: '1 minute'
 });
-server.register(multipart);
+server.register(multipart, {
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+  },
+});
 server.register(fastifyStatic, {
   root: path.join(__dirname, '../public'),
   prefix: '/public/', // optional: default '/'

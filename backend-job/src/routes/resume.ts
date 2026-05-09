@@ -1,6 +1,11 @@
 import { FastifyInstance } from 'fastify';
-import { getResumes, toggleResumeActive, updateResumeLabel, deleteResume, uploadResume } from '../../lib/actions/resume';
+import { getResumes, toggleResumeActive, updateResumeLabel, deleteResume } from '../../lib/actions/resume';
 import { resumeUpdateSchema, resumeDeleteSchema } from '../../lib/validations/resume';
+import { saveUploadedFile } from '../../lib/utils/file-upload';
+import { parseResume } from '../../lib/openai/resume-parser';
+import { db } from '../../lib/db';
+import { resumes as resumesTable, profile as profileTable } from '../../lib/db/schema';
+import { PDFParse } from 'pdf-parse';
 
 export default async function resumeRoutes(server: FastifyInstance) {
   server.get('/api/resume', async (request, reply) => {
@@ -44,19 +49,14 @@ export default async function resumeRoutes(server: FastifyInstance) {
 
   server.post('/api/resume/parse', async (request, reply) => {
     try {
+      const query = request.query as { dryRun?: string };
+      const isDryRun = query.dryRun === 'true';
+
       const data = await request.file();
       if (!data) return reply.status(400).send({ error: 'No file provided' });
       
-      // Fastify-multipart handles this. We need to convert it to a FormData-like structure or handle buffer
       const buffer = await data.toBuffer();
       const fileName = data.filename;
-      
-      // We need to adapt uploadResume to handle buffer directly if possible, or create a mock FormData
-      // For now, let's just use a helper to handle the upload logic since we have the buffer
-      const { saveUploadedFile } = await import('../../lib/utils/file-upload');
-      const { parseResume } = await import('../../lib/openai/resume-parser');
-      const { db } = await import('../../lib/db');
-      const { resumes: resumesTable, profile: profileTable } = await import('../../lib/db/schema');
       
       const { filePath, fileUrl } = await saveUploadedFile(buffer, fileName);
       
@@ -65,9 +65,19 @@ export default async function resumeRoutes(server: FastifyInstance) {
         [existingProfile] = await db.insert(profileTable).values({ name: 'User', email: 'user@example.com' }).returning();
       }
       
-      const pdfParse = require('pdf-parse');
-      const pdf = await pdfParse(buffer);
+      const parser = new PDFParse({ data: buffer });
+      const pdf = await parser.getText();
+      await parser.destroy();
+      
       const parsedData = await parseResume(pdf.text);
+      
+      if (isDryRun) {
+        return {
+          parsedData,
+          fileName,
+          fileUrl,
+        };
+      }
       
       const [resume] = await db.insert(resumesTable).values({
         profileId: existingProfile.id,
@@ -80,9 +90,9 @@ export default async function resumeRoutes(server: FastifyInstance) {
       }).returning();
       
       return resume;
-    } catch (err) {
-      server.log.error('[API Resume Parse POST] ' + err);
-      reply.status(500).send({ error: 'Upload failed' });
+    } catch (err: any) {
+      server.log.error('[API Resume Parse POST] Error:', err);
+      reply.status(500).send({ error: 'Upload failed', message: err.message });
     }
   });
 }
