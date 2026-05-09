@@ -1,7 +1,7 @@
 import { StatsCard } from '@/components/shared/StatsCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Briefcase, CheckCircle, AlertCircle, XCircle, TrendingUp, ArrowRight, FileText, Search, Zap } from 'lucide-react';
+import { Briefcase, CheckCircle, AlertCircle, XCircle, TrendingUp, ArrowRight, FileText, Search, Zap, Clock, Activity } from 'lucide-react';
 import { timeAgo } from '@/lib/utils/helpers';
 import Link from 'next/link';
 import { buttonVariants } from '@/components/ui/button';
@@ -30,17 +30,25 @@ export default async function DashboardPage() {
   }
 
   return (
-    <main className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
+    <div className="mx-auto max-w-7xl p-6 md:p-8 space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold">Welcome back</h2>
-          <p className="text-sm text-muted-foreground mt-1">Here is your job application overview</p>
+          <h2 className="text-3xl font-bold tracking-tight">Overview</h2>
+          <p className="text-sm text-muted-foreground mt-1">Monitor your autonomous job agent and pipeline.</p>
         </div>
-        <Link href="/search" className={cn(buttonVariants(), 'shrink-0')}>Find New Jobs</Link>
+        <Link href="/search" className={cn(buttonVariants(), 'shrink-0 shadow-sm')}>Find New Jobs</Link>
       </div>
 
+      {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatsCard title="Total Applications" value={stats.total} icon={Briefcase} />
+        <StatsCard 
+          title="Hours Saved" 
+          value={Math.floor((stats.total * 20) / 60)} 
+          subtitle="Estimated time saved by AI" 
+          icon={Clock} 
+          variant="success" 
+        />
+        <StatsCard title="Total Sourced" value={stats.total} icon={Briefcase} />
         <StatsCard
           title="Auto-Applied"
           value={stats.applied}
@@ -51,21 +59,14 @@ export default async function DashboardPage() {
         <StatsCard
           title="Manual Review"
           value={stats.manualReview}
-          subtitle="Needs attention"
+          subtitle="Attention required"
           icon={AlertCircle}
           variant="warning"
-        />
-        <StatsCard
-          title="Failed"
-          value={stats.failed}
-          subtitle="Retry available"
-          icon={XCircle}
-          variant="error"
         />
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <Card className="rounded-xl">
+        <Card className="rounded-xl shadow-sm border-border/60">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
@@ -81,38 +82,40 @@ export default async function DashboardPage() {
             ].map(({ label, value, color }) => (
               <div key={label} className="flex items-center gap-3">
                 <div className={`h-2 w-2 rounded-full ${color}`} />
-                <span className="flex-1 text-sm">{label}</span>
+                <span className="flex-1 text-sm font-medium text-muted-foreground">{label}</span>
                 <span className="text-sm font-semibold">{value}</span>
               </div>
             ))}
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl">
+        <Card className="rounded-xl shadow-sm border-border/60">
           <CardHeader>
-            <CardTitle>Recent Jobs Found</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-primary animate-pulse" />
+              Live Operations Log
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {recentJobs.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No jobs yet. Start by searching for jobs.</p>
+              <p className="text-sm text-muted-foreground">System idle. Initiate a search to begin operations.</p>
             ) : (
               recentJobs.map((job: any) => (
-                <a
+                <div
                   key={job.id}
-                  href={job.applyUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between rounded-lg p-3 hover:bg-accent transition-colors"
+                  className="flex items-start gap-3 rounded-lg p-3 bg-muted/30 border border-transparent hover:border-border/50 transition-colors"
                 >
-                  <div>
-                    <p className="text-sm font-medium">{job.title}</p>
-                    <p className="text-xs text-muted-foreground">{job.company}</p>
+                  <div className="h-2 w-2 rounded-full bg-primary mt-1.5 animate-pulse shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium leading-snug">
+                      Identified <span className="text-foreground">{job.title}</span> at {job.company}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant="secondary" className="text-[10px] font-normal uppercase tracking-wider">{job.source}</Badge>
+                      <span className="text-xs text-muted-foreground">{timeAgo(job.createdAt)}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">{job.source}</Badge>
-                    <span className="text-xs text-muted-foreground">{timeAgo(job.createdAt)}</span>
-                  </div>
-                </a>
+                </div>
               ))
             )}
           </CardContent>
@@ -120,7 +123,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Quick Actions */}
-      <Card className="rounded-xl">
+      <Card className="rounded-xl shadow-sm border-border/60">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Zap className="h-4 w-4 text-primary" />
@@ -128,7 +131,7 @@ export default async function DashboardPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
               {
                 step: '1',
@@ -159,32 +162,34 @@ export default async function DashboardPage() {
                 key={step}
                 href={href}
                 className={cn(
-                  'group flex flex-col gap-2 rounded-xl border p-4 transition-all hover:shadow-md',
+                  'group flex flex-col gap-2 rounded-xl border p-5 transition-all hover:shadow-md bg-card',
                   done
-                    ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30'
-                    : 'border-border hover:border-primary/40'
+                    ? 'border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20'
+                    : 'border-border/60 hover:border-primary/40'
                 )}
               >
                 <div className="flex items-center justify-between">
                   <div className={cn(
-                    'h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold',
+                    'h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold shadow-sm',
                     done ? 'bg-green-500 text-white' : 'bg-primary/10 text-primary'
                   )}>
                     {done ? <CheckCircle className="h-4 w-4" /> : step}
                   </div>
                   <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                 </div>
-                <div>
+                <div className="mt-2">
                   <p className="text-sm font-semibold">{title}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{desc}</p>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{desc}</p>
                 </div>
               </Link>
             ))}
           </div>
           {stats.manualReview > 0 && (
-            <Link href="/manual-review" className="mt-4 flex items-center justify-between rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-3 hover:bg-amber-100 dark:hover:bg-amber-950 transition-colors group">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <Link href="/manual-review" className="mt-5 flex items-center justify-between rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 p-4 hover:bg-amber-100/50 dark:hover:bg-amber-950/40 transition-colors group shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-lg bg-amber-100 dark:bg-amber-900 flex items-center justify-center">
+                  <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                </div>
                 <span className="text-sm font-medium text-amber-800 dark:text-amber-300">
                   {stats.manualReview} application{stats.manualReview !== 1 ? 's' : ''} need your attention
                 </span>
@@ -194,6 +199,6 @@ export default async function DashboardPage() {
           )}
         </CardContent>
       </Card>
-    </main>
+    </div>
   );
 }

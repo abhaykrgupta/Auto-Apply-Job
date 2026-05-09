@@ -164,11 +164,11 @@ export default function SearchPage() {
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">
+    <div className="mx-auto max-w-7xl p-6 md:p-8 space-y-8">
       <div>
-        <h2 className="text-2xl font-bold">Search Jobs</h2>
+        <h2 className="text-3xl font-bold tracking-tight">Search Jobs</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Search 8+ job sources automatically — Indeed, LinkedIn, RemoteOK, and more
+          Search 8+ job sources automatically — Indeed, LinkedIn, RemoteOK, and more.
         </p>
       </div>
 

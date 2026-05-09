@@ -94,11 +94,11 @@ export default function ResumePage() {
   const activeCount = resumes?.filter((r: any) => r.isActive).length ?? 0;
 
   return (
-    <div className="p-4 md:p-8 space-y-6">
+    <div className="mx-auto max-w-7xl p-6 md:p-8 space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold">Resume Manager</h2>
-          <p className="text-muted-foreground text-sm mt-0.5">
+          <h2 className="text-3xl font-bold tracking-tight">Resume Manager</h2>
+          <p className="text-muted-foreground text-sm mt-1">
             {resumes?.length ?? 0} resume{resumes?.length !== 1 ? 's' : ''} &mdash; {activeCount} active for auto-apply
           </p>
         </div>

@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Sparkles, Loader2, CheckCircle2, AlertTriangle, ShieldCheck, PenLine } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Sparkles, Loader2, CheckCircle2, AlertTriangle, ShieldCheck, PenLine, Link as LinkIcon } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CRITICAL: Field and Textarea MUST be defined OUTSIDE the BuilderForm component.
@@ -736,7 +737,66 @@ export function BuilderForm({ data, onChange, projectName, onProjectNameChange }
   );
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto p-5 space-y-8 pb-20">
+    <div className="flex flex-col h-full overflow-y-auto p-5 space-y-8 pb-20 relative">
+      {/* ── One-Click Tailor Sticky Bar ── */}
+      <div className="sticky top-0 z-40 -mx-5 -mt-5 mb-2 p-5 bg-background/80 backdrop-blur-xl border-b border-border shadow-sm">
+        <div className="flex flex-col sm:flex-row gap-3 items-center">
+          <div className="flex-1 relative w-full">
+            <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Paste Job URL to automatically tailor this resume..." 
+              value={jobUrl}
+              onChange={e => setJobUrl(e.target.value)}
+              className="pl-9 bg-card border-primary/20 focus-visible:ring-primary/30 shadow-inner"
+            />
+          </div>
+          <Button 
+            onClick={handleTailor}
+            disabled={isTailoring || !jobUrl}
+            className="w-full sm:w-auto gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-md transition-all"
+          >
+            {isTailoring ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {isTailoring ? 'Tailoring...' : '✨ Tailor Resume'}
+          </Button>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {isTailoring && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-sm"
+          >
+            <div className="flex flex-col items-center gap-4 bg-card p-8 rounded-2xl border border-border shadow-2xl">
+              <div className="relative">
+                <div className="h-16 w-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+                <Sparkles className="absolute inset-0 m-auto h-6 w-6 text-primary animate-pulse" />
+              </div>
+              <div className="text-center space-y-2">
+                <motion.p 
+                  initial={{ y: 5, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-lg font-bold bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent"
+                >
+                  AI is analyzing the job description...
+                </motion.p>
+                <motion.p 
+                  initial={{ y: 5, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.8 }}
+                  className="text-sm font-medium text-muted-foreground"
+                >
+                  Rewriting bullet points to bypass ATS...
+                </motion.p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AtsHealthScore data={data} />
       
       <section>

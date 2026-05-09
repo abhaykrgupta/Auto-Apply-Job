@@ -195,12 +195,24 @@ export default function ApplicationDetailPage() {
       if (!res.ok) throw new Error('Update failed');
       return res.json();
     },
-    onSuccess: () => {
+    onMutate: async (status: string) => {
+      await qc.cancelQueries({ queryKey: ['application', id] });
+      const previous = qc.getQueryData(['application', id]);
+      qc.setQueryData(['application', id], (old: any) => {
+        if (!old) return old;
+        return { ...old, application: { ...old.application, status } };
+      });
       toast.success('Status updated');
+      return { previous };
+    },
+    onError: (err, newStatus, context: any) => {
+      qc.setQueryData(['application', id], context.previous);
+      toast.error('Failed to update status. Reverting.');
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ['application', id] });
       qc.invalidateQueries({ queryKey: ['applications'] });
     },
-    onError: () => toast.error('Failed to update status'),
   });
 
   const { mutate: cancelApplication, isPending: isCancelling } = useMutation({
@@ -211,12 +223,24 @@ export default function ApplicationDetailPage() {
       if (!res.ok) throw new Error('Cancel failed');
       return res.json();
     },
-    onSuccess: () => {
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: ['application', id] });
+      const previous = qc.getQueryData(['application', id]);
+      qc.setQueryData(['application', id], (old: any) => {
+        if (!old) return old;
+        return { ...old, application: { ...old.application, status: 'cancelled' } };
+      });
       toast.success('Application cancelled');
+      return { previous };
+    },
+    onError: (err, _, context: any) => {
+      qc.setQueryData(['application', id], context.previous);
+      toast.error('Failed to cancel application. Reverting.');
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ['application', id] });
       qc.invalidateQueries({ queryKey: ['applications'] });
     },
-    onError: () => toast.error('Failed to cancel application'),
   });
 
   if (isLoading) return <LoadingSpinner />;

@@ -103,13 +103,31 @@ export default function ApplicationsPage() {
         })
       ));
     },
-    onSuccess: (_, { status }) => {
-      toast.success(`${selectedIds.size} application${selectedIds.size !== 1 ? 's' : ''} marked as ${statusLabel(status)}`);
+    onMutate: async ({ ids, status }) => {
+      await qc.cancelQueries({ queryKey: ['applications'] });
+      const previousApps = qc.getQueryData(['applications']);
+      qc.setQueryData(['applications'], (old: any) => {
+        if (!old) return old;
+        return old.map((app: any) => {
+          if (ids.includes(app.application?.id)) {
+            return { ...app, application: { ...app.application, status } };
+          }
+          return app;
+        });
+      });
+      // Close UI elements immediately for snappiness
+      toast.success(`${ids.length} application${ids.length !== 1 ? 's' : ''} marked as ${statusLabel(status)}`);
       setSelectedIds(new Set());
       setBulkMenuOpen(false);
+      return { previousApps };
+    },
+    onError: (err, variables, context: any) => {
+      qc.setQueryData(['applications'], context.previousApps);
+      toast.error('Failed to update. Reverting changes.');
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ['applications'] });
     },
-    onError: () => toast.error('Failed to update some applications'),
   });
 
   const { mutate: bulkDelete, isPending: bulkDeleting } = useMutation({
@@ -118,12 +136,24 @@ export default function ApplicationsPage() {
         fetch(`/api/applications/${id}`, { method: 'DELETE' })
       ));
     },
-    onSuccess: () => {
-      toast.success(`${selectedIds.size} application${selectedIds.size !== 1 ? 's' : ''} deleted`);
+    onMutate: async (ids) => {
+      await qc.cancelQueries({ queryKey: ['applications'] });
+      const previousApps = qc.getQueryData(['applications']);
+      qc.setQueryData(['applications'], (old: any) => {
+        if (!old) return old;
+        return old.filter((app: any) => !ids.includes(app.application?.id));
+      });
+      toast.success(`${ids.length} application${ids.length !== 1 ? 's' : ''} deleted`);
       setSelectedIds(new Set());
+      return { previousApps };
+    },
+    onError: (err, variables, context: any) => {
+      qc.setQueryData(['applications'], context.previousApps);
+      toast.error('Failed to delete. Reverting changes.');
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ['applications'] });
     },
-    onError: () => toast.error('Failed to delete some applications'),
   });
 
   const allIds = filtered.map((a: any) => a.application?.id).filter(Boolean);
@@ -145,12 +175,12 @@ export default function ApplicationsPage() {
   if (isLoading) return <LoadingSpinner />;
 
   return (
-    <div className="p-4 md:p-8 space-y-5 pb-24">
+    <div className="mx-auto max-w-7xl p-6 md:p-8 space-y-8 pb-24">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold">Applications</h2>
-          <p className="text-muted-foreground">{applications?.length ?? 0} total applications</p>
+          <h2 className="text-3xl font-bold tracking-tight">Applications</h2>
+          <p className="text-muted-foreground mt-1 text-sm">{applications?.length ?? 0} total applications</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {pendingCount > 0 && (
