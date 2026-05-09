@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Sparkles, Loader2 } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Sparkles, Loader2, CheckCircle2, AlertTriangle, ShieldCheck, PenLine } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import { toast } from 'sonner';
 
@@ -103,10 +103,126 @@ function TagInput({ value, onChange, placeholder }: { value: string[]; onChange:
 const TABS = ['Personal', 'Summary', 'Experience', 'Education', 'Skills', 'Projects'] as const;
 type Tab = typeof TABS[number];
 
-interface Props { data: ResumeData; onChange: (data: ResumeData) => void; }
+interface Props { 
+  data: ResumeData; 
+  onChange: (data: ResumeData) => void; 
+  projectName: string;
+  onProjectNameChange: (name: string) => void;
+}
 
-export function BuilderForm({ data, onChange }: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>('Personal');
+function AtsHealthScore({ data }: { data: ResumeData }) {
+  let score = 0;
+  const tips: { msg: string, type: 'error' | 'warn' | 'good' }[] = [];
+
+  // Contact
+  if (data.personal.name && data.personal.email && data.personal.phone) {
+    score += 15;
+  } else {
+    tips.push({ msg: 'Missing essential contact info (Name, Email, Phone).', type: 'error' });
+  }
+
+  if (data.personal.linkedin) {
+    score += 5;
+  } else {
+    tips.push({ msg: 'Add LinkedIn URL to increase trust.', type: 'warn' });
+  }
+
+  // Summary
+  if (data.summary.text.length > 50) {
+    score += 15;
+    if (/\d+/.test(data.summary.text)) {
+      score += 5;
+    } else {
+      tips.push({ msg: 'Add metrics (numbers) to your summary to show impact.', type: 'warn' });
+    }
+  } else {
+    tips.push({ msg: 'Professional summary is too short or missing.', type: 'error' });
+  }
+
+  // Experience
+  if (data.experience.length > 0) {
+    score += 20;
+    let hasMetrics = false;
+    let bulletsTooShort = false;
+
+    data.experience.forEach(exp => {
+      exp.bullets.forEach(b => {
+        if (/\d+/.test(b) || /%/.test(b) || /\$/.test(b)) hasMetrics = true;
+        if (b.length > 0 && b.length < 30) bulletsTooShort = true;
+      });
+      if (exp.metrics && exp.metrics.length > 0 && exp.metrics.some(Boolean)) {
+        hasMetrics = true; // explicitly separating metrics proves quantifiable data
+      }
+    });
+
+    if (hasMetrics) {
+      score += 15;
+    } else {
+      tips.push({ msg: 'Experience bullets lack quantifiable metrics (%, $, numbers).', type: 'error' });
+    }
+
+    if (bulletsTooShort) {
+      tips.push({ msg: 'Some experience bullets are too short to be impactful.', type: 'warn' });
+    } else {
+      score += 5;
+    }
+  } else {
+    tips.push({ msg: 'Add at least one work experience entry.', type: 'error' });
+  }
+
+  // Education
+  if (data.education.length > 0) {
+    score += 10;
+  } else {
+    tips.push({ msg: 'Add education history.', type: 'warn' });
+  }
+
+  // Skills
+  const totalSkills = data.skills.technical.length + data.skills.soft.length + data.skills.languages.length;
+  if (totalSkills > 5) {
+    score += 10;
+  } else {
+    tips.push({ msg: 'Add more skills to match ATS keywords.', type: 'warn' });
+  }
+
+  const getScoreColor = () => {
+    if (score >= 80) return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-900';
+    if (score >= 60) return 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900';
+    return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900';
+  };
+
+  return (
+    <div className="mb-8 rounded-xl border border-border overflow-hidden bg-card shadow-sm">
+      <div className={cn("px-4 py-3 border-b flex items-center justify-between", getScoreColor())}>
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="h-5 w-5" />
+          <h3 className="font-semibold text-sm">ATS Health Score</h3>
+        </div>
+        <div className="text-xl font-bold">{score}<span className="text-sm font-medium opacity-70">/100</span></div>
+      </div>
+      {tips.length > 0 && (
+        <div className="p-4 bg-background">
+          <ul className="space-y-2.5">
+            {tips.map((t, i) => (
+              <li key={i} className="flex items-start gap-2 text-xs">
+                {t.type === 'error' ? (
+                  <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
+                ) : t.type === 'warn' ? (
+                  <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                )}
+                <span className="text-muted-foreground leading-tight pt-0.5">{t.msg}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function BuilderForm({ data, onChange, projectName, onProjectNameChange }: Props) {
   const [openEntries, setOpenEntries] = useState<Record<string, boolean>>({});
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const dragSrc = useRef<{ section: 'experience' | 'education' | 'projects'; idx: number } | null>(null);
@@ -151,6 +267,24 @@ export function BuilderForm({ data, onChange }: Props) {
   // ── Personal ──────────────────────────────────────────────────────────────
   const renderPersonal = () => (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3">
+      {/* Resume Project Name — added for user accessibility */}
+      <Field label="Resume Name (Internal)" className="sm:col-span-2">
+        <div className="relative group/prj">
+          <Input
+            value={projectName}
+            onChange={e => onProjectNameChange(e.target.value)}
+            className="border-primary/20 bg-primary/5 focus:bg-background transition-all"
+            placeholder="e.g. Senior Software Engineer - Google"
+          />
+          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+             <PenLine className="h-3.5 w-3.5 text-primary opacity-40" />
+          </div>
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-1">This is the name shown on your dashboard and used for the filename.</p>
+      </Field>
+
+      <div className="sm:col-span-2 h-px bg-border my-2" />
+
       <Field label="Full Name" className="sm:col-span-2">
         <Input
           value={data.personal.name}
@@ -246,7 +380,7 @@ export function BuilderForm({ data, onChange }: Props) {
   // ── Experience ────────────────────────────────────────────────────────────
   const addExperience = () => {
     const id = nanoid();
-    const entry: ExperienceEntry = { id, company: '', title: '', location: '', startDate: '', endDate: '', current: false, bullets: [''] };
+    const entry: ExperienceEntry = { id, company: '', title: '', location: '', startDate: '', endDate: '', current: false, bullets: [''], metrics: [] };
     update({ experience: [...data.experience, entry] });
     setOpenEntries(p => ({ ...p, [id]: true }));
   };
@@ -357,11 +491,25 @@ export function BuilderForm({ data, onChange }: Props) {
                   </button>
                 </div>
                 <Textarea
-                  rows={5}
+                  rows={4}
                   value={exp.bullets.join('\n')}
                   onChange={e => updateExp(exp.id, { bullets: e.target.value.split('\n') })}
-                  placeholder={"Increased system performance by 40% through query optimization\nLed a cross-functional team of 5 engineers\nShipped 3 major product features used by 500K+ users"}
+                  placeholder={"Led a cross-functional team of 5 engineers\nShipped 3 major product features"}
                 />
+              </div>
+
+              <div className="flex flex-col gap-1.5 mb-2">
+                <Label className="text-[11px] font-semibold text-amber-600 dark:text-amber-500 uppercase tracking-wider">Key Achievements & Metrics</Label>
+                <Textarea
+                  rows={2}
+                  value={(exp.metrics || []).join('\n')}
+                  onChange={e => updateExp(exp.id, { metrics: e.target.value.split('\n') })}
+                  placeholder={"Increased system performance by 40%\nGrew revenue from $1M to $3M"}
+                  className="bg-amber-50/30 dark:bg-amber-950/20 border-amber-200/60 dark:border-amber-900/50"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Separate your best quantified metrics here to boost your ATS semantic matching.
+                </p>
               </div>
             </div>
           )}
@@ -587,53 +735,54 @@ export function BuilderForm({ data, onChange }: Props) {
     </div>
   );
 
-  const renders: Record<Tab, () => React.ReactNode> = {
-    Personal: renderPersonal,
-    Summary: renderSummary,
-    Experience: renderExperience,
-    Education: renderEducation,
-    Skills: renderSkills,
-    Projects: renderProjects,
-  };
-
-  const tabCounts: Partial<Record<Tab, number>> = {
-    Experience: data.experience.length || undefined,
-    Education: data.education.length || undefined,
-    Projects: data.projects.length || undefined,
-  };
-
   return (
-    <div className="flex flex-col h-full">
-      {/* Tab bar */}
-      <div className="flex border-b border-border overflow-x-auto shrink-0 bg-muted/20 [&::-webkit-scrollbar]:hidden">
-        {TABS.map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={cn(
-              'relative flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium whitespace-nowrap border-b-2 transition-all shrink-0',
-              activeTab === tab
-                ? 'border-primary text-primary bg-background'
-                : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40'
-            )}
-          >
-            {tab}
-            {tabCounts[tab] !== undefined && (
-              <span className={cn(
-                'flex h-4 min-w-[16px] items-center justify-center rounded-full text-[10px] font-bold px-1',
-                activeTab === tab ? 'bg-primary text-primary-foreground' : 'bg-muted-foreground/20 text-muted-foreground'
-              )}>
-                {tabCounts[tab]}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {renders[activeTab]()}
-      </div>
+    <div className="flex flex-col h-full overflow-y-auto p-5 space-y-8 pb-20">
+      <AtsHealthScore data={data} />
+      
+      <section>
+        <h2 className="text-lg font-semibold mb-4 text-foreground">Personal Information</h2>
+        {renderPersonal()}
+      </section>
+      <hr className="border-border" />
+      <section>
+        <h2 className="text-lg font-semibold mb-4 text-foreground">Professional Summary</h2>
+        {renderSummary()}
+      </section>
+      <hr className="border-border" />
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <h2 className="text-lg font-semibold text-foreground">Work Experience</h2>
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
+            {data.experience.length}
+          </span>
+        </div>
+        {renderExperience()}
+      </section>
+      <hr className="border-border" />
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <h2 className="text-lg font-semibold text-foreground">Education</h2>
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
+            {data.education.length}
+          </span>
+        </div>
+        {renderEducation()}
+      </section>
+      <hr className="border-border" />
+      <section>
+        <h2 className="text-lg font-semibold mb-4 text-foreground">Skills</h2>
+        {renderSkills()}
+      </section>
+      <hr className="border-border" />
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <h2 className="text-lg font-semibold text-foreground">Projects</h2>
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
+            {data.projects.length}
+          </span>
+        </div>
+        {renderProjects()}
+      </section>
     </div>
   );
 }

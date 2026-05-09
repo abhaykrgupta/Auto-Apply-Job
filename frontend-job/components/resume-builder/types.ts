@@ -21,6 +21,7 @@ export interface ExperienceEntry {
   endDate: string;
   current: boolean;
   bullets: string[];
+  metrics?: string[];
 }
 
 export interface EducationEntry {

@@ -106,7 +106,6 @@ export default function BuilderPage() {
   const [downloading, setDownloading] = useState(false);
   // Mobile: which panel is active
   const [mobilePanel, setMobilePanel] = useState<'form' | 'preview' | 'templates' | 'tailor'>('form');
-  const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // AI Tailor state
   const [jobDesc, setJobDesc] = useState('');
@@ -114,6 +113,24 @@ export default function BuilderPage() {
   const [tailorResult, setTailorResult] = useState<any>(null);
 
   useEffect(() => {
+    if (id === 'new') {
+      const draftStr = sessionStorage.getItem('resumeBuilderDraft');
+      if (draftStr) {
+        try {
+          const draft = JSON.parse(draftStr);
+          setData(draft.data || defaultResumeData);
+          setProjectName(draft.name || 'New Resume');
+        } catch {
+          setData(defaultResumeData);
+        }
+      } else {
+        setData(defaultResumeData);
+      }
+      setProject({ id: 'new', name: 'New Resume', templateId: 'classic', status: 'draft' } as any);
+      setSaveStatus('unsaved');
+      return;
+    }
+
     fetch(`/api/resume-builder/${id}`)
       .then(r => r.json())
       .then(p => {
@@ -124,41 +141,49 @@ export default function BuilderPage() {
         setProjectName(p.name || 'Untitled Resume');
         setDeployed(p.status === 'deployed');
       });
-  }, [id]);
+  }, [id, router]);
 
   const save = useCallback(async (newData: ResumeData, newTemplateId: string, newName: string) => {
     setSaveStatus('saving');
     try {
+      if (id === 'new') {
+        const res = await fetch(`/api/resume-builder`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: newData, templateId: newTemplateId, name: newName }),
+        });
+        const project = await res.json();
+        sessionStorage.removeItem('resumeBuilderDraft');
+        router.replace(`/resume-builder/${project.id}`);
+        toast.success('Resume created and saved');
+        return project.id;
+      }
+
       await fetch(`/api/resume-builder/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: newData, templateId: newTemplateId, name: newName }),
       });
       setSaveStatus('saved');
-    } catch { setSaveStatus('unsaved'); }
-  }, [id]);
-
-  const scheduleAutoSave = useCallback((newData: ResumeData, tId: string, name: string) => {
-    setSaveStatus('unsaved');
-    clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => save(newData, tId, name), 1500);
-  }, [save]);
+      return id;
+    } catch { setSaveStatus('unsaved'); return null; }
+  }, [id, router]);
 
   const handleDataChange = (newData: ResumeData) => {
     setData(newData);
-    scheduleAutoSave(newData, templateId, projectName);
+    setSaveStatus('unsaved');
   };
 
   const handleTemplateChange = (newTemplateId: string) => {
     setTemplateId(newTemplateId);
-    scheduleAutoSave(data, newTemplateId, projectName);
+    setSaveStatus('unsaved');
     // Switch back to preview so user instantly sees the change
     setRightTab('preview');
   };
 
   const handleNameChange = (newName: string) => {
     setProjectName(newName);
-    scheduleAutoSave(data, templateId, newName);
+    setSaveStatus('unsaved');
   };
 
   // Warn user before navigating away with unsaved changes
@@ -178,7 +203,6 @@ export default function BuilderPage() {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
-        clearTimeout(saveTimer.current);
         save(data, templateId, projectName).then(() => toast.success('Saved'));
       }
     };
@@ -189,9 +213,10 @@ export default function BuilderPage() {
   const downloadPdf = async () => {
     setDownloading(true);
     try {
-      await save(data, templateId, projectName);
+      const savedId = await save(data, templateId, projectName);
+      if (!savedId) throw new Error('Save failed');
       const a = document.createElement('a');
-      a.href = `/api/resume-builder/${id}/download`;
+      a.href = `/api/resume-builder/${savedId}/download`;
       a.download = `${projectName.replace(/\s+/g, '-')}.pdf`;
       a.click();
     } catch { toast.error('Download failed'); }
@@ -201,8 +226,9 @@ export default function BuilderPage() {
   const deploy = async () => {
     setDeploying(true);
     try {
-      await save(data, templateId, projectName);
-      const res = await fetch(`/api/resume-builder/${id}/deploy`, { method: 'POST' });
+      const savedId = await save(data, templateId, projectName);
+      if (!savedId) throw new Error('Save failed');
+      const res = await fetch(`/api/resume-builder/${savedId}/deploy`, { method: 'POST' });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Deploy failed');
       setDeployed(true);
@@ -280,24 +306,36 @@ export default function BuilderPage() {
         <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40" />
 
         {/* Editable project name */}
-        <input
-          value={projectName}
-          onChange={e => handleNameChange(e.target.value)}
-          className="flex-1 min-w-0 bg-transparent text-sm font-semibold focus:outline-none border-b border-transparent focus:border-primary/40 pb-0.5 transition-colors"
-          placeholder="Resume name..."
-        />
-
-        {/* Save status pill — hidden on xs to save space */}
-        <div className={cn(
-          'hidden sm:flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full shrink-0 transition-all',
-          saveStatus === 'saving' ? 'bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-400' :
-          saveStatus === 'saved'  ? 'bg-green-50 text-green-600 dark:bg-green-950 dark:text-green-400' :
-                                    'bg-muted text-muted-foreground'
-        )}>
-          {saveStatus === 'saving' && <Loader2 className="h-3 w-3 animate-spin" />}
-          {saveStatus === 'saved'  && <Check className="h-3 w-3" />}
-          {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : 'Unsaved'}
+        <div className="flex-1 min-w-0 flex items-center gap-2 group max-w-md">
+          <div className="relative flex-1">
+            <input
+              value={projectName}
+              onChange={e => handleNameChange(e.target.value)}
+              className="w-full bg-muted/30 hover:bg-muted/50 focus:bg-background border border-transparent hover:border-border focus:border-primary px-2 py-1 rounded-md text-sm font-semibold focus:outline-none transition-all truncate"
+              placeholder="Resume name..."
+            />
+            <PenLine className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+          </div>
         </div>
+
+        {/* Save button */}
+        <Button
+          variant={saveStatus === 'unsaved' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => {
+            save(data, templateId, projectName);
+            toast.success('Changes saved!');
+          }}
+          disabled={saveStatus === 'saving' || saveStatus === 'saved'}
+          className={cn(
+            "h-8 text-xs shrink-0 transition-all",
+            saveStatus === 'saved' && "text-green-600 border-green-200 dark:text-green-400 dark:border-green-900 bg-green-50/50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/40"
+          )}
+        >
+          {saveStatus === 'saving' && <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />}
+          {saveStatus === 'saved'  && <Check className="h-3 w-3 mr-1.5" />}
+          {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved' : 'Save Changes'}
+        </Button>
 
         {/* Action buttons */}
         <div className="flex items-center gap-1.5 shrink-0">
@@ -369,7 +407,12 @@ export default function BuilderPage() {
           mobilePanel === 'form' ? 'flex w-full' : 'hidden md:flex'
         )}>
           <div className="flex-1 overflow-hidden">
-            <BuilderForm data={data} onChange={handleDataChange} />
+            <BuilderForm 
+              data={data} 
+              onChange={handleDataChange} 
+              projectName={projectName}
+              onProjectNameChange={handleNameChange}
+            />
           </div>
         </div>
 
@@ -527,13 +570,28 @@ export default function BuilderPage() {
                     </div>
                   )}
 
-                  {/* Skills to add */}
+                  {/* Skills to highlight */}
                   {tailorResult.skillsToHighlight?.length > 0 && (
                     <div className="p-4 rounded-xl border border-border bg-muted/20">
-                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Highlight These Skills</p>
+                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Skills Found (Highlight These)</p>
                       <div className="flex flex-wrap gap-1.5">
                         {tailorResult.skillsToHighlight.map((s: string) => (
-                          <span key={s} className="text-[11px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{s}</span>
+                          <span key={s} className="text-[11px] bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20 px-2 py-0.5 rounded-full font-medium">{s}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Keyword Gaps (Skills to Add) */}
+                  {tailorResult.skillsToAdd?.length > 0 && (
+                    <div className="p-4 rounded-xl border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30">
+                      <p className="text-[11px] font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider mb-2">Keyword Gaps (Missing Skills)</p>
+                      <p className="text-[10px] text-red-600/80 dark:text-red-400/80 mb-3 leading-relaxed">
+                        The job description mentions these skills, but they are missing from your resume. If you have experience with them, add them to your skills section to improve your ATS score.
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {tailorResult.skillsToAdd.map((s: string) => (
+                          <span key={s} className="text-[11px] bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 px-2 py-0.5 rounded-full font-medium">{s}</span>
                         ))}
                       </div>
                     </div>

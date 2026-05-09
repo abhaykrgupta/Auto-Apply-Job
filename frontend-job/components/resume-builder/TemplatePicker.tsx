@@ -5,7 +5,7 @@ import { TEMPLATES } from './templates/templateList';
 import { HtmlPreview } from './HtmlPreview';
 import { type ResumeData } from './types';
 import { cn } from '@/lib/utils';
-import { Check, X, Maximize2 } from 'lucide-react';
+import { Check, X, Maximize2, ShieldCheck, ShieldAlert, ShieldX } from 'lucide-react';
 
 // ─── Rich sample data — ALWAYS used in thumbnails so they look full ───────────
 const SAMPLE: ResumeData = {
@@ -163,20 +163,27 @@ export function TemplatePicker({ selectedId, onSelect }: Props) {
 
               {/* ── Label strip ── */}
               <div className={cn(
-                'flex items-center gap-2.5 px-3 py-2.5 border-t transition-colors',
+                'flex flex-col px-3 py-2.5 border-t transition-colors',
                 isSelected ? 'bg-primary/5 border-primary/20' : 'bg-card border-border'
               )}>
-                <div
-                  className="h-3 w-3 rounded-full shrink-0 ring-1 ring-black/10"
-                  style={{ backgroundColor: t.accentColor }}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="text-[11px] font-semibold truncate leading-tight">{t.name}</div>
-                  <div className="text-[10px] text-muted-foreground truncate capitalize">{t.layout} layout</div>
+                <div className="flex items-center gap-2.5 mb-1.5">
+                  <div
+                    className="h-3 w-3 rounded-full shrink-0 ring-1 ring-black/10"
+                    style={{ backgroundColor: t.accentColor }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[11px] font-semibold truncate leading-tight">{t.name}</div>
+                    <div className="text-[10px] text-muted-foreground truncate capitalize">{t.layout} layout</div>
+                  </div>
+                  {isSelected && (
+                    <span className="text-[10px] font-bold text-primary shrink-0 bg-primary/10 px-1.5 py-0.5 rounded-full">Active</span>
+                  )}
                 </div>
-                {isSelected && (
-                  <span className="text-[10px] font-bold text-primary shrink-0 bg-primary/10 px-1.5 py-0.5 rounded-full">Active</span>
-                )}
+                <div className="flex items-center gap-1 mt-0.5">
+                  {t.atsRiskLevel === 'safe' && <><ShieldCheck className="h-3 w-3 text-green-500" /><span className="text-[9px] text-green-600 dark:text-green-400 font-medium tracking-wide uppercase">ATS Safe</span></>}
+                  {t.atsRiskLevel === 'medium' && <><ShieldAlert className="h-3 w-3 text-amber-500" /><span className="text-[9px] text-amber-600 dark:text-amber-400 font-medium tracking-wide uppercase">Medium ATS Risk</span></>}
+                  {t.atsRiskLevel === 'high' && <><ShieldX className="h-3 w-3 text-red-500" /><span className="text-[9px] text-red-600 dark:text-red-400 font-medium tracking-wide uppercase">Creative / ATS Risky</span></>}
+                </div>
               </div>
             </div>
           );
@@ -197,8 +204,14 @@ export function TemplatePicker({ selectedId, onSelect }: Props) {
             {/* Modal header */}
             <div className="flex items-center justify-between px-5 py-3.5 border-b bg-gray-50 shrink-0">
               <div>
-                <div className="text-sm font-bold">{TEMPLATES.find(t => t.id === previewId)?.name} Template</div>
+                <div className="text-sm font-bold flex items-center gap-2 mb-0.5 text-gray-900">
+                  {TEMPLATES.find(t => t.id === previewId)?.name} Template
+                  {TEMPLATES.find(t => t.id === previewId)?.atsRiskLevel === 'safe' && <span className="text-[10px] font-medium bg-green-100 text-green-700 px-1.5 py-0.5 rounded flex items-center gap-1"><ShieldCheck className="h-3 w-3"/> ATS Safe</span>}
+                  {TEMPLATES.find(t => t.id === previewId)?.atsRiskLevel === 'medium' && <span className="text-[10px] font-medium bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded flex items-center gap-1"><ShieldAlert className="h-3 w-3"/> Medium Risk</span>}
+                  {TEMPLATES.find(t => t.id === previewId)?.atsRiskLevel === 'high' && <span className="text-[10px] font-medium bg-red-100 text-red-700 px-1.5 py-0.5 rounded flex items-center gap-1"><ShieldX className="h-3 w-3"/> ATS Risky</span>}
+                </div>
                 <div className="text-xs text-muted-foreground capitalize">{TEMPLATES.find(t => t.id === previewId)?.description}</div>
+                <div className="text-[10px] text-muted-foreground mt-1 italic">{TEMPLATES.find(t => t.id === previewId)?.atsNotes}</div>
               </div>
               <div className="flex items-center gap-2">
                 <button

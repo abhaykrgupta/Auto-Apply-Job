@@ -69,7 +69,7 @@ function SectionTitle({
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: topMargin, marginBottom: botMargin }}>
         <div style={{ width: 3, height: 13, backgroundColor: col, borderRadius: 2, flexShrink: 0 }} />
-        <div style={labelStyle}>{label}</div>
+        <h2 style={{ ...labelStyle, margin: 0 }}>{label}</h2>
       </div>
     );
   }
@@ -77,7 +77,7 @@ function SectionTitle({
   if (t.dividerStyle === 'thick') {
     return (
       <div style={{ marginTop: topMargin, marginBottom: botMargin }}>
-        <div style={{ ...labelStyle, marginBottom: 4 }}>{label}</div>
+        <h2 style={{ ...labelStyle, marginBottom: 4, margin: 0 }}>{label}</h2>
         <div style={{ height: 2.5, backgroundColor: col, borderRadius: 1 }} />
       </div>
     );
@@ -86,7 +86,7 @@ function SectionTitle({
   if (t.dividerStyle === 'dot') {
     return (
       <div style={{ marginTop: topMargin, marginBottom: botMargin }}>
-        <div style={{ ...labelStyle, marginBottom: 4 }}>{label}</div>
+        <h2 style={{ ...labelStyle, marginBottom: 4, margin: 0 }}>{label}</h2>
         <div style={{ borderTop: `1.5px dotted ${col}65` }} />
       </div>
     );
@@ -95,7 +95,7 @@ function SectionTitle({
   if (t.dividerStyle === 'none') {
     return (
       <div style={{ marginTop: topMargin, marginBottom: botMargin }}>
-        <div style={labelStyle}>{label}</div>
+        <h2 style={{ ...labelStyle, margin: 0 }}>{label}</h2>
       </div>
     );
   }
@@ -103,7 +103,7 @@ function SectionTitle({
   // 'line' — default
   return (
     <div style={{ marginTop: topMargin, marginBottom: botMargin }}>
-      <div style={{ ...labelStyle, marginBottom: 4 }}>{label}</div>
+      <h2 style={{ ...labelStyle, marginBottom: 4, margin: 0 }}>{label}</h2>
       <div style={{ borderTop: `1px solid ${col}40` }} />
     </div>
   );
@@ -115,14 +115,15 @@ function ExpEntry({ exp, t, gap }: { exp: ResumeData['experience'][0]; t: Templa
   const font = fontStack(t);
   const date = dateRange(exp.startDate, exp.endDate, exp.current);
   const bullets = exp.bullets.filter(Boolean);
+  const metrics = (exp.metrics || []).filter(Boolean);
 
   return (
     <div style={{ marginBottom: gap }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 11, color: '#111827', lineHeight: 1.3, fontFamily: font }}>
+          <h3 style={{ fontWeight: 700, fontSize: 11, color: '#111827', lineHeight: 1.3, fontFamily: font, margin: 0 }}>
             {exp.title}
-          </div>
+          </h3>
           <div style={{ fontSize: 10.5, color: t.accentColor, fontWeight: 500, lineHeight: 1.4, fontFamily: font, marginTop: 1 }}>
             {[exp.company, exp.location].filter(Boolean).join(' · ')}
           </div>
@@ -133,6 +134,15 @@ function ExpEntry({ exp, t, gap }: { exp: ResumeData['experience'][0]; t: Templa
           </div>
         )}
       </div>
+      {metrics.length > 0 && (
+        <ul style={{ margin: '5px 0 0', paddingLeft: 15, listStyleType: 'square' }}>
+          {metrics.map((m, i) => (
+            <li key={`m-${i}`} style={{ fontSize: 10, color: t.accentColor, fontWeight: 600, marginBottom: 2.5, lineHeight: 1.58, fontFamily: font }}>
+              {m}
+            </li>
+          ))}
+        </ul>
+      )}
       {bullets.length > 0 && (
         <ul style={{ margin: '5px 0 0', paddingLeft: 15, listStyleType: 'disc' }}>
           {bullets.map((b, i) => (
@@ -159,9 +169,9 @@ function EduEntry({ edu, t, gap }: { edu: ResumeData['education'][0]; t: Templat
     <div style={{ marginBottom: gap }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 10.5, color: '#111827', lineHeight: 1.3, fontFamily: font }}>
+          <h3 style={{ fontWeight: 700, fontSize: 10.5, color: '#111827', lineHeight: 1.3, fontFamily: font, margin: 0 }}>
             {degree || 'Degree'}
-          </div>
+          </h3>
           <div style={{ fontSize: 10, lineHeight: 1.4, marginTop: 1.5, fontFamily: font }}>
             <span style={{ color: t.accentColor }}>{edu.school}</span>
             {edu.gpa ? <span style={{ color: '#6b7280', marginLeft: 8 }}>GPA {edu.gpa}</span> : null}
@@ -187,9 +197,9 @@ function ProjEntry({ proj, t, gap }: { proj: ResumeData['projects'][0]; t: Templ
     <div style={{ marginBottom: gap }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 2 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ fontWeight: 700, fontSize: 10.5, color: '#111827', fontFamily: font }}>
+          <h3 style={{ fontWeight: 700, fontSize: 10.5, color: '#111827', fontFamily: font, display: 'inline', margin: 0 }}>
             {proj.name}
-          </span>
+          </h3>
           {proj.url && (
             <span style={{ fontSize: 9, color: t.accentColor, marginLeft: 7, fontFamily: font }}>{proj.url}</span>
           )}

@@ -53,6 +53,7 @@ function SectionLabel({ label, t, first = false }: { label: string; t: TemplateC
 function ExpBlock({ exp, t, gap }: { exp: ResumeData['experience'][0]; t: TemplateConfig; gap: number }) {
   const date = dr(exp);
   const bullets = exp.bullets.filter(Boolean);
+  const metrics = (exp.metrics || []).filter(Boolean);
   return (
     <View style={{ marginBottom: gap }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -64,6 +65,12 @@ function ExpBlock({ exp, t, gap }: { exp: ResumeData['experience'][0]; t: Templa
         </View>
         {date ? <Text style={{ fontSize: 8.5, fontFamily: fN(t), color: '#6b7280' }}>{date}</Text> : null}
       </View>
+      {metrics.map((m, i) => (
+        <View key={`m-${i}`} style={{ flexDirection: 'row', marginTop: 2.5, paddingLeft: 8 }}>
+          <Text style={{ fontSize: 9, fontFamily: fB(t), color: t.accentColor, width: 10 }}>•</Text>
+          <Text style={{ fontSize: 9, fontFamily: fB(t), color: t.accentColor, flex: 1, lineHeight: 1.5 }}>{m}</Text>
+        </View>
+      ))}
       {bullets.map((b, i) => (
         <View key={i} style={{ flexDirection: 'row', marginTop: 2.5, paddingLeft: 8 }}>
           <Text style={{ fontSize: 9, fontFamily: fN(t), color: '#374151', width: 10 }}>•</Text>
@@ -317,6 +324,12 @@ function TimelinePdf({ data, t }: { data: ResumeData; t: TemplateConfig }) {
                     </View>
                     {date ? <Text style={{ fontSize: 8.5, fontFamily: fN(t), color: '#6b7280' }}>{date}</Text> : null}
                   </View>
+                  {(exp.metrics || []).filter(Boolean).map((m, i) => (
+                    <View key={`m-${i}`} style={{ flexDirection: 'row', marginTop: 2.5, paddingLeft: 6 }}>
+                      <Text style={{ fontSize: 9, fontFamily: fB(t), color: t.accentColor, width: 10 }}>•</Text>
+                      <Text style={{ fontSize: 9, fontFamily: fB(t), color: t.accentColor, flex: 1, lineHeight: 1.5 }}>{m}</Text>
+                    </View>
+                  ))}
                   {bullets.map((b, i) => (
                     <View key={i} style={{ flexDirection: 'row', marginTop: 2.5, paddingLeft: 6 }}>
                       <Text style={{ fontSize: 9, fontFamily: fN(t), color: '#374151', width: 10 }}>•</Text>
@@ -623,6 +636,12 @@ function TraditionalPdf({ data }: { data: ResumeData }) {
                   <Text style={{ fontSize: fs, fontFamily: 'Times-Italic' }}>{exp.company}</Text>
                   {exp.location ? <Text style={{ fontSize: fs, fontFamily: 'Times-Italic' }}>{exp.location}</Text> : null}
                 </View>
+                {exp.metrics?.filter(Boolean).map((m, i) => (
+                  <View key={`m-${i}`} style={{ flexDirection: 'row', marginTop: 2, paddingLeft: 12 }}>
+                    <Text style={{ fontSize: fs, fontFamily: 'Times-Bold', width: 12 }}>•</Text>
+                    <Text style={{ fontSize: fs, fontFamily: 'Times-Bold', flex: 1, lineHeight: 1.45 }}>{m}</Text>
+                  </View>
+                ))}
                 {exp.bullets.filter(Boolean).map((b, i) => (
                   <View key={i} style={{ flexDirection: 'row', marginTop: 2, paddingLeft: 12 }}>
                     <Text style={{ fontSize: fs, fontFamily: 'Times-Roman', width: 12 }}>•</Text>

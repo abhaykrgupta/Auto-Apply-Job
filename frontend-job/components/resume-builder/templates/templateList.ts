@@ -14,6 +14,8 @@ export interface TemplateConfig {
   dividerStyle: 'line' | 'thick' | 'none' | 'dot' | 'border-left';
   spacing: 'tight' | 'normal' | 'relaxed';
   skillStyle: SkillStyle;
+  atsRiskLevel: 'safe' | 'medium' | 'high';
+  atsNotes: string;
 }
 
 export const TEMPLATES: TemplateConfig[] = [
@@ -29,6 +31,8 @@ export const TEMPLATES: TemplateConfig[] = [
     dividerStyle: 'line',
     spacing: 'normal',
     skillStyle: 'text',
+    atsRiskLevel: 'safe',
+    atsNotes: 'Maximum ATS compatibility. Strict top-down reading order.',
   },
   {
     id: 'modern',
@@ -41,6 +45,8 @@ export const TEMPLATES: TemplateConfig[] = [
     dividerStyle: 'line',
     spacing: 'normal',
     skillStyle: 'pills',
+    atsRiskLevel: 'safe',
+    atsNotes: 'Excellent ATS safety. Simple single-column flow.',
   },
   {
     id: 'minimal',
@@ -53,6 +59,8 @@ export const TEMPLATES: TemplateConfig[] = [
     dividerStyle: 'none',
     spacing: 'relaxed',
     skillStyle: 'pills',
+    atsRiskLevel: 'safe',
+    atsNotes: 'Highly readable by both humans and ATS parsers.',
   },
   {
     id: 'executive',
@@ -65,6 +73,8 @@ export const TEMPLATES: TemplateConfig[] = [
     dividerStyle: 'thick',
     spacing: 'relaxed',
     skillStyle: 'text',
+    atsRiskLevel: 'safe',
+    atsNotes: 'Perfect for strict corporate ATS systems like Workday.',
   },
   {
     id: 'sharp',
@@ -77,6 +87,8 @@ export const TEMPLATES: TemplateConfig[] = [
     dividerStyle: 'border-left',
     spacing: 'normal',
     skillStyle: 'pills',
+    atsRiskLevel: 'safe',
+    atsNotes: 'Left border CSS is ignored by ATS, maintaining safety.',
   },
   {
     id: 'scholar',
@@ -89,6 +101,8 @@ export const TEMPLATES: TemplateConfig[] = [
     dividerStyle: 'dot',
     spacing: 'relaxed',
     skillStyle: 'text',
+    atsRiskLevel: 'safe',
+    atsNotes: 'Academic standard. Very safe parsing.',
   },
   {
     id: 'compact',
@@ -101,6 +115,50 @@ export const TEMPLATES: TemplateConfig[] = [
     dividerStyle: 'line',
     spacing: 'tight',
     skillStyle: 'pills',
+    atsRiskLevel: 'safe',
+    atsNotes: 'Dense but structurally sound for ATS.',
+  },
+  {
+    id: 'harvard',
+    name: 'Harvard',
+    description: 'Strict academic standard, zero styling',
+    accentColor: '#000000',
+    fontFamily: 'serif',
+    layout: 'single',
+    headerAlign: 'center',
+    dividerStyle: 'line',
+    spacing: 'tight',
+    skillStyle: 'text',
+    atsRiskLevel: 'safe',
+    atsNotes: 'The gold standard for ATS compatibility. Flawless parsing.',
+  },
+  {
+    id: 'tech-clean',
+    name: 'Tech Clean',
+    description: 'Silicon Valley standard, highly readable',
+    accentColor: '#2563eb',
+    fontFamily: 'sans-serif',
+    layout: 'single',
+    headerAlign: 'left',
+    dividerStyle: 'thick',
+    spacing: 'normal',
+    skillStyle: 'text',
+    atsRiskLevel: 'safe',
+    atsNotes: 'Standard FAANG-style layout. Exceptionally safe.',
+  },
+  {
+    id: 'startup',
+    name: 'Startup',
+    description: 'Modern, airy, and impact-focused',
+    accentColor: '#10b981',
+    fontFamily: 'sans-serif',
+    layout: 'single',
+    headerAlign: 'left',
+    dividerStyle: 'border-left',
+    spacing: 'relaxed',
+    skillStyle: 'pills',
+    atsRiskLevel: 'safe',
+    atsNotes: 'Great for modern ATS systems used by startups (Lever, Greenhouse).',
   },
 
   // ── BANNER HEADER ───────────────────────────────────────────────
@@ -115,6 +173,8 @@ export const TEMPLATES: TemplateConfig[] = [
     dividerStyle: 'none',
     spacing: 'normal',
     skillStyle: 'pills',
+    atsRiskLevel: 'medium',
+    atsNotes: 'Header color blocks can occasionally confuse very old parsers.',
   },
   {
     id: 'teal-banner',
@@ -127,6 +187,8 @@ export const TEMPLATES: TemplateConfig[] = [
     dividerStyle: 'line',
     spacing: 'normal',
     skillStyle: 'pills',
+    atsRiskLevel: 'medium',
+    atsNotes: 'Header structure is safe, but CSS background may hide text from old systems.',
   },
 
   // ── TIMELINE ───────────────────────────────────────────────────
@@ -141,6 +203,8 @@ export const TEMPLATES: TemplateConfig[] = [
     dividerStyle: 'line',
     spacing: 'normal',
     skillStyle: 'pills',
+    atsRiskLevel: 'high',
+    atsNotes: 'Absolute positioning used for timeline dots breaks left-to-right reading order in many ATS.',
   },
 
   // ── SIDEBAR dark ───────────────────────────────────────────────
@@ -157,6 +221,8 @@ export const TEMPLATES: TemplateConfig[] = [
     dividerStyle: 'line',
     spacing: 'normal',
     skillStyle: 'dots',
+    atsRiskLevel: 'high',
+    atsNotes: 'Sidebars cause ATS to read across columns (e.g., merging contact info with experience).',
   },
   {
     id: 'slate-sidebar',
@@ -171,6 +237,8 @@ export const TEMPLATES: TemplateConfig[] = [
     dividerStyle: 'none',
     spacing: 'normal',
     skillStyle: 'pills',
+    atsRiskLevel: 'high',
+    atsNotes: 'High risk of text merging across columns during PDF parsing.',
   },
   {
     id: 'sidebar-light',
@@ -185,6 +253,8 @@ export const TEMPLATES: TemplateConfig[] = [
     dividerStyle: 'line',
     spacing: 'normal',
     skillStyle: 'pills',
+    atsRiskLevel: 'high',
+    atsNotes: 'Two-column layouts are notoriously poorly parsed by Workday and iCIMS.',
   },
 
   // ── TWO COLUMN ─────────────────────────────────────────────────
@@ -199,6 +269,8 @@ export const TEMPLATES: TemplateConfig[] = [
     dividerStyle: 'line',
     spacing: 'normal',
     skillStyle: 'pills',
+    atsRiskLevel: 'high',
+    atsNotes: 'Flexbox column structures often fail text extraction tools.',
   },
   {
     id: 'mercury',
@@ -211,6 +283,8 @@ export const TEMPLATES: TemplateConfig[] = [
     dividerStyle: 'none',
     spacing: 'normal',
     skillStyle: 'dots',
+    atsRiskLevel: 'high',
+    atsNotes: 'Text from the narrow left panel will incorrectly interleave with the main experience content.',
   },
 
   // ── TRADITIONAL (All-caps name, skills-first, icons) ───────────────────
@@ -225,6 +299,8 @@ export const TEMPLATES: TemplateConfig[] = [
     dividerStyle: 'line',
     spacing: 'normal',
     skillStyle: 'text',
+    atsRiskLevel: 'safe',
+    atsNotes: 'Classic structural hierarchy. Perfect for all parsers.',
   },
 ];
 
