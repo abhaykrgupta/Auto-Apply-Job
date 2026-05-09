@@ -1,5 +1,3 @@
-import { getApplicationStats } from '@/lib/actions/applications';
-import { getJobs } from '@/lib/actions/jobs';
 import { StatsCard } from '@/components/shared/StatsCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,15 +7,26 @@ import Link from 'next/link';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
+export const dynamic = 'force-dynamic';
+
 export default async function DashboardPage() {
   let stats = { total: 0, applied: 0, failed: 0, manualReview: 0, interviewing: 0, accepted: 0, successRate: 0 };
   let recentJobs: any[] = [];
 
   try {
-    stats = await getApplicationStats();
-    recentJobs = (await getJobs()).slice(0, 5);
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const [statsRes, jobsRes] = await Promise.all([
+      fetch(`${backendUrl}/api/applications/stats`),
+      fetch(`${backendUrl}/api/jobs`)
+    ]);
+    
+    if (statsRes.ok) stats = await statsRes.json();
+    if (jobsRes.ok) {
+      const jobs = await jobsRes.json();
+      recentJobs = jobs.slice(0, 5);
+    }
   } catch {
-    // DB not configured yet
+    // DB not configured yet or backend down
   }
 
   return (

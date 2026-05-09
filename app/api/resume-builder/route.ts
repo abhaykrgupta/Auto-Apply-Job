@@ -1,39 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { resumeProjects, profile } from '@/lib/db/schema';
-import { eq, desc } from 'drizzle-orm';
 
-async function getOrCreateProfile() {
-  const profiles = await db.select().from(profile).limit(1);
-  if (profiles.length > 0) return profiles[0];
-  const [p] = await db.insert(profile).values({ name: 'User', email: 'user@example.com' }).returning();
-  return p;
-}
-
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const p = await getOrCreateProfile();
-    const projects = await db.select().from(resumeProjects)
-      .where(eq(resumeProjects.profileId, p.id))
-      .orderBy(desc(resumeProjects.updatedAt));
-    return NextResponse.json(projects);
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/resume-builder`);
+    if (!res.ok) throw new Error(`Backend responded with status: ${res.status}`);
+    const data = await res.json();
+    return NextResponse.json(data);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[API Resume Builder GET Proxy]', message);
+    return NextResponse.json({ error: `Backend proxy error: ${message}` }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const p = await getOrCreateProfile();
-    const [project] = await db.insert(resumeProjects).values({
-      profileId: p.id,
-      name: body.name || 'Untitled Resume',
-      data: body.data || {},
-      templateId: body.templateId || 'classic',
-    }).returning();
-    return NextResponse.json(project);
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/resume-builder`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error(`Backend responded with status: ${res.status}`);
+    const data = await res.json();
+    return NextResponse.json(data);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[API Resume Builder POST Proxy]', message);
+    return NextResponse.json({ error: `Backend proxy error: ${message}` }, { status: 500 });
   }
 }

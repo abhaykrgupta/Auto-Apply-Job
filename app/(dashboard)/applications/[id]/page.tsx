@@ -7,7 +7,7 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import {
   ArrowLeft, ExternalLink, CheckCircle2, XCircle, Clock,
   AlertTriangle, Info, Bot, Camera, FileText, Settings,
-  ChevronRight, Loader2,
+  ChevronRight, Loader2, Ban, Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -64,9 +64,15 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
     icon: <CheckCircle2 className="h-4 w-4" />,
     desc: 'Offer received!',
   },
+  cancelled: {
+    label: 'Cancelled', color: 'text-gray-700 dark:text-gray-400',
+    bg: 'bg-gray-50 dark:bg-gray-950', border: 'border-gray-200 dark:border-gray-800',
+    icon: <Ban className="h-4 w-4" />,
+    desc: 'Application was cancelled by you.',
+  },
 };
 
-const ALL_STATUSES = ['pending', 'applied', 'failed', 'manual_review', 'interviewing', 'rejected', 'accepted'];
+const ALL_STATUSES = ['pending', 'applied', 'failed', 'manual_review', 'interviewing', 'rejected', 'accepted', 'cancelled'];
 
 // ── Log level config ───────────────────────────────────────────────────────
 
@@ -195,6 +201,22 @@ export default function ApplicationDetailPage() {
       qc.invalidateQueries({ queryKey: ['applications'] });
     },
     onError: () => toast.error('Failed to update status'),
+  });
+
+  const { mutate: cancelApplication, isPending: isCancelling } = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/applications/${id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Cancel failed');
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success('Application cancelled');
+      qc.invalidateQueries({ queryKey: ['application', id] });
+      qc.invalidateQueries({ queryKey: ['applications'] });
+    },
+    onError: () => toast.error('Failed to cancel application'),
   });
 
   if (isLoading) return <LoadingSpinner />;
@@ -364,6 +386,30 @@ export default function ApplicationDetailPage() {
           >
             {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
             Retry
+          </Button>
+        </div>
+      )}
+
+      {/* ── Cancel Application ── */}
+      {['pending', 'failed', 'manual_review', 'pending_confirmation'].includes(application.status) && (
+        <div className="rounded-xl border border-red-200 dark:border-red-900 bg-red-50/50 dark:bg-red-950/30 p-5 flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-red-700 dark:text-red-400">Cancel Application</h3>
+            <p className="text-xs text-red-600/70 dark:text-red-400/70 mt-0.5">Remove this job from the queue and stop the bot from processing it.</p>
+          </div>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => {
+              if (confirm('Are you sure you want to cancel this application?')) {
+                cancelApplication();
+              }
+            }}
+            disabled={isCancelling}
+            className="shrink-0 gap-1.5"
+          >
+            {isCancelling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />}
+            Cancel
           </Button>
         </div>
       )}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { settings } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { settingsUpdateSchema } from '@/lib/validations/settings';
 
 export async function GET() {
   try {
@@ -17,7 +18,6 @@ export async function GET() {
   }
 }
 
-import { settingsUpdateSchema } from '@/lib/validations/settings';
 
 export async function POST(request: NextRequest) {
   try {
