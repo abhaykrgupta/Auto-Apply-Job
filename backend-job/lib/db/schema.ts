@@ -356,3 +356,39 @@ export const companyResponseMetrics = pgTable('company_response_metrics', {
   interviewRate: real('interview_rate').notNull().default(0),
   lastUpdatedAt: timestamp('last_updated_at').defaultNow(),
 });
+
+// ── ATS Question Answer Cache ─────────────────────────────────────────────────
+// Stores generated answers to common ATS form questions so we never call
+// the LLM twice for the same question. Token savings: ~80% on repeated applications.
+export const answerCache = pgTable(
+  'answer_cache',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    questionHash: text('question_hash').notNull().unique(), // sha256 of normalized question
+    questionNormalized: text('question_normalized').notNull(),
+    questionOriginal: text('question_original').notNull(),
+    answer: text('answer').notNull(),
+    context: text('context'),          // optional: job title + company where generated
+    hitCount: integer('hit_count').notNull().default(0),
+    lastUsedAt: timestamp('last_used_at').defaultNow(),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  (t) => [
+    index('answer_cache_hash_idx').on(t.questionHash),
+    index('answer_cache_hits_idx').on(t.hitCount),
+  ]
+);
+
+// ── Preflight Screener Log ────────────────────────────────────────────────────
+// Tracks pre-flight screening results for analytics (how many jobs we saved
+// from expensive processing by early-rejecting them).
+export const preflightLog = pgTable('preflight_log', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  jobId: uuid('job_id').references(() => jobs.id),
+  resumeId: uuid('resume_id').references(() => resumes.id),
+  score: real('score').notNull(),
+  passed: boolean('passed').notNull(),
+  reason: text('reason'),
+  tokensUsed: integer('tokens_used').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+});

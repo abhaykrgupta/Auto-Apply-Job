@@ -2,8 +2,10 @@ import { getBrowser } from './playwright-client';
 import { detectFormType } from './form-detector';
 import { detectCaptcha } from './captcha-detector';
 import { classifyFailure, computeCooldownUntil } from './retry-classifier';
+import { preflightScreen, buildResumeSummary } from './preflight-screener';
+import { warmupPage, humanFill, humanClick, humanScroll, humanSubmit } from './human-mimicry';
 import { db } from '@/lib/db';
-import { applications, applicationLogs, settings } from '@/lib/db/schema';
+import { applications, applicationLogs, settings, preflightLog } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
 import { telegramService } from '@/lib/notifications/telegram-service';
@@ -80,6 +82,38 @@ export async function applyToJob(
       return { status: 'manual_review', method: 'auto', logs };
     }
 
+    // ── Phase 1: Pre-Flight Screener ─────────────────────────────────────────
+    // Run a fast, cheap gpt-4o-mini screen BEFORE we launch a browser.
+    // Jobs scoring below threshold are skipped — saves browser time + LLM tokens.
+    if (job.description) {
+      const resumeSummary = buildResumeSummary(resume.parsedData);
+      const preflight = await preflightScreen(job.title, job.description, resumeSummary);
+
+      // Log preflight result (fire-and-forget)
+      db.insert(preflightLog).values({
+        jobId: job.id,
+        resumeId: resume.id,
+        score: preflight.score,
+        passed: preflight.pass,
+        reason: preflight.reason,
+        tokensUsed: preflight.tokensUsed,
+      }).catch(() => {});
+
+      if (!preflight.pass) {
+        const msg = `[Preflight SKIP] Score ${preflight.score}/100: ${preflight.reason}`;
+        log(msg);
+        await db.update(applications)
+          .set({ status: 'manual_review', errorMessage: msg })
+          .where(eq(applications.id, applicationId));
+        await db.insert(applicationLogs).values({
+          applicationId, level: 'warn',
+          message: `Skipped by pre-flight screener (score: ${preflight.score}/100). ${preflight.reason}`,
+        });
+        return { status: 'manual_review', method: 'auto', logs };
+      }
+      log(`[Preflight PASS] Score ${preflight.score}/100 — proceeding with automation`);
+    }
+
     // Validate URL before navigating — prevents file://, javascript:, data: attacks
     let parsedUrl: URL;
     try {
@@ -93,6 +127,9 @@ export async function applyToJob(
 
     log(`Navigating to ${parsedUrl.toString()}`);
     await page.goto(parsedUrl.toString(), { waitUntil: 'networkidle', timeout: 30000 });
+
+    // ── Phase 2: Human warmup — simulate reading the page before interacting ──
+    await warmupPage(page);
 
     // Take initial screenshot
     const screenshotDir = path.join(process.cwd(), 'public', 'screenshots');
@@ -143,7 +180,7 @@ export async function applyToJob(
       return { status: 'pending_confirmation', method: 'auto', logs, screenshotPath };
     }
 
-    // Basic form filling for standard forms
+    // Form filling for standard forms
     const parsed = resume.parsedData as {
       name?: string; email?: string; phone?: string;
       experience?: Array<{ title: string; company: string }>;
@@ -152,10 +189,15 @@ export async function applyToJob(
 
     if (parsed) {
       const nameParts = (parsed.name ?? '').split(' ');
-      await page.fill('input[name*="first"], input[id*="first"], input[placeholder*="First"]', nameParts[0] ?? '').catch(() => {});
-      await page.fill('input[name*="last"], input[id*="last"], input[placeholder*="Last"]', nameParts.slice(1).join(' ') ?? '').catch(() => {});
-      await page.fill('input[type="email"], input[name*="email"]', parsed.email ?? '').catch(() => {});
-      await page.fill('input[type="tel"], input[name*="phone"]', parsed.phone ?? '').catch(() => {});
+
+      // ── Phase 2: Human-mimicry typing ─────────────────────────────────────
+      // Scroll before filling — simulates a human reading the form first
+      await humanScroll(page);
+
+      await humanFill(page, 'input[name*="first"], input[id*="first"], input[placeholder*="First"]', nameParts[0] ?? '');
+      await humanFill(page, 'input[name*="last"], input[id*="last"], input[placeholder*="Last"]', nameParts.slice(1).join(' ') ?? '');
+      await humanFill(page, 'input[type="email"], input[name*="email"]', parsed.email ?? '');
+      await humanFill(page, 'input[type="tel"], input[name*="phone"]', parsed.phone ?? '');
 
       // Upload resume file
       const fileInput = await page.$('input[type="file"]');
@@ -168,8 +210,8 @@ export async function applyToJob(
     screenshotPath = path.join(screenshotDir, `${applicationId}-filled.png`);
     await page.screenshot({ path: screenshotPath, fullPage: true });
 
-    // Click submit
-    await page.click('button[type="submit"], input[type="submit"], button:has-text("Submit"), button:has-text("Apply")').catch(() => {});
+    // ── Phase 2: Human-mimicry submit — pause before clicking Submit ─────────
+    await humanSubmit(page, 'button[type="submit"], input[type="submit"], button:has-text("Submit"), button:has-text("Apply")');
     // Cap wait at 10 s — some pages never reach networkidle due to polling scripts
     await Promise.race([
       page.waitForLoadState('networkidle'),

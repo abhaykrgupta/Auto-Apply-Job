@@ -17,7 +17,7 @@ export async function detectFormType(page: Page): Promise<FormType> {
     const screenshotBuffer = await page.screenshot();
     const screenshot = screenshotBuffer.toString('base64');
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-4o-mini',  // Only needs to classify — gpt-4o-mini is ~20x cheaper
       messages: [
         {
           role: 'user',
