@@ -39,7 +39,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ success: true, message: 'Application deleted successfully' });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Delete failed';
-    console.error(`[DELETE /api/applications/${id}]`, err);
+    console.error('[DELETE /api/applications/:id]', err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

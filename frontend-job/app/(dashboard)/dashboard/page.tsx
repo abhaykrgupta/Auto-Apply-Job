@@ -1,10 +1,8 @@
 import { StatsCard } from '@/components/shared/StatsCard';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Briefcase, CheckCircle, AlertCircle, XCircle, TrendingUp, ArrowRight, FileText, Search, Zap, Clock, Activity } from 'lucide-react';
+import { Briefcase, CheckCircle, AlertCircle, TrendingUp, ArrowRight, FileText, Search, Zap, Clock, Activity } from 'lucide-react';
 import { timeAgo } from '@/lib/utils/helpers';
 import Link from 'next/link';
-import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
@@ -19,186 +17,183 @@ export default async function DashboardPage() {
       fetch(`${backendUrl}/api/applications/stats`),
       fetch(`${backendUrl}/api/jobs`)
     ]);
-    
     if (statsRes.ok) stats = await statsRes.json();
     if (jobsRes.ok) {
       const jobs = await jobsRes.json();
       recentJobs = jobs.slice(0, 5);
     }
-  } catch {
-    // DB not configured yet or backend down
-  }
+  } catch {}
+
+  const pipeline = [
+    { label: 'Interviewing', value: stats.interviewing, color: 'bg-violet-500', max: Math.max(stats.total, 1) },
+    { label: 'Applied',      value: stats.applied,      color: 'bg-emerald-500', max: Math.max(stats.total, 1) },
+    { label: 'Manual Review',value: stats.manualReview, color: 'bg-amber-400',   max: Math.max(stats.total, 1) },
+    { label: 'Accepted',     value: stats.accepted,     color: 'bg-green-500',   max: Math.max(stats.total, 1) },
+  ];
+
+  const actions = [
+    {
+      step: '01',
+      icon: FileText,
+      title: 'Upload Your Resume',
+      desc: 'Let the bot learn your background — parses in seconds',
+      href: '/resume',
+      done: false,
+    },
+    {
+      step: '02',
+      icon: Search,
+      title: 'Search for Jobs',
+      desc: 'Scrape live listings from LinkedIn, Indeed, and 6 more boards',
+      href: '/search',
+      done: recentJobs.length > 0,
+    },
+    {
+      step: '03',
+      icon: Zap,
+      title: 'Enable Auto-Apply',
+      desc: 'Turn on the bot in Settings — applies while you sleep',
+      href: '/settings',
+      done: stats.applied > 0,
+    },
+  ];
 
   return (
-    <div className="mx-auto max-w-7xl p-6 md:p-8 space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div className="mx-auto max-w-5xl px-6 md:px-8 py-8 space-y-10">
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Overview</h2>
-          <p className="text-sm text-muted-foreground mt-1">Monitor your autonomous job agent and pipeline.</p>
+          <h2 className="text-[28px] font-bold tracking-tight leading-none">Overview</h2>
+          <p className="text-[14px] text-foreground/45 mt-2">Your autonomous job agent pipeline.</p>
         </div>
-        <Link href="/search" className={cn(buttonVariants(), 'shrink-0 shadow-sm')}>Find New Jobs</Link>
+        <Link
+          href="/search"
+          className="inline-flex items-center gap-2 h-10 px-5 rounded-xl bg-foreground text-background text-[13px] font-semibold hover:bg-foreground/88 active:scale-[0.98] transition-all duration-150 shrink-0"
+        >
+          Find New Jobs
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatsCard 
-          title="Hours Saved" 
-          value={Math.floor((stats.total * 20) / 60)} 
-          subtitle="Estimated time saved by AI" 
-          icon={Clock} 
-          variant="success" 
-        />
-        <StatsCard title="Total Sourced" value={stats.total} icon={Briefcase} />
-        <StatsCard
-          title="Auto-Applied"
-          value={stats.applied}
-          subtitle={`${stats.successRate}% success rate`}
-          icon={CheckCircle}
-          variant="success"
-        />
-        <StatsCard
-          title="Manual Review"
-          value={stats.manualReview}
-          subtitle="Attention required"
-          icon={AlertCircle}
-          variant="warning"
-        />
+        <StatsCard title="Hours Saved"    value={Math.floor((stats.total * 20) / 60)} subtitle="Estimated by AI"      icon={Clock}        variant="success" />
+        <StatsCard title="Total Sourced"  value={stats.total}                          icon={Briefcase} />
+        <StatsCard title="Auto-Applied"   value={stats.applied}   subtitle={`${stats.successRate}% success rate`}  icon={CheckCircle}  variant="success" />
+        <StatsCard title="Manual Review"  value={stats.manualReview} subtitle="Attention required"  icon={AlertCircle}  variant="warning" />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <Card className="rounded-xl shadow-sm border-border/60">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Pipeline Status
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {[
-              { label: 'Interviewing', value: stats.interviewing, color: 'bg-purple-500' },
-              { label: 'Applied', value: stats.applied, color: 'bg-green-500' },
-              { label: 'Manual Review', value: stats.manualReview, color: 'bg-yellow-500' },
-              { label: 'Accepted', value: stats.accepted, color: 'bg-emerald-500' },
-            ].map(({ label, value, color }) => (
-              <div key={label} className="flex items-center gap-3">
-                <div className={`h-2 w-2 rounded-full ${color}`} />
-                <span className="flex-1 text-sm font-medium text-muted-foreground">{label}</span>
-                <span className="text-sm font-semibold">{value}</span>
+      {/* Manual review alert */}
+      {stats.manualReview > 0 && (
+        <Link
+          href="/manual-review"
+          className="flex items-center justify-between rounded-2xl border border-amber-200/70 dark:border-amber-800/50 bg-amber-50/60 dark:bg-amber-950/20 px-5 py-4 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-xl bg-amber-100 dark:bg-amber-900/60 flex items-center justify-center shrink-0">
+              <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            </div>
+            <span className="text-[14px] font-medium text-amber-800 dark:text-amber-300">
+              {stats.manualReview} application{stats.manualReview !== 1 ? 's' : ''} need your attention
+            </span>
+          </div>
+          <ArrowRight className="h-4 w-4 text-amber-500 group-hover:translate-x-0.5 transition-transform" />
+        </Link>
+      )}
+
+      {/* Two-column: Pipeline + Live feed */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        {/* Pipeline */}
+        <div>
+          <div className="flex items-center gap-2 mb-5">
+            <TrendingUp className="h-4 w-4 text-foreground/40" />
+            <h3 className="text-[14px] font-semibold text-foreground/70">Pipeline</h3>
+          </div>
+          <div className="space-y-4">
+            {pipeline.map(({ label, value, color, max }) => (
+              <div key={label}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[13px] font-medium text-foreground/65">{label}</span>
+                  <span className="text-[14px] font-bold text-foreground">{value}</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-border/40 overflow-hidden">
+                  <div
+                    className={cn('h-full rounded-full transition-all duration-700', color)}
+                    style={{ width: max > 0 ? `${Math.min((value / max) * 100, 100)}%` : '0%' }}
+                  />
+                </div>
               </div>
             ))}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card className="rounded-xl shadow-sm border-border/60">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-4 w-4 text-primary animate-pulse" />
-              Live Operations Log
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {recentJobs.length === 0 ? (
-              <p className="text-sm text-muted-foreground">System idle. Initiate a search to begin operations.</p>
-            ) : (
-              recentJobs.map((job: any) => (
-                <div
-                  key={job.id}
-                  className="flex items-start gap-3 rounded-lg p-3 bg-muted/30 border border-transparent hover:border-border/50 transition-colors"
-                >
-                  <div className="h-2 w-2 rounded-full bg-primary mt-1.5 animate-pulse shrink-0" />
+        {/* Live ops feed */}
+        <div>
+          <div className="flex items-center gap-2 mb-5">
+            <Activity className="h-4 w-4 text-foreground/40" />
+            <h3 className="text-[14px] font-semibold text-foreground/70">Live Operations</h3>
+          </div>
+          {recentJobs.length === 0 ? (
+            <p className="text-[13px] text-foreground/40 py-4">System idle. Start a search to begin operations.</p>
+          ) : (
+            <div className="space-y-2.5">
+              {recentJobs.map((job: any) => (
+                <div key={job.id} className="flex items-start gap-3 rounded-xl px-3.5 py-3 bg-muted/40 hover:bg-muted/60 transition-colors">
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary mt-2 shrink-0 animate-pulse" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium leading-snug">
-                      Identified <span className="text-foreground">{job.title}</span> at {job.company}
+                    <p className="text-[13px] font-medium leading-snug text-foreground/80">
+                      {job.title} <span className="text-foreground/45 font-normal">at {job.company}</span>
                     </p>
                     <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="secondary" className="text-[10px] font-normal uppercase tracking-wider">{job.source}</Badge>
-                      <span className="text-xs text-muted-foreground">{timeAgo(job.createdAt)}</span>
+                      <Badge variant="secondary" className="text-[10px] uppercase tracking-wide font-medium">{job.source}</Badge>
+                      <span className="text-[11px] text-foreground/35">{timeAgo(job.createdAt)}</span>
                     </div>
                   </div>
                 </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Quick Actions */}
-      <Card className="rounded-xl shadow-sm border-border/60">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-primary" />
-            {stats.total === 0 ? 'Get Started — 3 Steps' : 'Quick Actions'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {[
-              {
-                step: '1',
-                icon: FileText,
-                title: 'Upload Your Resume',
-                desc: 'Parse your existing resume so the bot knows your background',
-                href: '/resume',
-                done: false,
-              },
-              {
-                step: '2',
-                icon: Search,
-                title: 'Search for Jobs',
-                desc: 'Scrape live listings from LinkedIn, Indeed, and 6 more sources',
-                href: '/search',
-                done: recentJobs.length > 0,
-              },
-              {
-                step: '3',
-                icon: Zap,
-                title: 'Enable Auto-Apply',
-                desc: 'Turn on the bot in Settings to apply automatically while you sleep',
-                href: '/settings',
-                done: stats.applied > 0,
-              },
-            ].map(({ step, icon: Icon, title, desc, href, done }) => (
-              <Link
-                key={step}
-                href={href}
-                className={cn(
-                  'group flex flex-col gap-2 rounded-xl border p-5 transition-all hover:shadow-md bg-card',
-                  done
-                    ? 'border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20'
-                    : 'border-border/60 hover:border-primary/40'
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <div className={cn(
-                    'h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold shadow-sm',
-                    done ? 'bg-green-500 text-white' : 'bg-primary/10 text-primary'
-                  )}>
-                    {done ? <CheckCircle className="h-4 w-4" /> : step}
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                </div>
-                <div className="mt-2">
-                  <p className="text-sm font-semibold">{title}</p>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{desc}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-          {stats.manualReview > 0 && (
-            <Link href="/manual-review" className="mt-5 flex items-center justify-between rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 p-4 hover:bg-amber-100/50 dark:hover:bg-amber-950/40 transition-colors group shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-amber-100 dark:bg-amber-900 flex items-center justify-center">
-                  <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                </div>
-                <span className="text-sm font-medium text-amber-800 dark:text-amber-300">
-                  {stats.manualReview} application{stats.manualReview !== 1 ? 's' : ''} need your attention
-                </span>
+      {/* Getting started / Quick actions */}
+      <div>
+        <h3 className="text-[14px] font-semibold text-foreground/70 mb-5">
+          {stats.total === 0 ? 'Get started — 3 steps' : 'Quick actions'}
+        </h3>
+        <div className="space-y-2">
+          {actions.map(({ step, icon: Icon, title, desc, href, done }) => (
+            <Link
+              key={step}
+              href={href}
+              className={cn(
+                'group flex items-center gap-5 rounded-2xl border px-5 py-4 transition-all duration-150',
+                done
+                  ? 'border-emerald-200/60 dark:border-emerald-800/40 bg-emerald-50/40 dark:bg-emerald-950/15'
+                  : 'border-border/50 bg-card hover:border-foreground/20 hover:bg-muted/30'
+              )}
+            >
+              <div className={cn(
+                'h-10 w-10 rounded-xl flex items-center justify-center shrink-0 text-[12px] font-bold transition-colors',
+                done ? 'bg-emerald-500 text-white' : 'bg-muted text-foreground/50 group-hover:bg-foreground/8'
+              )}>
+                {done ? <CheckCircle className="h-4.5 w-4.5" /> : <Icon className="h-4.5 w-4.5" />}
               </div>
-              <ArrowRight className="h-4 w-4 text-amber-600 dark:text-amber-400 group-hover:translate-x-0.5 transition-transform" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[14px] font-semibold text-foreground/85 leading-none">{title}</p>
+                <p className="text-[13px] text-foreground/45 mt-1 font-normal leading-relaxed">{desc}</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {done && <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">Done</span>}
+                <ArrowRight className={cn('h-4 w-4 transition-transform group-hover:translate-x-0.5', done ? 'text-emerald-500' : 'text-foreground/30')} />
+              </div>
             </Link>
-          )}
-        </CardContent>
-      </Card>
+          ))}
+        </div>
+      </div>
+
     </div>
   );
 }

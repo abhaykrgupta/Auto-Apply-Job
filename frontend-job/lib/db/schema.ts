@@ -10,6 +10,7 @@ import {
   pgEnum,
   index,
   customType,
+  primaryKey,
 } from 'drizzle-orm/pg-core';
 
 export const vector = customType<{ data: number[]; driverData: string }>({
@@ -24,6 +25,54 @@ export const vector = customType<{ data: number[]; driverData: string }>({
   },
 });
 
+// ── Auth Tables (Auth.js / NextAuth v5) ───────────────────────────────────────
+export const authUsers = pgTable('auth_users', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  name: text('name'),
+  email: text('email').unique().notNull(),
+  emailVerified: timestamp('email_verified', { mode: 'date' }),
+  image: text('image'),
+  password: text('password'),
+  plan: text('plan').notNull().default('free'), // 'free' | 'pro' | 'enterprise'
+  planExpiresAt: timestamp('plan_expires_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const authAccounts = pgTable(
+  'auth_accounts',
+  {
+    userId: text('user_id').notNull().references(() => authUsers.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(),
+    provider: text('provider').notNull(),
+    providerAccountId: text('provider_account_id').notNull(),
+    refresh_token: text('refresh_token'),
+    access_token: text('access_token'),
+    expires_at: integer('expires_at'),
+    token_type: text('token_type'),
+    scope: text('scope'),
+    id_token: text('id_token'),
+    session_state: text('session_state'),
+  },
+  (t) => [primaryKey({ columns: [t.provider, t.providerAccountId] })]
+);
+
+export const authSessions = pgTable('auth_sessions', {
+  sessionToken: text('session_token').primaryKey(),
+  userId: text('user_id').notNull().references(() => authUsers.id, { onDelete: 'cascade' }),
+  expires: timestamp('expires', { mode: 'date' }).notNull(),
+});
+
+export const authVerificationTokens = pgTable(
+  'auth_verification_tokens',
+  {
+    identifier: text('identifier').notNull(),
+    token: text('token').notNull(),
+    expires: timestamp('expires', { mode: 'date' }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.identifier, t.token] })]
+);
+
 export const jobStatusEnum = pgEnum('job_status', ['active', 'expired', 'filled']);
 export const applicationStatusEnum = pgEnum('application_status', [
   'pending', 'applied', 'failed', 'manual_review', 'interviewing', 'rejected', 'accepted',
@@ -34,12 +83,15 @@ export const jobSourceEnum = pgEnum('job_source', [
 
 export const profile = pgTable('profile', {
   id: uuid('id').primaryKey().defaultRandom(),
+  userId: text('user_id').references(() => authUsers.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   email: text('email').notNull(),
   phone: text('phone'),
+  avatarUrl: text('avatar_url'),
   linkedin: text('linkedin'),
   github: text('github'),
   portfolio: text('portfolio'),
+  bio: text('bio'),
   preferredRoles: text('preferred_roles').array(),
   preferredLocations: text('preferred_locations').array(),
   remotePreference: text('remote_preference'),

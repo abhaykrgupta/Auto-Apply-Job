@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { navGroups } from './Sidebar';
 import { cn } from '@/lib/utils';
+import { UserMenu } from './UserMenu';
 
 const pageTitles: Record<string, { title: string; description: string }> = {
   '/':              { title: 'Dashboard', description: 'Your job search overview' },
@@ -21,6 +22,7 @@ const pageTitles: Record<string, { title: string; description: string }> = {
   '/manual-review': { title: 'Manual Review', description: 'Applications needing attention' },
   '/analytics':     { title: 'Analytics', description: 'Performance insights' },
   '/settings':      { title: 'Settings', description: 'Configure your automation' },
+  '/profile':       { title: 'Profile', description: 'Manage your account' },
 };
 
 export function Header() {
@@ -98,6 +100,7 @@ export function Header() {
               <Moon className="h-4 w-4" />
             )}
           </Button>
+          <UserMenu />
         </div>
       </header>
 

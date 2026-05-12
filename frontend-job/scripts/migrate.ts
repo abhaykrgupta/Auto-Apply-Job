@@ -129,6 +129,53 @@ const migrations = [
     interview_rate      REAL NOT NULL DEFAULT 0,
     last_updated_at     TIMESTAMPTZ DEFAULT NOW()
   )`,
+
+  // ── Auth Tables (Auth.js / NextAuth v5) ───────────────────────────────────
+  `CREATE TABLE IF NOT EXISTS auth_users (
+    id              TEXT PRIMARY KEY,
+    name            TEXT,
+    email           TEXT NOT NULL UNIQUE,
+    email_verified  TIMESTAMPTZ,
+    image           TEXT,
+    password        TEXT,
+    plan            TEXT NOT NULL DEFAULT 'free',
+    plan_expires_at TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS auth_accounts (
+    user_id              TEXT NOT NULL REFERENCES auth_users(id) ON DELETE CASCADE,
+    type                 TEXT NOT NULL,
+    provider             TEXT NOT NULL,
+    provider_account_id  TEXT NOT NULL,
+    refresh_token        TEXT,
+    access_token         TEXT,
+    expires_at           INTEGER,
+    token_type           TEXT,
+    scope                TEXT,
+    id_token             TEXT,
+    session_state        TEXT,
+    PRIMARY KEY (provider, provider_account_id)
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS auth_sessions (
+    session_token TEXT PRIMARY KEY,
+    user_id       TEXT NOT NULL REFERENCES auth_users(id) ON DELETE CASCADE,
+    expires       TIMESTAMPTZ NOT NULL
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS auth_verification_tokens (
+    identifier TEXT NOT NULL,
+    token      TEXT NOT NULL,
+    expires    TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (identifier, token)
+  )`,
+
+  // ── Profile: add userId, avatarUrl, bio columns ───────────────────────────
+  `ALTER TABLE profile ADD COLUMN IF NOT EXISTS user_id TEXT REFERENCES auth_users(id) ON DELETE CASCADE`,
+  `ALTER TABLE profile ADD COLUMN IF NOT EXISTS avatar_url TEXT`,
+  `ALTER TABLE profile ADD COLUMN IF NOT EXISTS bio TEXT`,
 ];
 
 async function run() {

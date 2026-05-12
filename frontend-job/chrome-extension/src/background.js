@@ -1,12 +1,15 @@
 'use strict';
 
-const POLL_ALARM = 'poll-matches';
-const POLL_INTERVAL = 30; // minutes
+const KEEPALIVE_ALARM = 'keepalive';
+const POLL_ALARM      = 'poll-matches';
+const POLL_INTERVAL   = 30; // minutes
+const PROFILE_KEY     = 'jobagent_profile';
 
 // ── Install / startup ─────────────────────────────────────────────────────────
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.sync.set({ dashboardUrl: 'http://localhost:3000', autoSave: true });
+  chrome.alarms.create(KEEPALIVE_ALARM, { periodInMinutes: 0.4 }); // ~25s — prevents SW dormancy
   chrome.alarms.create(POLL_ALARM, { periodInMinutes: POLL_INTERVAL });
   chrome.action.setBadgeBackgroundColor({ color: '#6366f1' });
 
@@ -15,19 +18,34 @@ chrome.runtime.onInstalled.addListener(() => {
     title: 'Save this job to Job Agent',
     contexts: ['page'],
   });
-});
-
-chrome.runtime.onStartup.addListener(() => {
-  chrome.alarms.get(POLL_ALARM, (alarm) => {
-    if (!alarm) chrome.alarms.create(POLL_ALARM, { periodInMinutes: POLL_INTERVAL });
+  chrome.contextMenus.create({
+    id: 'fill-application',
+    title: 'Co-Pilot: Fill this application',
+    contexts: ['page'],
   });
 });
 
-// ── Polling alarm ─────────────────────────────────────────────────────────────
+chrome.runtime.onStartup.addListener(() => {
+  ensureAlarms();
+});
+
+function ensureAlarms() {
+  chrome.alarms.get(KEEPALIVE_ALARM, (a) => {
+    if (!a) chrome.alarms.create(KEEPALIVE_ALARM, { periodInMinutes: 0.4 });
+  });
+  chrome.alarms.get(POLL_ALARM, (a) => {
+    if (!a) chrome.alarms.create(POLL_ALARM, { periodInMinutes: POLL_INTERVAL });
+  });
+}
+
+// ── Alarms ────────────────────────────────────────────────────────────────────
 
 chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === KEEPALIVE_ALARM) return; // no-op ping — just wakes the SW
   if (alarm.name === POLL_ALARM) pollMatchCount();
 });
+
+// ── Match polling ─────────────────────────────────────────────────────────────
 
 async function pollMatchCount() {
   try {
@@ -47,7 +65,6 @@ async function pollMatchCount() {
     await chrome.storage.local.set({ badgeCount: count });
     chrome.action.setBadgeText({ text: count > 0 ? String(count) : '' });
 
-    // Notify for new matches not previously notified
     const { notifiedJobIds } = await chrome.storage.local.get('notifiedJobIds');
     const prevNotified = new Set(notifiedJobIds ?? []);
     const newMatches = highMatches.filter((m) => !prevNotified.has(m.jobId ?? m.id));
@@ -63,72 +80,95 @@ async function pollMatchCount() {
     }
 
     const allNotified = [...prevNotified, ...newMatches.map((m) => m.jobId ?? m.id)];
-    await chrome.storage.local.set({ notifiedJobIds: allNotified.slice(-100) });
+    await chrome.storage.local.set({ notifiedJobIds: allNotified.slice(-200) });
   } catch {
-    // Dashboard may be offline — fail silently
+    // Dashboard offline — fail silently
   }
 }
 
-// Run once on load
 pollMatchCount();
+
+// ── Profile helpers ───────────────────────────────────────────────────────────
+
+async function getProfile() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(PROFILE_KEY, (r) => resolve(r[PROFILE_KEY] ?? null));
+  });
+}
+
+async function saveProfile(partial) {
+  const existing = (await getProfile()) ?? {};
+  const merged = deepMerge(existing, partial);
+  merged._syncedAt = new Date().toISOString();
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ [PROFILE_KEY]: merged }, resolve);
+  });
+}
+
+function deepMerge(base, override) {
+  const result = Object.assign({}, base);
+  for (const [key, val] of Object.entries(override)) {
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      result[key] = deepMerge(result[key] ?? {}, val);
+    } else {
+      result[key] = val;
+    }
+  }
+  return result;
+}
 
 // ── Context menu ──────────────────────────────────────────────────────────────
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  if (info.menuItemId !== 'save-job' || !tab?.id) return;
+  if (!tab?.id) return;
 
-  try {
-    const results = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: () => window.__jobAgentData,
-    });
-    const jobData = results?.[0]?.result;
+  if (info.menuItemId === 'fill-application') {
+    chrome.tabs.sendMessage(tab.id, { type: 'TRIGGER_COPILOT' });
+    return;
+  }
 
-    if (!jobData) {
-      chrome.notifications.create(`job-agent-${Date.now()}`, {
-        type: 'basic',
-        iconUrl: '../icons/icon48.png',
-        title: 'Job Agent',
-        message: 'No job detected on this page.',
+  if (info.menuItemId === 'save-job') {
+    try {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => window.__jobAgentData,
       });
-      return;
+      const jobData = results?.[0]?.result;
+      if (!jobData) { notify('No job detected on this page.'); return; }
+
+      const { dashboardUrl } = await chrome.storage.sync.get('dashboardUrl');
+      const res = await fetch(`${dashboardUrl}/api/jobs/save-external`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job: jobData }),
+      });
+      notify(
+        res.ok ? `"${jobData.title}" saved to Job Agent.` : 'Could not save job. Is the dashboard running?',
+        res.ok ? 'Job Saved!' : 'Save Failed',
+      );
+    } catch {
+      notify('Failed to save job.', 'Job Agent Error');
     }
-
-    const { dashboardUrl } = await chrome.storage.sync.get('dashboardUrl');
-    const res = await fetch(`${dashboardUrl}/api/jobs/save-external`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ job: jobData }),
-    });
-
-    chrome.notifications.create(`job-agent-${Date.now()}`, {
-      type: 'basic',
-      iconUrl: '../icons/icon48.png',
-      title: res.ok ? 'Job Saved!' : 'Save Failed',
-      message: res.ok
-        ? `"${jobData.title}" at ${jobData.company} saved to Job Agent.`
-        : 'Could not save job. Is the dashboard running?',
-    });
-  } catch {
-    chrome.notifications.create(`job-agent-${Date.now()}`, {
-      type: 'basic',
-      iconUrl: '../icons/icon48.png',
-      title: 'Job Agent Error',
-      message: 'Failed to save job.',
-    });
   }
 });
 
-// ── Notification click → open dashboard ───────────────────────────────────────
+function notify(message, title = 'Job Agent') {
+  chrome.notifications.create(`job-agent-${Date.now()}`, {
+    type: 'basic',
+    iconUrl: '../icons/icon48.png',
+    title,
+    message,
+  });
+}
+
+// ── Notification click ────────────────────────────────────────────────────────
 
 chrome.notifications.onClicked.addListener(async (notificationId) => {
   chrome.notifications.clear(notificationId);
   const { dashboardUrl } = await chrome.storage.sync.get('dashboardUrl');
   const url = dashboardUrl ?? 'http://localhost:3000';
-
   if (notificationId.startsWith('job-') && !notificationId.startsWith('job-agent-')) {
-    const jobId = notificationId.replace('job-', '');
-    chrome.tabs.create({ url: `${url}/jobs/${jobId}` });
+    chrome.tabs.create({ url: `${url}/jobs/${notificationId.replace('job-', '')}` });
   } else {
     chrome.tabs.create({ url: `${url}/matches` });
   }
@@ -138,7 +178,7 @@ chrome.notifications.onClicked.addListener(async (notificationId) => {
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   handleMessage(message, sendResponse);
-  return true; // keep channel open for async
+  return true;
 });
 
 async function handleMessage(message, sendResponse) {
@@ -147,6 +187,8 @@ async function handleMessage(message, sendResponse) {
 
   try {
     switch (message.type) {
+
+      // ── Existing: job matching & saving ──────────────────────────────────
       case 'GET_MATCH_SCORE': {
         const res = await fetch(`${base}/api/jobs/quick-match`, {
           method: 'POST',
@@ -154,8 +196,7 @@ async function handleMessage(message, sendResponse) {
           body: JSON.stringify(message.jobData),
           signal: AbortSignal.timeout(15000),
         });
-        const data = await res.json();
-        sendResponse({ success: res.ok, data });
+        sendResponse({ success: res.ok, data: await res.json() });
         break;
       }
       case 'SAVE_JOB': {
@@ -165,8 +206,7 @@ async function handleMessage(message, sendResponse) {
           body: JSON.stringify({ job: message.jobData }),
           signal: AbortSignal.timeout(10000),
         });
-        const data = await res.json();
-        sendResponse({ success: res.ok, data });
+        sendResponse({ success: res.ok, data: await res.json() });
         break;
       }
       case 'GET_BADGE_COUNT': {
@@ -179,6 +219,86 @@ async function handleMessage(message, sendResponse) {
         sendResponse({ success: true });
         break;
       }
+
+      // ── Phase 1: Profile ──────────────────────────────────────────────────
+      case 'GET_PROFILE': {
+        sendResponse({ success: true, profile: await getProfile() });
+        break;
+      }
+      case 'SAVE_PROFILE': {
+        await saveProfile(message.profile);
+        sendResponse({ success: true });
+        break;
+      }
+      case 'CLEAR_PROFILE': {
+        await new Promise((r) => chrome.storage.local.remove(PROFILE_KEY, r));
+        sendResponse({ success: true });
+        break;
+      }
+
+      // Syncs profile from the Next.js dashboard (called on "Connect Extension")
+      case 'SYNC_PROFILE': {
+        const res = await fetch(`${base}/api/profile`, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(message.token ? { Authorization: `Bearer ${message.token}` } : {}),
+          },
+          signal: AbortSignal.timeout(10000),
+        });
+        if (!res.ok) { sendResponse({ success: false, error: 'Dashboard sync failed' }); break; }
+        await saveProfile(await res.json());
+        sendResponse({ success: true });
+        break;
+      }
+
+      // ── Phase 1: Application tracking ────────────────────────────────────
+      case 'APPLICATION_SUBMITTED': {
+        const { applications = [] } = await chrome.storage.local.get('applications');
+        const entry = { ...message.payload, id: `app-${Date.now()}` };
+        applications.unshift(entry);
+        await chrome.storage.local.set({ applications: applications.slice(0, 500) });
+
+        // Best-effort POST to dashboard
+        try {
+          await fetch(`${base}/api/applications`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(entry),
+            signal: AbortSignal.timeout(8000),
+          });
+        } catch { /* offline — will sync later */ }
+
+        sendResponse({ success: true, entry });
+        break;
+      }
+
+      // ── Phase 2: GPT answer for custom questions ──────────────────────────
+      case 'GET_GPT_ANSWER': {
+        const profile = await getProfile();
+        const { question, context } = message;
+        try {
+          const res = await fetch(`${base}/api/copilot/answer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question, context, profile }),
+            signal: AbortSignal.timeout(15000),
+          });
+          const data = await res.json();
+          sendResponse({ success: true, answer: data.answer ?? '' });
+        } catch {
+          // Dashboard offline — return empty so user fills manually
+          sendResponse({ success: false, answer: '' });
+        }
+        break;
+      }
+
+      // ── Phase 3 stub: JIT PDF ─────────────────────────────────────────────
+      case 'REQUEST_TAILORED_PDF': {
+        const profile = await getProfile();
+        sendResponse({ success: true, type: 'base', url: profile?.resumeUrl ?? null, base64: null });
+        break;
+      }
+
       default:
         sendResponse({ error: 'Unknown message type' });
     }

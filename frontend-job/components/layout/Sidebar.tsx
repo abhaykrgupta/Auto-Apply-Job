@@ -16,12 +16,15 @@ import {
   BarChart3,
   Bot,
   Building2,
-  Zap,
   ChevronLeft,
   ChevronRight,
   PenLine,
+  UserCircle,
+  Crown,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export const navGroups = [
   {
@@ -52,14 +55,23 @@ export const navGroups = [
   {
     label: 'System',
     items: [
+      { href: '/profile', label: 'Profile', icon: UserCircle },
       { href: '/settings', label: 'Settings', icon: Settings },
     ],
   },
 ];
 
+function getInitials(name?: string | null, email?: string | null) {
+  if (name) return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  return email?.[0]?.toUpperCase() ?? 'U';
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const { data: session } = useSession();
+  const user = session?.user;
+  const plan = (user as { plan?: string })?.plan ?? 'free';
 
   return (
     <aside
@@ -106,7 +118,7 @@ export function Sidebar() {
       </div>
 
       {/* Nav Content */}
-      <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 scrollbar-none">
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
         {navGroups.map((group, groupIdx) => {
           const showSeparator = collapsed && groupIdx > 0;
 
@@ -120,7 +132,7 @@ export function Sidebar() {
                   collapsed ? 'h-0 opacity-0' : 'h-8 opacity-100'
                 )}
               >
-                <p className="px-6 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+                <p className="px-6 text-[11px] font-semibold uppercase tracking-[0.1em] text-foreground/40">
                   {group.label}
                 </p>
               </div>
@@ -137,10 +149,10 @@ export function Sidebar() {
                       href={href}
                       title={collapsed ? label : undefined}
                       className={cn(
-                        'group relative flex items-center rounded-xl py-2 text-sm font-medium transition-colors duration-200 ease-out overflow-hidden whitespace-nowrap',
+                        'group relative flex items-center rounded-xl py-2 text-[13px] font-medium transition-colors duration-200 ease-out overflow-hidden whitespace-nowrap',
                         active
                           ? 'bg-primary/10 text-primary'
-                          : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                          : 'text-foreground/55 hover:bg-muted/80 hover:text-foreground'
                       )}
                     >
                       {/* Active Indicator Bar */}
@@ -159,7 +171,7 @@ export function Sidebar() {
                             'h-4 w-4 shrink-0 transition-colors duration-200',
                             active
                               ? 'text-primary'
-                              : 'text-muted-foreground group-hover:text-foreground'
+                              : 'text-foreground/45 group-hover:text-foreground'
                           )}
                         />
                       </div>
@@ -180,6 +192,34 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      {/* User Footer */}
+      {user && (
+        <Link
+          href="/profile"
+          className={cn(
+            'mx-2 mb-3 flex items-center gap-2.5 rounded-xl border border-border/50 bg-muted/30 p-2 hover:bg-muted/60 transition-colors overflow-hidden',
+            collapsed ? 'justify-center' : ''
+          )}
+        >
+          <Avatar className="h-7 w-7 shrink-0 ring-2 ring-primary/20">
+            <AvatarImage src={user.image ?? ''} />
+            <AvatarFallback className="bg-gradient-to-br from-primary/30 to-violet-500/30 text-primary text-[10px] font-bold">
+              {getInitials(user.name, user.email)}
+            </AvatarFallback>
+          </Avatar>
+          <div className={cn('flex flex-col min-w-0 flex-1 transition-opacity duration-300', collapsed ? 'opacity-0 w-0' : 'opacity-100')}>
+            <span className="text-[13px] font-semibold truncate leading-tight">{user.name ?? 'User'}</span>
+            <span className={cn(
+              'inline-flex items-center gap-0.5 text-[11px] font-medium leading-tight capitalize',
+              plan === 'pro' ? 'text-primary' : plan === 'enterprise' ? 'text-amber-500' : 'text-foreground/45'
+            )}>
+              {plan === 'pro' && <Crown className="h-2.5 w-2.5" />}
+              {plan} plan
+            </span>
+          </div>
+        </Link>
+      )}
     </aside>
   );
 }

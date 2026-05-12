@@ -1,9 +1,16 @@
+import { redirect } from 'next/navigation';
+import { auth } from '@/lib/auth';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { BackToTop } from '@/components/shared/BackToTop';
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const session = await auth();
+  if (!session?.user) {
+    redirect('/login');
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />

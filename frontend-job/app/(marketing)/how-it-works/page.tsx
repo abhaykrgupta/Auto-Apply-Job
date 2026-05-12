@@ -1,158 +1,136 @@
-'use client';
-
-import { Upload, SlidersHorizontal, Brain, Pencil, Send, LineChart, ArrowRight } from 'lucide-react';
+import { ArrowRight, FileText, Download, MousePointerClick, Zap, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
-import { ReactNode } from 'react';
 
-const STEPS: { n: string; icon: ReactNode; title: string; desc: string; detail: string[] }[] = [
+const STEPS = [
   { 
     n: '01', 
-    icon: <Upload className="h-5 w-5" />, 
-    title: 'Profile Ingestion', 
-    desc: 'Drag and drop your standard PDF resume. Our parsing engine instantly extracts your history into a structured memory bank.',
-    detail: ['JSON structure extraction', 'Skill vectorization', 'Career timeline mapping']
+    title: 'Upload your base resume.', 
+    desc: 'Drag and drop your standard PDF resume. Our local parsing engine instantly extracts your history, skills, and demographic preferences securely.',
+    icon: <FileText className="h-6 w-6 text-indigo-600" />
   },
   { 
     n: '02', 
-    icon: <SlidersHorizontal className="h-5 w-5" />, 
-    title: 'Search Governance', 
-    desc: 'Tell the agent exactly what you want. Set your target titles, salary floor, remote policy, and preferred company size.',
-    detail: ['Filter exact titles', 'Remote/Hybrid logic', 'Minimum salary threshold']
+    title: 'Install the Extension.', 
+    desc: 'Add our lightweight Chrome Extension. It integrates seamlessly into your browser, waiting quietly until you land on a supported ATS like Greenhouse or Workday.',
+    icon: <Download className="h-6 w-6 text-indigo-600" />
   },
   { 
     n: '03', 
-    icon: <Brain className="h-5 w-5" />, 
-    title: 'Semantic Discovery', 
-    desc: 'The agent actively monitors 40+ job boards 24/7. It identifies roles that align with your exact parameters.',
-    detail: ['LinkedIn/Greenhouse/Lever', '40+ job board scrapers', 'Real-time role alerts']
+    title: 'Click "Magic Fill".', 
+    desc: 'When you find a job you like, click the extension. In 1.5 seconds, we deterministically populate every text box, dropdown, and radio button on the page.',
+    icon: <MousePointerClick className="h-6 w-6 text-indigo-600" />
   },
   { 
     n: '04', 
-    icon: <Pencil className="h-5 w-5" />, 
-    title: 'Atomic Tailoring', 
-    desc: 'For every single application, the AI clones your base resume and rewrites bullet points to match recruiters expectations.',
-    detail: ['Keyword alignment', 'Tone mirroring', 'ATS score optimization']
+    title: 'Just-In-Time Tailoring.', 
+    desc: 'While the form fills, our backend analyzes the job description and dynamically rewrites 3 bullets on your resume to match the exact keywords, injecting the new PDF instantly.',
+    icon: <Zap className="h-6 w-6 text-indigo-600" />
   },
   { 
     n: '05', 
-    icon: <Send className="h-5 w-5" />, 
-    title: 'Submission Engine', 
-    desc: 'Using localized browsers, the agent navigates portals, fills out forms, and submits your tailored PDF.',
-    detail: ['Headless auto-fill', 'Demographic logic', 'Anti-bot navigation']
-  },
-  { 
-    n: '06', 
-    icon: <LineChart className="h-5 w-5" />, 
-    title: 'Pipeline Management', 
-    desc: 'The agent reads interview requests in your inbox and automatically advances your Kanban status.',
-    detail: ['Inbox sync', 'Auto Kanban updates', 'Response tracking']
+    title: 'You click submit.', 
+    desc: 'We don\'t believe in blind auto-submits. You review the perfectly filled application and hit submit yourself. 100% accuracy, zero AI hallucinations.',
+    icon: <CheckCircle2 className="h-6 w-6 text-indigo-600" />
   }
 ];
 
 export default function HowItWorksPage() {
   return (
-    <div className="flex flex-col w-full bg-background">
+    <div className="flex flex-col w-full bg-slate-50 selection:bg-indigo-100">
       
       {/* ── HERO ─────────────────────────────────────────────── */}
-      <section className="relative pt-24 pb-20 md:pt-32 md:pb-28 overflow-hidden bg-dot-pattern border-b border-border/30">
-        <div className="hero-glow absolute inset-0 pointer-events-none opacity-40" />
-        
-        <div className="relative z-10 mx-auto max-w-7xl px-6 md:px-10">
-          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary mb-6">Engineered Automation</p>
-          <h1 className="text-[3rem] md:text-[4.5rem] font-bold tracking-[-0.04em] leading-[1.05] text-foreground max-w-3xl">
-            A completely autonomous<br />job search pipeline.
+      <section className="pt-20 pb-16 md:pt-28 md:pb-24 border-b border-slate-200 bg-gradient-to-b from-indigo-50/50 to-white">
+        <div className="mx-auto max-w-5xl px-6 md:px-10">
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-600 mb-6">The Co-Pilot Architecture</p>
+          <h1 className="text-[3rem] md:text-[4.5rem] font-extrabold tracking-tight leading-[1.02] text-slate-900 max-w-3xl">
+            A completely autonomous<br />workflow.
           </h1>
-          <p className="mt-8 text-[1.125rem] leading-[1.6] text-muted-foreground max-w-xl">
-            We've broken down the job search into six atomic components, 
-            each handled by a specialized sub-agent working in parallel.
+          <p className="mt-6 text-[1.125rem] leading-[1.6] text-slate-600 max-w-xl">
+            We've replaced generic server-side scrapers with a powerful in-browser engine. It fills forms flawlessly, bypasses bot detection, and optimizes your ATS score on the fly.
           </p>
         </div>
       </section>
 
-      {/* ── STEPS GRID ─────────────────────────────────────── */}
-      <section className="py-24 bg-background">
+      {/* ── STICKY SCROLL SECTION ─────────────────────────────────────── */}
+      <section className="py-24 bg-slate-50">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-            {STEPS.map((step) => (
-              <div key={step.n} className="flex flex-col group">
-                <div className="flex items-center gap-4 mb-6">
-                  <span className="text-[1.5rem] font-black text-primary/20 select-none tracking-tight">{step.n}</span>
-                  <div className="h-px flex-1 bg-border/40" />
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+          <div className="flex flex-col lg:flex-row gap-16 items-start relative">
+            
+            {/* Left side: Sticky Title */}
+            <div className="lg:w-1/3 lg:sticky lg:top-32 shrink-0">
+              <h2 className="text-[2.25rem] font-bold tracking-tight text-slate-900 mb-4">
+                How the magic<br />actually works.
+              </h2>
+              <p className="text-[1.0625rem] text-slate-600 leading-relaxed mb-8">
+                The entire process happens directly in your browser. No complicated setups, no server-side timeouts. Just install the extension and start applying to jobs in 1.5 seconds flat.
+              </p>
+              <Link href="/dashboard">
+                <button className="inline-flex items-center gap-2 rounded-lg h-12 px-8 text-[0.9375rem] font-semibold bg-indigo-600 text-white shadow-[0_4px_14px_0_rgba(79,70,229,0.39)] hover:bg-indigo-700 transition-colors">
+                  Get the Extension <ArrowRight className="h-4 w-4" />
+                </button>
+              </Link>
+            </div>
+
+            {/* Right side: Scrolling content */}
+            <div className="lg:w-2/3 flex flex-col gap-12">
+              {STEPS.map((step) => (
+                <div key={step.n} className="p-8 md:p-10 rounded-[1.5rem] border border-slate-200 bg-white shadow-sm flex flex-col md:flex-row gap-8 items-start">
+                  <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 shrink-0">
                     {step.icon}
                   </div>
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Step {step.n}</div>
+                    <h3 className="text-2xl font-bold tracking-tight text-slate-900 mb-3">{step.title}</h3>
+                    <p className="text-[1rem] leading-relaxed text-slate-600">
+                      {step.desc}
+                    </p>
+                  </div>
                 </div>
-                
-                <h3 className="text-[1.25rem] font-bold tracking-tight text-foreground mb-4">{step.title}</h3>
-                <p className="text-[0.9375rem] leading-[1.7] text-muted-foreground mb-8">
-                  {step.desc}
-                </p>
-                
-                <div className="mt-auto pt-6 border-t border-border/20">
-                  <ul className="space-y-2">
-                    {step.detail.map((d, i) => (
-                      <li key={i} className="flex items-center gap-2 text-[0.8125rem] text-muted-foreground/70 font-medium">
-                        <div className="h-1 w-1 rounded-full bg-primary/40" />
-                        {d}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
       {/* ── ARCHITECTURE CALLOUT ───────────────────────────── */}
-      <section className="py-24 bg-muted/30 border-y border-border/30 bg-dot-pattern">
+      <section className="py-24 bg-white border-y border-slate-200">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             <div>
-              <h2 className="text-[2rem] md:text-[2.75rem] font-bold tracking-tight leading-[1.1] text-foreground mb-6">
-                Why we built a<br />headless submission engine.
+              <h2 className="text-[2.25rem] md:text-[2.75rem] font-bold tracking-tight leading-[1.05] text-slate-900 mb-6">
+                Why we use an<br />Extension instead of a Bot.
               </h2>
-              <p className="text-[1.0625rem] text-muted-foreground leading-relaxed mb-8">
-                Standard scrapers break when they hit complex Workday or Lever portals. 
-                JobAgent uses localized, headless browsers that mimic human interaction, 
-                solving CAPTCHAs and screening questions in real-time.
+              <p className="text-[1.0625rem] text-slate-600 leading-relaxed mb-8">
+                Standard bots run on cloud servers. Workday and Greenhouse block cloud servers instantly using Cloudflare. By using a Chrome Extension, the automation runs from your real IP address, using your real browser session. It is 100% invisible to bot protection.
               </p>
               <Link href="/dashboard">
-                <button className="inline-flex items-center gap-2 rounded-md h-11 px-7 text-[0.875rem] font-bold uppercase tracking-wider bg-foreground text-background border border-foreground/10 shadow-[0_2px_4px_0_rgba(0,0,0,0.2)] hover:bg-foreground/90 hover:-translate-y-px active:translate-y-0 transition-all duration-150">
-                  Start for free <ArrowRight className="h-4 w-4" />
+                <button className="inline-flex items-center gap-2 rounded-lg h-12 px-8 text-[0.9375rem] font-semibold bg-indigo-600 text-white shadow-[0_4px_14px_0_rgba(79,70,229,0.39)] hover:bg-indigo-700 transition-colors">
+                  Try it yourself <ArrowRight className="h-4 w-4" />
                 </button>
               </Link>
             </div>
-            <div className="relative aspect-video rounded-2xl border border-border/60 bg-background/50 overflow-hidden shadow-2xl backdrop-blur-sm">
-              <div className="absolute inset-0 p-8 font-mono text-[11px] text-primary/70 leading-relaxed overflow-hidden">
-                {`[INIT] Booting headless instance...
-[OK] Session established (San Francisco, CA)
-[SCAN] Navigating to greenhouse.io/stripe/senior-eng
-[ANALYSIS] Job Description parsed (Score: 94.2)
-[TAILOR] Rewriting 'React' bullet points...
-[FORM] Filling 'Years of Experience': 6
-[FORM] Filling 'GitHub URL': https://github.com/abhay
-[SUBMIT] Application dispatched successfully.
-[LOG] Waiting 300s before next instance...`}
+            
+            {/* Dark IDE Block for contrast */}
+            <div className="relative aspect-video rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl overflow-hidden p-6 md:p-8 flex flex-col justify-end">
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/80 to-transparent z-10 pointer-events-none" />
+              {/* Fake Code Block */}
+              <div className="absolute top-0 left-0 right-0 p-6 md:p-8 font-mono text-[11px] text-indigo-300/80 leading-relaxed overflow-hidden whitespace-pre">
+{`const platform = detectATS(window.location.href);
+
+if (platform === 'workday') {
+  console.log('[AGENT] Injecting state machine...');
+  await executeWorkdayFlow(userProfile);
+} else if (platform === 'greenhouse') {
+  console.log('[AGENT] Deterministic mapping applied.');
+  document.querySelector('#first_name').value = profile.firstName;
+  document.querySelector('#sponsorship_status').value = 'No';
+}
+
+console.log('[AGENT] Requesting JIT Tailored Resume...');
+const pdfBuffer = await fetchTailoredPDF(jobDescription);
+injectFile(pdfBuffer);`}
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── CTA ─────────────────────────────────────────────── */}
-      <section className="py-32 bg-background bg-dot-pattern">
-        <div className="mx-auto max-w-7xl px-6 md:px-10 text-center">
-          <div className="max-w-2xl mx-auto">
-            <h2 className="text-[2.5rem] md:text-[3.5rem] font-bold tracking-tight text-foreground mb-8">
-              Hand over your search.
-            </h2>
-            <Link href="/dashboard">
-              <button className="inline-flex items-center gap-2 rounded-md h-14 px-10 text-[1.0625rem] font-bold uppercase tracking-widest bg-foreground text-background border border-foreground/10 shadow-[0_4px_8px_0_rgba(0,0,0,0.25)] hover:bg-foreground/90 hover:-translate-y-px active:translate-y-0 transition-all duration-150">
-                Deploy your agent <ArrowRight className="h-5 w-5 ml-1" />
-              </button>
-            </Link>
-            <p className="mt-8 text-sm text-muted-foreground">Setup takes less than 2 minutes. No credit card required.</p>
           </div>
         </div>
       </section>
