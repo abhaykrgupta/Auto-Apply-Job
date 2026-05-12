@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { ResumeData, ExperienceEntry, EducationEntry, ProjectEntry } from './types';
+import { ResumeData, ExperienceEntry, EducationEntry, ProjectEntry, AwardEntry, VolunteerEntry, SectionKey } from './types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Sparkles, Loader2, CheckCircle2, AlertTriangle, ShieldCheck, PenLine, Link as LinkIcon } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Sparkles, Loader2, CheckCircle2, AlertTriangle, ShieldCheck, PenLine, Link as LinkIcon, Eye, EyeOff, Trophy, Heart, Palette, User, BookOpen, Briefcase, FolderOpen, Settings2, Wrench } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -101,7 +101,7 @@ function TagInput({ value, onChange, placeholder }: { value: string[]; onChange:
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const TABS = ['Personal', 'Summary', 'Experience', 'Education', 'Skills', 'Projects'] as const;
+const TABS = ['Personal', 'Summary', 'Experience', 'Education', 'Skills', 'Projects', 'Awards', 'Volunteer', 'Settings'] as const;
 type Tab = typeof TABS[number];
 
 interface Props { 
@@ -228,7 +228,10 @@ export function BuilderForm({ data, onChange, projectName, onProjectNameChange }
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const dragSrc = useRef<{ section: 'experience' | 'education' | 'projects'; idx: number } | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
-  const [improvingBullets, setImprovingBullets] = useState<string | null>(null); // entry id being improved
+  const [improvingBullets, setImprovingBullets] = useState<string | null>(null);
+  const [jobUrl, setJobUrl] = useState('');
+  const [isTailoring, setIsTailoring] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>('Personal');
 
   const aiCall = async (action: string, payload: object) => {
     const res = await fetch('/api/resume-builder/ai', {
@@ -239,6 +242,23 @@ export function BuilderForm({ data, onChange, projectName, onProjectNameChange }
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || 'AI request failed');
     return json.result;
+  };
+
+  const handleTailor = async () => {
+    if (!jobUrl.trim()) { toast.error('Paste a job URL first'); return; }
+    setIsTailoring(true);
+    try {
+      const result = await aiCall('tailor-resume', { resumeData: data, jobUrl: jobUrl.trim() });
+      if (result) {
+        onChange({ ...data, ...result });
+        toast.success('Resume tailored to the job description!');
+        setJobUrl('');
+      }
+    } catch (e: any) {
+      toast.error(e.message ?? 'Tailoring failed');
+    } finally {
+      setIsTailoring(false);
+    }
   };
 
   const update = (partial: Partial<ResumeData>) => onChange({ ...data, ...partial });
@@ -292,6 +312,14 @@ export function BuilderForm({ data, onChange, projectName, onProjectNameChange }
           onChange={e => update({ personal: { ...data.personal, name: e.target.value } })}
           placeholder="Jane Smith"
         />
+      </Field>
+      <Field label="Professional Headline" className="sm:col-span-2">
+        <Input
+          value={data.personal.headline ?? ''}
+          onChange={e => update({ personal: { ...data.personal, headline: e.target.value } })}
+          placeholder="Senior Software Engineer · Full-Stack · Open to Remote"
+        />
+        <p className="text-[10px] text-muted-foreground mt-1">Shown below your name — use it as a tagline or target role title.</p>
       </Field>
       <Field label="Email">
         <Input
@@ -374,7 +402,11 @@ export function BuilderForm({ data, onChange, projectName, onProjectNameChange }
         onChange={e => update({ summary: { text: e.target.value } })}
         placeholder="Results-driven software engineer with 5+ years building scalable web applications. Passionate about clean architecture and developer experience. Looking for senior roles in fast-paced product teams."
       />
-      <p className="text-[11px] text-muted-foreground mt-2">{data.summary.text.length} characters</p>
+      <div className="flex items-center justify-between mt-2">
+        <p className="text-[11px] text-muted-foreground">{data.summary.text.length} characters · {data.summary.text.trim().split(/\s+/).filter(Boolean).length} words</p>
+        {data.summary.text.length > 600 && <p className="text-[11px] text-amber-500 font-medium">⚠ Too long — aim for under 600 chars</p>}
+        {data.summary.text.length > 0 && data.summary.text.length < 100 && <p className="text-[11px] text-amber-500 font-medium">⚠ Too short — add more detail</p>}
+      </div>
     </div>
   );
 
@@ -736,113 +768,323 @@ export function BuilderForm({ data, onChange, projectName, onProjectNameChange }
     </div>
   );
 
-  return (
-    <div className="flex flex-col h-full overflow-y-auto p-5 space-y-8 pb-20 relative">
-      {/* ── One-Click Tailor Sticky Bar ── */}
-      <div className="sticky top-0 z-40 -mx-5 -mt-5 mb-2 p-5 bg-background/80 backdrop-blur-xl border-b border-border shadow-sm">
-        <div className="flex flex-col sm:flex-row gap-3 items-center">
-          <div className="flex-1 relative w-full">
-            <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Paste Job URL to automatically tailor this resume..." 
-              value={jobUrl}
-              onChange={e => setJobUrl(e.target.value)}
-              className="pl-9 bg-card border-primary/20 focus-visible:ring-primary/30 shadow-inner"
-            />
+  // ── Awards ────────────────────────────────────────────────────────────────
+  const addAward = () => {
+    const id = nanoid();
+    const entry: AwardEntry = { id, title: '', issuer: '', date: '', description: '' };
+    update({ awards: [...(data.awards ?? []), entry] });
+    setOpenEntries(p => ({ ...p, [id]: true }));
+  };
+  const updateAward = (id: string, partial: Partial<AwardEntry>) =>
+    update({ awards: (data.awards ?? []).map(a => a.id === id ? { ...a, ...partial } : a) });
+
+  const renderAwards = () => (
+    <div>
+      {(data.awards ?? []).length === 0 && (
+        <div className="flex flex-col items-center justify-center py-10 text-center border-2 border-dashed border-border rounded-xl mb-4 bg-muted/20">
+          <Trophy className="h-8 w-8 text-muted-foreground/30 mb-2" />
+          <p className="text-sm text-muted-foreground font-medium">No awards added yet</p>
+          <p className="text-xs text-muted-foreground mt-1">Add scholarships, honors, certifications &amp; recognitions</p>
+        </div>
+      )}
+      {(data.awards ?? []).map((award) => (
+        <div key={award.id} className="border border-border rounded-xl mb-3 overflow-hidden bg-card shadow-sm">
+          <div className="flex items-center gap-2 px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors select-none" onClick={() => toggleEntry(award.id)}>
+            <Trophy className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold truncate">{award.title || 'New Award'}</div>
+              <div className="text-xs text-muted-foreground">{award.issuer}{award.date ? ` · ${award.date}` : ''}</div>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button onClick={e => { e.stopPropagation(); update({ awards: (data.awards ?? []).filter(a => a.id !== award.id) }); }} className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
+              {openEntries[award.id] ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+            </div>
           </div>
-          <Button 
-            onClick={handleTailor}
-            disabled={isTailoring || !jobUrl}
-            className="w-full sm:w-auto gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-md transition-all"
-          >
-            {isTailoring ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {isTailoring ? 'Tailoring...' : '✨ Tailor Resume'}
-          </Button>
+          {openEntries[award.id] && (
+            <div className="border-t border-border p-4 bg-background">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3">
+                <Field label="Award / Honor Title" className="sm:col-span-2">
+                  <Input value={award.title} onChange={e => updateAward(award.id, { title: e.target.value })} placeholder="Dean's List, Best Paper Award..." />
+                </Field>
+                <Field label="Issuing Organization">
+                  <Input value={award.issuer} onChange={e => updateAward(award.id, { issuer: e.target.value })} placeholder="MIT, Google, IEEE..." />
+                </Field>
+                <Field label="Date">
+                  <Input value={award.date} onChange={e => updateAward(award.id, { date: e.target.value })} placeholder="May 2023" />
+                </Field>
+                <Field label="Description (optional)" className="sm:col-span-2">
+                  <Input value={award.description} onChange={e => updateAward(award.id, { description: e.target.value })} placeholder="Brief description of the award..." />
+                </Field>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={addAward} className="w-full border-dashed h-9">
+        <Plus className="h-4 w-4 mr-2" />Add Award / Honor
+      </Button>
+    </div>
+  );
+
+  // ── Volunteer ─────────────────────────────────────────────────────────────
+  const addVolunteer = () => {
+    const id = nanoid();
+    const entry: VolunteerEntry = { id, role: '', organization: '', startDate: '', endDate: '', current: false, description: '' };
+    update({ volunteer: [...(data.volunteer ?? []), entry] });
+    setOpenEntries(p => ({ ...p, [id]: true }));
+  };
+  const updateVolunteer = (id: string, partial: Partial<VolunteerEntry>) =>
+    update({ volunteer: (data.volunteer ?? []).map(v => v.id === id ? { ...v, ...partial } : v) });
+
+  const renderVolunteer = () => (
+    <div>
+      {(data.volunteer ?? []).length === 0 && (
+        <div className="flex flex-col items-center justify-center py-10 text-center border-2 border-dashed border-border rounded-xl mb-4 bg-muted/20">
+          <Heart className="h-8 w-8 text-muted-foreground/30 mb-2" />
+          <p className="text-sm text-muted-foreground font-medium">No volunteer work added yet</p>
+          <p className="text-xs text-muted-foreground mt-1">Volunteer experience demonstrates initiative and values</p>
+        </div>
+      )}
+      {(data.volunteer ?? []).map((vol) => (
+        <div key={vol.id} className="border border-border rounded-xl mb-3 overflow-hidden bg-card shadow-sm">
+          <div className="flex items-center gap-2 px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors select-none" onClick={() => toggleEntry(vol.id)}>
+            <Heart className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold truncate">{vol.role || 'Volunteer Role'}</div>
+              <div className="text-xs text-muted-foreground">{vol.organization}{vol.current ? ' · Present' : vol.endDate ? ` · ${vol.endDate}` : ''}</div>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button onClick={e => { e.stopPropagation(); update({ volunteer: (data.volunteer ?? []).filter(v => v.id !== vol.id) }); }} className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
+              {openEntries[vol.id] ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+            </div>
+          </div>
+          {openEntries[vol.id] && (
+            <div className="border-t border-border p-4 bg-background">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3">
+                <Field label="Role / Position">
+                  <Input value={vol.role} onChange={e => updateVolunteer(vol.id, { role: e.target.value })} placeholder="Community Organizer" />
+                </Field>
+                <Field label="Organization">
+                  <Input value={vol.organization} onChange={e => updateVolunteer(vol.id, { organization: e.target.value })} placeholder="Red Cross, Local NGO..." />
+                </Field>
+                <Field label="Start Date">
+                  <Input value={vol.startDate} onChange={e => updateVolunteer(vol.id, { startDate: e.target.value })} placeholder="Jan 2022" />
+                </Field>
+                <Field label="End Date">
+                  <Input value={vol.endDate} onChange={e => updateVolunteer(vol.id, { endDate: e.target.value })} placeholder="Dec 2023" disabled={vol.current} />
+                </Field>
+                <Field label=" " className="flex justify-start items-end">
+                  <label className="flex items-center gap-2 cursor-pointer h-9 pb-0.5">
+                    <input type="checkbox" checked={vol.current} onChange={e => updateVolunteer(vol.id, { current: e.target.checked })} className="rounded border-input h-4 w-4 accent-primary" />
+                    <span className="text-sm">Currently active</span>
+                  </label>
+                </Field>
+                <Field label="Description" className="sm:col-span-2">
+                  <Textarea rows={3} value={vol.description} onChange={e => updateVolunteer(vol.id, { description: e.target.value })} placeholder="Organized weekly food drives for 200+ families..." />
+                </Field>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={addVolunteer} className="w-full border-dashed h-9">
+        <Plus className="h-4 w-4 mr-2" />Add Volunteer Experience
+      </Button>
+    </div>
+  );
+
+  // ── Settings Panel ────────────────────────────────────────────────────────
+  const ALL_SECTIONS: { key: SectionKey; label: string; icon: React.ReactNode }[] = [
+    { key: 'summary', label: 'Professional Summary', icon: <PenLine className="h-3.5 w-3.5" /> },
+    { key: 'experience', label: 'Work Experience', icon: <GripVertical className="h-3.5 w-3.5" /> },
+    { key: 'education', label: 'Education', icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
+    { key: 'skills', label: 'Skills', icon: <Sparkles className="h-3.5 w-3.5" /> },
+    { key: 'projects', label: 'Projects', icon: <LinkIcon className="h-3.5 w-3.5" /> },
+    { key: 'awards', label: 'Awards & Honors', icon: <Trophy className="h-3.5 w-3.5" /> },
+    { key: 'volunteer', label: 'Volunteer Work', icon: <Heart className="h-3.5 w-3.5" /> },
+  ];
+
+  const toggleVisibility = (key: SectionKey) => {
+    const vis = { ...(data.sectionVisibility ?? {}), [key]: !(data.sectionVisibility?.[key] ?? true) };
+    update({ sectionVisibility: vis as Record<SectionKey, boolean> });
+  };
+
+  const renderSettings = () => (
+    <div className="space-y-6">
+      {/* Section Visibility */}
+      <div>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Section Visibility</p>
+        <p className="text-xs text-muted-foreground mb-4 leading-relaxed">Toggle sections on/off without deleting your data. Hidden sections won't appear in the resume.</p>
+        <div className="space-y-2">
+          {ALL_SECTIONS.map(({ key, label, icon }) => {
+            const visible = data.sectionVisibility?.[key] ?? true;
+            return (
+              <div key={key} className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${visible ? 'border-border bg-card' : 'border-border/50 bg-muted/30 opacity-60'}`}>
+                <div className="flex items-center gap-3">
+                  <span className="text-muted-foreground">{icon}</span>
+                  <span className="text-sm font-medium">{label}</span>
+                </div>
+                <button
+                  onClick={() => toggleVisibility(key)}
+                  className={`flex items-center gap-1.5 text-xs font-medium transition-colors px-2.5 py-1 rounded-md ${visible ? 'text-primary bg-primary/10 hover:bg-primary/20' : 'text-muted-foreground bg-muted hover:bg-muted/80'}`}
+                >
+                  {visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                  {visible ? 'Visible' : 'Hidden'}
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
 
+      {/* Custom Accent Color */}
+      <div>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Custom Accent Color</p>
+        <p className="text-xs text-muted-foreground mb-4">Override the template's color with your own brand color.</p>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Palette className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <input
+              type="color"
+              value={data.customAccentColor ?? '#4f46e5'}
+              onChange={e => update({ customAccentColor: e.target.value })}
+              className="h-10 w-28 pl-8 pr-2 rounded-lg border border-input bg-background cursor-pointer text-sm"
+            />
+          </div>
+          <span className="text-sm font-mono text-muted-foreground">{data.customAccentColor ?? 'Template default'}</span>
+          {data.customAccentColor && (
+            <button onClick={() => update({ customAccentColor: undefined })} className="text-xs text-destructive hover:underline ml-auto">Reset</button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── Completion score ──────────────────────────────────────────────────────
+  const completion = (() => {
+    let score = 0;
+    if (data.personal.name && data.personal.email && data.personal.phone) score += 15;
+    if (data.personal.headline) score += 5;
+    if (data.summary.text.length > 80) score += 15;
+    if (data.experience.length > 0) score += 20;
+    if (data.education.length > 0) score += 15;
+    if ((data.skills.technical.length + data.skills.soft.length) > 2) score += 15;
+    if (data.projects.length > 0) score += 10;
+    if ((data.awards ?? []).length > 0 || (data.volunteer ?? []).length > 0) score += 5;
+    return Math.min(score, 100);
+  })();
+
+  const NAV_ITEMS: { tab: Tab; icon: React.ReactNode; label: string; count?: number }[] = [
+    { tab: 'Personal',   icon: <User className="h-4 w-4" />,      label: 'Personal' },
+    { tab: 'Summary',    icon: <PenLine className="h-4 w-4" />,   label: 'Summary',
+      count: data.summary.text.length > 10 ? 1 : 0 },
+    { tab: 'Experience', icon: <Briefcase className="h-4 w-4" />, label: 'Experience', count: data.experience.length },
+    { tab: 'Education',  icon: <BookOpen className="h-4 w-4" />,  label: 'Education',  count: data.education.length },
+    { tab: 'Skills',     icon: <Wrench className="h-4 w-4" />,    label: 'Skills',
+      count: data.skills.technical.length + data.skills.soft.length },
+    { tab: 'Projects',   icon: <FolderOpen className="h-4 w-4" />,label: 'Projects',   count: data.projects.length },
+    { tab: 'Awards',     icon: <Trophy className="h-4 w-4" />,    label: 'Awards',     count: (data.awards ?? []).length },
+    { tab: 'Volunteer',  icon: <Heart className="h-4 w-4" />,     label: 'Volunteer',  count: (data.volunteer ?? []).length },
+    { tab: 'Settings',   icon: <Settings2 className="h-4 w-4" />, label: 'Settings' },
+  ];
+
+  return (
+    <div className="flex flex-col h-full overflow-hidden relative">
+
+      {/* ── AI tailoring overlay ── */}
       <AnimatePresence>
         {isTailoring && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-sm"
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
             <div className="flex flex-col items-center gap-4 bg-card p-8 rounded-2xl border border-border shadow-2xl">
               <div className="relative">
-                <div className="h-16 w-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
-                <Sparkles className="absolute inset-0 m-auto h-6 w-6 text-primary animate-pulse" />
+                <div className="h-14 w-14 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+                <Sparkles className="absolute inset-0 m-auto h-5 w-5 text-primary animate-pulse" />
               </div>
-              <div className="text-center space-y-2">
-                <motion.p 
-                  initial={{ y: 5, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                  className="text-lg font-bold bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent"
-                >
-                  AI is analyzing the job description...
-                </motion.p>
-                <motion.p 
-                  initial={{ y: 5, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.8 }}
-                  className="text-sm font-medium text-muted-foreground"
-                >
-                  Rewriting bullet points to bypass ATS...
-                </motion.p>
-              </div>
+              <p className="text-base font-bold text-primary">Tailoring your resume…</p>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <AtsHealthScore data={data} />
-      
-      <section>
-        <h2 className="text-lg font-semibold mb-4 text-foreground">Personal Information</h2>
-        {renderPersonal()}
-      </section>
-      <hr className="border-border" />
-      <section>
-        <h2 className="text-lg font-semibold mb-4 text-foreground">Professional Summary</h2>
-        {renderSummary()}
-      </section>
-      <hr className="border-border" />
-      <section>
-        <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg font-semibold text-foreground">Work Experience</h2>
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
-            {data.experience.length}
+      {/* ── Completion bar ── */}
+      <div className="shrink-0 px-4 pt-3 pb-2 border-b border-border bg-card">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Resume Completeness</span>
+          <span className={cn('text-[11px] font-bold', completion === 100 ? 'text-emerald-600' : completion >= 60 ? 'text-primary' : 'text-amber-500')}>
+            {completion}%
           </span>
         </div>
-        {renderExperience()}
-      </section>
-      <hr className="border-border" />
-      <section>
-        <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg font-semibold text-foreground">Education</h2>
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
-            {data.education.length}
-          </span>
+        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+          <motion.div
+            className={cn('h-full rounded-full', completion === 100 ? 'bg-emerald-500' : completion >= 60 ? 'bg-primary' : 'bg-amber-400')}
+            initial={{ width: 0 }}
+            animate={{ width: `${completion}%` }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+          />
         </div>
-        {renderEducation()}
-      </section>
-      <hr className="border-border" />
-      <section>
-        <h2 className="text-lg font-semibold mb-4 text-foreground">Skills</h2>
-        {renderSkills()}
-      </section>
-      <hr className="border-border" />
-      <section>
-        <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg font-semibold text-foreground">Projects</h2>
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
-            {data.projects.length}
-          </span>
+      </div>
+
+      {/* ── Section grid nav ── */}
+      <div className="shrink-0 p-3 border-b border-border bg-card">
+        <div className="grid grid-cols-3 gap-1.5">
+          {NAV_ITEMS.map(({ tab, icon, label, count }) => {
+            const isActive = activeTab === tab;
+            const hasContent = typeof count === 'number' ? count > 0 : false;
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={cn(
+                  'flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-all duration-150 relative',
+                  isActive
+                    ? tab === 'Settings'
+                      ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 ring-1 ring-violet-300 dark:ring-violet-700'
+                      : 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                )}
+              >
+                <span className={cn('shrink-0', isActive ? '' : 'opacity-70')}>{icon}</span>
+                <span className="text-[11px] font-semibold truncate leading-tight">{label}</span>
+                {typeof count === 'number' && count > 0 && (
+                  <span className={cn(
+                    'ml-auto shrink-0 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center',
+                    isActive ? 'bg-primary text-white' : 'bg-muted-foreground/20 text-muted-foreground'
+                  )}>
+                    {count}
+                  </span>
+                )}
+                {typeof count === 'number' && count === 0 && tab !== 'Settings' && (
+                  <span className="ml-auto shrink-0 w-1.5 h-1.5 rounded-full bg-amber-400" title="Empty section" />
+                )}
+              </button>
+            );
+          })}
         </div>
-        {renderProjects()}
-      </section>
+      </div>
+
+      {/* ── Section content ── */}
+      <div className="flex-1 overflow-y-auto p-4 pb-20">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.12 }}
+          >
+            {activeTab === 'Personal'   && renderPersonal()}
+            {activeTab === 'Summary'    && renderSummary()}
+            {activeTab === 'Experience' && renderExperience()}
+            {activeTab === 'Education'  && renderEducation()}
+            {activeTab === 'Skills'     && renderSkills()}
+            {activeTab === 'Projects'   && renderProjects()}
+            {activeTab === 'Awards'     && renderAwards()}
+            {activeTab === 'Volunteer'  && renderVolunteer()}
+            {activeTab === 'Settings'   && renderSettings()}
+          </motion.div>
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

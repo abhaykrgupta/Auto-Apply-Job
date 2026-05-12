@@ -22,4 +22,5 @@ export const companyScrapeSchema = z.object({
   limit: z.number().optional(),
   query: z.string().optional(),
   experience: z.string().optional(),
+  locationPref: z.string().optional(),
 }).strip();

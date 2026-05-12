@@ -17,6 +17,7 @@ const SAMPLE: ResumeData = {
     linkedin: 'linkedin.com/in/alexj',
     github: 'github.com/alexj',
     website: 'alexj.dev',
+    headline: 'Senior Software Engineer · Full-Stack · Open to Remote',
   },
   summary: {
     text: 'Senior software engineer with 6+ years building scalable systems. Passionate about clean code and shipping products that users love. Led teams of 5+ engineers at high-growth startups.',
@@ -87,6 +88,10 @@ const SAMPLE: ResumeData = {
       bullets: ['Designed plugin architecture supporting 30+ data sources'],
     },
   ],
+  awards: [],
+  volunteer: [],
+  sectionOrder: ['summary', 'experience', 'education', 'skills', 'projects', 'awards', 'volunteer'],
+  sectionVisibility: { summary: true, experience: true, education: true, skills: true, projects: true, awards: true, volunteer: true },
 };
 
 // A4: 794 × 1123px. Thumbnail rendered at full width, scaled down with CSS.

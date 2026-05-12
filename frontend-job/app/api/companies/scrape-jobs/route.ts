@@ -2,8 +2,9 @@ import { companyScrapeSchema } from '@/lib/validations/companies';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { companies, jobs, profile } from '@/lib/db/schema';
-import { eq, and, isNotNull } from 'drizzle-orm';
+import { eq, and, isNotNull, asc, sql } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
+import { taskQueue } from '@/lib/workers/task-queue';
 
 // ─── Public JSON API scrapers — no Playwright needed ─────────────────────────
 
@@ -216,17 +217,22 @@ export async function POST(req: NextRequest) {
 
     const queryLower = effectiveQuery?.toLowerCase() || '';
     const exp = parsed.data.experience?.toLowerCase() || 'any';
+    const locPref = parsed.data.locationPref?.toLowerCase() || 'any';
 
     const companiesToScrape = await db
       .select()
       .from(companies)
       .where(and(isNotNull(companies.atsUrl), eq(companies.scrapingEnabled, true)))
+      .orderBy(sql`${companies.lastScrapedAt} ASC NULLS FIRST`)
       .limit(limit);
 
     const results = { scraped: 0, jobsFound: 0, errors: 0, skipped: 0 };
 
     for (const company of companiesToScrape) {
       if (!company.atsUrl) continue;
+
+      // No cooldown check on manual UI trigger — allow the user to scrape whenever they click
+
 
       try {
         let foundJobs: ApiJob[] = [];
@@ -251,19 +257,28 @@ export async function POST(req: NextRequest) {
             foundJobs = await scrapeBambooHR(company.atsUrl, company.name);
             break;
           default:
-            // custom, unknown — no scraper
+            // custom, unknown — use Universal AI Scraper via Background Queue
+            if (company.website || company.atsUrl) {
+              await taskQueue.enqueue('scrape_company', {
+                companyId: company.id,
+                companyName: company.name,
+                websiteUrl: company.website || company.atsUrl || '',
+                careerPage: company.atsUrl || company.website || '',
+              });
+              logger.info(`Queued ${company.name} for deep AI scraping in background worker`);
+            }
             results.skipped++;
-            logger.info(`Skipping ${company.name} (atsType: ${company.atsType ?? 'none'} — no scraper)`);
             continue;
         }
 
         // Apply role/query filtering if specified
         if (queryLower) {
+          const searchTerms = queryLower.split(/\\s+/).filter(Boolean);
           const originalCount = foundJobs.length;
-          foundJobs = foundJobs.filter(j => 
-            j.title.toLowerCase().includes(queryLower) || 
-            (j.location && j.location.toLowerCase().includes(queryLower))
-          );
+          foundJobs = foundJobs.filter(j => {
+            const searchString = `${j.title} ${j.location || ''}`.toLowerCase();
+            return searchTerms.every(term => searchString.includes(term));
+          });
           if (originalCount > 0 && foundJobs.length === 0) {
             logger.info(`${company.name}: Filtered out all ${originalCount} jobs (no match for "${queryLower}")`);
           } else if (foundJobs.length < originalCount) {
@@ -293,6 +308,25 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        // Apply location preference filtering
+        if (locPref !== 'any') {
+          const originalCount = foundJobs.length;
+          foundJobs = foundJobs.filter(j => {
+            const locStr = (j.location || '').toLowerCase();
+            const titleStr = j.title.toLowerCase();
+            const isRemote = locStr.includes('remote') || titleStr.includes('remote');
+            const isHybrid = locStr.includes('hybrid') || titleStr.includes('hybrid');
+            
+            if (locPref === 'remote' && !isRemote) return false;
+            if (locPref === 'hybrid' && !isHybrid) return false;
+            if (locPref === 'onsite' && (isRemote || isHybrid)) return false;
+            return true;
+          });
+          if (originalCount > 0 && foundJobs.length < originalCount) {
+            logger.info(`${company.name}: Filtered ${originalCount} -> ${foundJobs.length} jobs for location preference: ${locPref}`);
+          }
+        }
+
         // Upsert jobs
         for (const job of foundJobs) {
           if (!job.applyUrl || !job.title) continue;
@@ -312,14 +346,12 @@ export async function POST(req: NextRequest) {
             .onConflictDoNothing();
         }
 
-        // Update company stats
+        // Update company job stats
         await db
           .update(companies)
           .set({
             activeJobsCount: foundJobs.length,
-            lastScrapedAt: new Date(),
             totalJobsFound: (company.totalJobsFound ?? 0) + foundJobs.length,
-            updatedAt: new Date(),
           })
           .where(eq(companies.id, company.id));
 
@@ -330,6 +362,16 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         results.errors++;
         logger.error({ err }, `Failed to scrape ${company.name}`);
+      } finally {
+        // ALWAYS update lastScrapedAt so this company goes to the back of the queue
+        // even if it failed, preventing poison-pill infinite loops.
+        await db
+          .update(companies)
+          .set({
+            lastScrapedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(companies.id, company.id));
       }
     }
 

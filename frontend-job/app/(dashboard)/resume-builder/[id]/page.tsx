@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   ArrowLeft, Rocket, Download, LayoutTemplate,
-  Check, Loader2, ChevronRight, Eye, PenLine, Sparkles, AlertCircle,
+  Check, Loader2, ChevronRight, Eye, PenLine, Sparkles, AlertCircle, Copy, History,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BuilderForm } from '@/components/resume-builder/BuilderForm';
@@ -174,6 +174,56 @@ export default function BuilderPage() {
     setSaveStatus('unsaved');
   };
 
+  // ── Autosave every 30 seconds ──────────────────────────────────────────────
+  const saveStatusRef = useRef(saveStatus);
+  saveStatusRef.current = saveStatus;
+  useEffect(() => {
+    if (id === 'new') return; // Don't autosave new unsaved projects
+    const timer = setInterval(() => {
+      if (saveStatusRef.current === 'unsaved') {
+        save(data, templateId, projectName);
+      }
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [id, data, templateId, projectName, save]);
+
+  // ── Version History (localStorage, last 10) ────────────────────────────────
+  const saveVersion = useCallback((d: ResumeData, name: string) => {
+    if (id === 'new') return;
+    const key = `resume_versions_${id}`;
+    const versions: Array<{ ts: number; name: string; data: ResumeData }> = JSON.parse(localStorage.getItem(key) ?? '[]');
+    versions.unshift({ ts: Date.now(), name, data: d });
+    localStorage.setItem(key, JSON.stringify(versions.slice(0, 10)));
+  }, [id]);
+
+  // Save a version snapshot whenever user saves manually
+  const handleManualSave = () => {
+    save(data, templateId, projectName).then(() => {
+      saveVersion(data, projectName);
+      toast.success('Saved ✓');
+    });
+  };
+
+  // ── Duplicate Resume ───────────────────────────────────────────────────────
+  const [duplicating, setDuplicating] = useState(false);
+  const duplicateResume = async () => {
+    setDuplicating(true);
+    try {
+      const res = await fetch('/api/resume-builder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data, templateId, name: `${projectName} (Copy)` }),
+      });
+      const newProject = await res.json();
+      toast.success('Resume duplicated! Opening copy...');
+      router.push(`/resume-builder/${newProject.id}`);
+    } catch {
+      toast.error('Duplicate failed');
+    } finally {
+      setDuplicating(false);
+    }
+  };
+
   const handleTemplateChange = (newTemplateId: string) => {
     setTemplateId(newTemplateId);
     setSaveStatus('unsaved');
@@ -322,10 +372,7 @@ export default function BuilderPage() {
         <Button
           variant={saveStatus === 'unsaved' ? 'default' : 'outline'}
           size="sm"
-          onClick={() => {
-            save(data, templateId, projectName);
-            toast.success('Changes saved!');
-          }}
+          onClick={handleManualSave}
           disabled={saveStatus === 'saving' || saveStatus === 'saved'}
           className={cn(
             "h-8 text-xs shrink-0 transition-all",
@@ -339,6 +386,11 @@ export default function BuilderPage() {
 
         {/* Action buttons */}
         <div className="flex items-center gap-1.5 shrink-0">
+          {/* Duplicate */}
+          <Button variant="outline" size="sm" onClick={duplicateResume} disabled={duplicating || id === 'new'} title="Duplicate this resume" className="h-8 text-xs px-2.5">
+            {duplicating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Copy className="h-3.5 w-3.5" />}
+            <span className="hidden sm:inline ml-1">{duplicating ? 'Copying...' : 'Duplicate'}</span>
+          </Button>
           <Button variant="outline" size="sm" onClick={downloadPdf} disabled={downloading} className="h-8 text-xs px-2.5">
             {downloading
               ? <Loader2 className="h-3.5 w-3.5 sm:mr-1.5 animate-spin" />
@@ -478,7 +530,7 @@ export default function BuilderPage() {
               <div className="px-4 pt-5 pb-2">
                 <h3 className="text-sm font-semibold">Choose a Template</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  15 ATS-friendly designs — hover to preview, click to apply.
+                  29 ATS-friendly designs — hover to preview, click to apply.
                 </p>
               </div>
               <TemplatePicker selectedId={templateId} onSelect={handleTemplateChange} />

@@ -68,6 +68,7 @@ export default function ResumeBuilderPage() {
           linkedin: pd.linkedin || '',
           github: pd.github || '',
           website: pd.website || pd.portfolio || '',
+          headline: pd.headline || pd.title || '',
         },
         summary: { text: pd.summary || '' },
         experience: (pd.experience || []).map((e: any, i: number) => ({

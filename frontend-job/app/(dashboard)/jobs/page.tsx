@@ -7,7 +7,8 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants, Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Briefcase, ExternalLink, Wand2, Send, FileText, Search, Trash2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Briefcase, ExternalLink, Wand2, Send, FileText, Search, Trash2, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { timeAgo, formatSalary } from '@/lib/utils/helpers';
 import { cn } from '@/lib/utils';
@@ -16,24 +17,67 @@ import { CoverLetterModal } from '@/components/jobs/CoverLetterModal';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
+const ATS_COLORS: Record<string, string> = {
+  greenhouse:     'bg-green-100 border-green-200 text-green-800 dark:bg-green-900/30 dark:border-green-800 dark:text-green-300',
+  lever:          'bg-blue-100 border-blue-200 text-blue-800 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300',
+  workday:        'bg-orange-100 border-orange-200 text-orange-800 dark:bg-orange-900/30 dark:border-orange-800 dark:text-orange-300',
+  ashby:          'bg-purple-100 border-purple-200 text-purple-800 dark:bg-purple-900/30 dark:border-purple-800 dark:text-purple-300',
+  bamboohr:       'bg-teal-100 border-teal-200 text-teal-800 dark:bg-teal-900/30 dark:border-teal-800 dark:text-teal-300',
+  smartrecruiters:'bg-indigo-100 border-indigo-200 text-indigo-800 dark:bg-indigo-900/30 dark:border-indigo-800 dark:text-indigo-300',
+  custom:         'bg-gray-100 border-gray-200 text-gray-700 dark:bg-gray-800/50 dark:border-gray-700 dark:text-gray-300',
+  none:           'bg-red-100 border-red-200 text-red-700',
+  unknown:        'bg-yellow-100 border-yellow-200 text-yellow-800',
+};
+
 export default function JobsPage() {
   const { data: jobs, isLoading } = useJobs();
   const [search, setSearch] = useState('');
   const [tailorJob, setTailorJob] = useState<{ id: string; title: string; company: string } | null>(null);
   const [coverLetterJob, setCoverLetterJob] = useState<{ id: string; title: string; company: string } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [dateFilter, setDateFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const [pageSizeMode, setPageSizeMode] = useState('15');
+  const [customPageSize, setCustomPageSize] = useState('15');
   const qc = useQueryClient();
 
   const filteredJobs = useMemo(() => {
     if (!jobs) return [];
+    
+    // 1. Search text filter
+    let result = jobs;
     const q = search.trim().toLowerCase();
-    if (!q) return jobs;
-    return jobs.filter((j: any) =>
-      j.title?.toLowerCase().includes(q) ||
-      j.company?.toLowerCase().includes(q) ||
-      j.location?.toLowerCase().includes(q)
-    );
-  }, [jobs, search]);
+    if (q) {
+      result = result.filter((j: any) =>
+        j.title?.toLowerCase().includes(q) ||
+        j.company?.toLowerCase().includes(q) ||
+        j.location?.toLowerCase().includes(q)
+      );
+    }
+    
+    // 2. Date filter
+    if (dateFilter !== 'all') {
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
+      const weekStart = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000);
+      
+      result = result.filter((j: any) => {
+        if (!j.createdAt) return false;
+        const jobDate = new Date(j.createdAt);
+        if (dateFilter === 'today') return jobDate >= todayStart;
+        if (dateFilter === 'yesterday') return jobDate >= yesterdayStart && jobDate < todayStart;
+        if (dateFilter === 'past_week') return jobDate >= weekStart;
+        return true;
+      });
+    }
+    
+    return result;
+  }, [jobs, search, dateFilter]);
+
+  const pageSize = pageSizeMode === 'custom' ? (parseInt(customPageSize) || 15) : parseInt(pageSizeMode);
+  const totalPages = Math.max(1, Math.ceil(filteredJobs.length / pageSize));
+  const paginatedJobs = filteredJobs.slice((page - 1) * pageSize, page * pageSize);
 
   const { mutate: applyJob, isPending: applying, variables: applyingId } = useMutation({
     mutationFn: async (jobId: string) => {
@@ -133,20 +177,34 @@ export default function JobsPage() {
         <div>
           <h2 className="text-2xl font-bold">All Jobs</h2>
           <p className="text-muted-foreground">
-            {filteredJobs.length} of {jobs?.length ?? 0} jobs
+            {paginatedJobs.length} of {jobs?.length ?? 0} jobs
           </p>
         </div>
         <Link href="/search" className={cn(buttonVariants({ variant: 'outline' }), 'shrink-0')}>Search More</Link>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-        <Input
-          placeholder="Search by title, company or location..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
+      <div className="flex flex-col sm:flex-row gap-3 mb-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder="Search by title, company or location..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 bg-background/50 backdrop-blur-sm transition-all focus:bg-background"
+          />
+        </div>
+        
+        <Select value={dateFilter} onValueChange={(val) => setDateFilter(val ?? 'all')}>
+          <SelectTrigger className="w-full sm:w-[180px] bg-background/50 backdrop-blur-sm transition-all focus:bg-background">
+            <SelectValue placeholder="Date Posted" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any Time</SelectItem>
+            <SelectItem value="today">Today</SelectItem>
+            <SelectItem value="yesterday">Yesterday</SelectItem>
+            <SelectItem value="past_week">Past Week</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {!filteredJobs.length ? (
@@ -157,101 +215,116 @@ export default function JobsPage() {
           action={!search ? <Link href="/search" className={cn(buttonVariants())}>Search Jobs</Link> : undefined}
         />
       ) : (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[800px] text-sm">
-            <thead className="bg-muted">
+            <table className="w-full min-w-[900px] text-sm">
+            <thead className="bg-muted/40 border-b border-border">
               <tr>
-                <th className="p-3 text-left font-medium w-10">
+                <th className="p-4 text-left font-semibold text-muted-foreground w-12">
                   <input
                     type="checkbox"
                     checked={allSelected}
                     onChange={toggleSelectAll}
-                    className="h-4 w-4 cursor-pointer accent-primary"
+                    className="h-4 w-4 cursor-pointer rounded border-muted-foreground/30 accent-primary"
                     aria-label="Select all jobs"
                   />
                 </th>
-                <th className="p-3 text-left font-medium">Role</th>
-                <th className="p-3 text-left font-medium">Company</th>
-                <th className="p-3 text-left font-medium">Location</th>
-                <th className="p-3 text-left font-medium">Salary</th>
-                <th className="p-3 text-left font-medium">Source</th>
-                <th className="p-3 text-left font-medium">Posted</th>
-                <th className="p-3 text-left font-medium">Actions</th>
+                <th className="p-4 text-left font-semibold text-muted-foreground">Job Details</th>
+                <th className="p-4 text-left font-semibold text-muted-foreground">Location</th>
+                <th className="p-4 text-left font-semibold text-muted-foreground">Salary</th>
+                <th className="p-4 text-left font-semibold text-muted-foreground">Source</th>
+                <th className="p-4 text-left font-semibold text-muted-foreground">Posted</th>
+                <th className="p-4 text-right font-semibold text-muted-foreground">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {filteredJobs.map((job: any) => (
-                <tr key={job.id} className={cn('border-t border-border hover:bg-accent/50 transition-colors', selectedIds.has(job.id) && 'bg-accent/30')}>
-                  <td className="p-3">
+            <tbody className="divide-y divide-border">
+              {paginatedJobs.map((job: any) => (
+                <tr key={job.id} className={cn('hover:bg-muted/30 transition-colors group', selectedIds.has(job.id) && 'bg-primary/5 hover:bg-primary/5')}>
+                  <td className="p-4">
                     <input
                       type="checkbox"
                       checked={selectedIds.has(job.id)}
                       onChange={() => toggleSelect(job.id)}
-                      className="h-4 w-4 cursor-pointer accent-primary"
+                      className="h-4 w-4 cursor-pointer rounded border-muted-foreground/30 accent-primary"
                       aria-label={`Select ${job.title}`}
                     />
                   </td>
-                  <td className="p-3">
-                    <a href={job.applyUrl} target="_blank" rel="noopener noreferrer" className="font-medium hover:underline">
-                      {job.title}
-                    </a>
+                  <td className="p-4">
+                    <div className="flex flex-col">
+                      <a href={job.applyUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-foreground hover:text-primary transition-colors line-clamp-1">
+                        {job.title}
+                      </a>
+                      <span className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5 font-medium">
+                        <Briefcase className="h-3.5 w-3.5 text-muted-foreground/70" />
+                        {job.company}
+                      </span>
+                    </div>
                   </td>
-                  <td className="p-3 text-muted-foreground">{job.company}</td>
-                  <td className="p-3 text-muted-foreground">{job.location ?? 'Remote'}</td>
-                  <td className="p-3 text-muted-foreground">
+                  <td className="p-4">
+                    <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground ring-1 ring-inset ring-border">
+                      {job.location ?? 'Remote'}
+                    </span>
+                  </td>
+                  <td className="p-4 text-muted-foreground font-medium text-xs">
                     {formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency)}
                   </td>
-                  <td className="p-3">
-                    <Badge variant="outline">{job.source}</Badge>
+                  <td className="p-4">
+                    <span className={cn('rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider border', ATS_COLORS[job.source?.toLowerCase()] ?? 'bg-muted border-border text-muted-foreground')}>
+                      {job.source}
+                    </span>
                   </td>
-                  <td className="p-3 text-muted-foreground">{timeAgo(job.createdAt)}</td>
-                  <td className="p-3">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setTailorJob({ id: job.id, title: job.title, company: job.company })}
-                        className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'gap-1')}
-                      >
-                        <Wand2 className="h-3 w-3" />
-                        Tailor
-                      </button>
+                  <td className="p-4 text-xs text-muted-foreground font-medium whitespace-nowrap">
+                    {timeAgo(job.createdAt)}
+                  </td>
+                  <td className="p-4">
+                    <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
                       <Button
                         size="sm"
-                        variant="outline"
-                        onClick={() => setCoverLetterJob({ id: job.id, title: job.title, company: job.company })}
-                        className="gap-1"
+                        variant="ghost"
+                        className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/50"
+                        onClick={() => setTailorJob({ id: job.id, title: job.title, company: job.company })}
+                        title="Tailor Resume"
                       >
-                        <FileText className="h-3 w-3" />
-                        Letter
+                        <Wand2 className="h-4 w-4" />
                       </Button>
                       <Button
                         size="sm"
-                        variant="default"
+                        variant="ghost"
+                        className="h-8 w-8 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
+                        onClick={() => setCoverLetterJob({ id: job.id, title: job.title, company: job.company })}
+                        title="Generate Cover Letter"
+                      >
+                        <FileText className="h-4 w-4" />
+                      </Button>
+                      <div className="w-px h-4 bg-border mx-1" />
+                      <Button
+                        size="sm"
                         onClick={() => applyJob(job.id)}
                         disabled={applying && applyingId === job.id}
-                        className="gap-1"
+                        className="h-8 px-3 gap-1.5 font-semibold text-xs shadow-sm"
                       >
-                        {applying && applyingId === job.id ? <LoadingSpinner size="sm" fullPage={false} /> : <Send className="h-3 w-3" />}
-                        {applying && applyingId === job.id ? 'Applying...' : 'Apply'}
+                        {applying && applyingId === job.id ? <LoadingSpinner size="sm" fullPage={false} /> : <Send className="h-3.5 w-3.5" />}
+                        <span className="hidden sm:inline">{applying && applyingId === job.id ? 'Applying' : 'Apply'}</span>
                       </Button>
+                      <div className="w-px h-4 bg-border mx-1" />
                       <a
                         href={job.applyUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        title="Open job posting"
-                        className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}
+                        title="Open external job board"
+                        className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'h-8 w-8 p-0 text-muted-foreground')}
                       >
-                        <ExternalLink className="h-3 w-3" />
+                        <ExternalLink className="h-4 w-4" />
                       </a>
                       <Button
                         size="sm"
                         variant="ghost"
                         onClick={() => deleteJob(job.id)}
                         disabled={deleting && deletingId === job.id}
-                        className="gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        title="Remove this job"
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        title="Remove job"
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </td>
@@ -259,6 +332,44 @@ export default function JobsPage() {
               ))}
             </tbody>
             </table>
+          </div>
+          
+          <div className="px-5 py-3 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 bg-muted/10">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Rows per page:</span>
+              <Select value={pageSizeMode} onValueChange={(val) => { setPageSizeMode(val ?? '15'); setPage(1); }}>
+                <SelectTrigger className="h-8 w-[80px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="15">15</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+              {pageSizeMode === 'custom' && (
+                <Input
+                  className="h-8 w-16 text-xs px-2 bg-background"
+                  placeholder="#"
+                  value={customPageSize}
+                  onChange={(e) => { setCustomPageSize(e.target.value); setPage(1); }}
+                  autoFocus
+                />
+              )}
+            </div>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <span>Page {page} of {totalPages}</span>
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}

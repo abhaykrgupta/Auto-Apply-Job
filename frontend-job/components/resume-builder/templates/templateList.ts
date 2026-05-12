@@ -302,7 +302,170 @@ export const TEMPLATES: TemplateConfig[] = [
     atsRiskLevel: 'safe',
     atsNotes: 'Classic structural hierarchy. Perfect for all parsers.',
   },
+
+  // ── NEW ATS-SAFE TEMPLATES ─────────────────────────────────────────────────
+
+  // 1. Emerald — forest green, relaxed serif
+  {
+    id: 'emerald',
+    name: 'Emerald',
+    description: 'Forest green serif, relaxed & professional',
+    accentColor: '#065f46',
+    fontFamily: 'serif',
+    layout: 'single',
+    headerAlign: 'left',
+    dividerStyle: 'thick',
+    spacing: 'relaxed',
+    skillStyle: 'text',
+    atsRiskLevel: 'safe',
+    atsNotes: 'Single-column serif. Excellent for legal, finance, and consulting ATS.',
+  },
+
+  // 2. Carbon — near-black with bold uppercase sections
+  {
+    id: 'carbon',
+    name: 'Carbon',
+    description: 'Near-black, bold uppercase section headers',
+    accentColor: '#18181b',
+    fontFamily: 'sans-serif',
+    layout: 'single',
+    headerAlign: 'left',
+    dividerStyle: 'border-left',
+    spacing: 'normal',
+    skillStyle: 'pills',
+    atsRiskLevel: 'safe',
+    atsNotes: 'High-contrast, clean hierarchy. Passes all major ATS parsers.',
+  },
+
+  // 3. Rose — warm rose/blush, center-aligned, modern
+  {
+    id: 'rose',
+    name: 'Rose',
+    description: 'Warm rose accent, center-aligned elegant',
+    accentColor: '#be123c',
+    fontFamily: 'sans-serif',
+    layout: 'single',
+    headerAlign: 'center',
+    dividerStyle: 'dot',
+    spacing: 'normal',
+    skillStyle: 'pills',
+    atsRiskLevel: 'safe',
+    atsNotes: 'Pure single-column. Safe for all modern ATS systems.',
+  },
+
+  // 4. Cobalt — vibrant cobalt blue, tight compact
+  {
+    id: 'cobalt',
+    name: 'Cobalt',
+    description: 'Vibrant cobalt blue, compact & punchy',
+    accentColor: '#1d4ed8',
+    fontFamily: 'sans-serif',
+    layout: 'single',
+    headerAlign: 'left',
+    dividerStyle: 'none',
+    spacing: 'tight',
+    skillStyle: 'text',
+    atsRiskLevel: 'safe',
+    atsNotes: 'Dense layout — ideal for experienced candidates with lots of content.',
+  },
+
+  // 5. Stone — warm stone/taupe, serif, sophisticated
+  {
+    id: 'stone',
+    name: 'Stone',
+    description: 'Warm taupe serif, sophisticated & refined',
+    accentColor: '#78716c',
+    fontFamily: 'serif',
+    layout: 'single',
+    headerAlign: 'center',
+    dividerStyle: 'line',
+    spacing: 'relaxed',
+    skillStyle: 'text',
+    atsRiskLevel: 'safe',
+    atsNotes: 'Classic warm palette. Great for creative or marketing roles.',
+  },
+
+  // 6. Nordic — cool slate blue, clean sans, line dividers
+  {
+    id: 'nordic',
+    name: 'Nordic',
+    description: 'Cool slate blue, minimalist Scandinavian',
+    accentColor: '#334155',
+    fontFamily: 'sans-serif',
+    layout: 'single',
+    headerAlign: 'left',
+    dividerStyle: 'line',
+    spacing: 'normal',
+    skillStyle: 'pills',
+    atsRiskLevel: 'safe',
+    atsNotes: 'Neutral palette parses perfectly in Workday, Taleo, and iCIMS.',
+  },
+
+  // 7. Amber — warm amber/gold, serif, border-left sections
+  {
+    id: 'amber',
+    name: 'Amber',
+    description: 'Warm amber gold, border-left section markers',
+    accentColor: '#b45309',
+    fontFamily: 'serif',
+    layout: 'single',
+    headerAlign: 'left',
+    dividerStyle: 'border-left',
+    spacing: 'normal',
+    skillStyle: 'text',
+    atsRiskLevel: 'safe',
+    atsNotes: 'Warm standout palette. Border CSS ignored by ATS — full safety.',
+  },
+
+  // 8. Graphite — medium gray, dot dividers, high info density
+  {
+    id: 'graphite',
+    name: 'Graphite',
+    description: 'Medium graphite gray, dot section dividers',
+    accentColor: '#4b5563',
+    fontFamily: 'sans-serif',
+    layout: 'single',
+    headerAlign: 'left',
+    dividerStyle: 'dot',
+    spacing: 'normal',
+    skillStyle: 'pills',
+    atsRiskLevel: 'safe',
+    atsNotes: 'Neutral and versatile. Works across all industries and ATS.',
+  },
+
+  // 9. Violet — rich purple, centered, creative but safe
+  {
+    id: 'violet',
+    name: 'Violet',
+    description: 'Rich purple, centered creative professional',
+    accentColor: '#6d28d9',
+    fontFamily: 'sans-serif',
+    layout: 'single',
+    headerAlign: 'center',
+    dividerStyle: 'thick',
+    spacing: 'normal',
+    skillStyle: 'pills',
+    atsRiskLevel: 'safe',
+    atsNotes: 'Good for tech, design, and product roles. Single-column for ATS safety.',
+  },
+
+  // 10. Crimson — deep crimson serif, relaxed classic
+  {
+    id: 'crimson',
+    name: 'Crimson',
+    description: 'Deep crimson serif, law & finance classic',
+    accentColor: '#7f1d1d',
+    fontFamily: 'serif',
+    layout: 'single',
+    headerAlign: 'left',
+    dividerStyle: 'line',
+    spacing: 'normal',
+    skillStyle: 'text',
+    atsRiskLevel: 'safe',
+    atsNotes: 'Authoritative and traditional. Preferred style for law, banking, and government roles.',
+  },
 ];
+
 
 export function getTemplate(id: string): TemplateConfig {
   return TEMPLATES.find(t => t.id === id) ?? TEMPLATES[0];
