@@ -134,6 +134,8 @@ export const companies = pgTable(
     logoUrl: text('logo_url'),
     tags: text('tags').array(),
     source: text('source').notNull(),
+    // null = global (visible to all users); set = private to that user (manually added)
+    addedByUserId: text('added_by_user_id').references(() => authUsers.id, { onDelete: 'cascade' }),
     discoveredAt: timestamp('discovered_at').defaultNow(),
     lastScrapedAt: timestamp('last_scraped_at'),
     activeJobsCount: integer('active_jobs_count').default(0),
@@ -407,4 +409,76 @@ export const companyResponseMetrics = pgTable('company_response_metrics', {
   interviewCount: integer('interview_count').notNull().default(0),
   interviewRate: real('interview_rate').notNull().default(0),
   lastUpdatedAt: timestamp('last_updated_at').defaultNow(),
+});
+
+// ── Extension API tokens ──────────────────────────────────────────────────────
+// One token per user. Used by the Chrome extension to auth without session cookies.
+
+// ── Saved / Watchlisted Jobs ──────────────────────────────────────────────────
+// Users can bookmark jobs to apply later or track interest.
+export const savedJobs = pgTable(
+  'saved_jobs',
+  {
+    id:        uuid('id').primaryKey().defaultRandom(),
+    userId:    text('user_id').notNull().references(() => authUsers.id, { onDelete: 'cascade' }),
+    jobId:     uuid('job_id').notNull().references(() => jobs.id, { onDelete: 'cascade' }),
+    note:      text('note'),
+    savedAt:   timestamp('saved_at').defaultNow(),
+  },
+  (t) => [
+    index('saved_jobs_user_idx').on(t.userId),
+    index('saved_jobs_job_idx').on(t.jobId),
+  ]
+);
+
+// ── Job Alerts ────────────────────────────────────────────────────────────────
+// Users create alerts and get notified (in-app badge + future email) when
+// a new job with score >= threshold arrives.
+export const jobAlerts = pgTable('job_alerts', {
+  id:           uuid('id').primaryKey().defaultRandom(),
+  userId:       text('user_id').notNull().references(() => authUsers.id, { onDelete: 'cascade' }),
+  name:         text('name').notNull(),            // e.g. "Senior React Engineer"
+  role:         text('role'),
+  location:     text('location'),
+  remote:       boolean('remote').default(false),
+  minScore:     integer('min_score').default(75),  // notify only when match >= this
+  isActive:     boolean('is_active').default(true),
+  lastTriggeredAt: timestamp('last_triggered_at'),
+  createdAt:    timestamp('created_at').defaultNow(),
+});
+
+export const jobAlertMatches = pgTable('job_alert_matches', {
+  id:        uuid('id').primaryKey().defaultRandom(),
+  alertId:   uuid('alert_id').notNull().references(() => jobAlerts.id, { onDelete: 'cascade' }),
+  jobId:     uuid('job_id').notNull().references(() => jobs.id, { onDelete: 'cascade' }),
+  score:     real('score').notNull(),
+  seen:      boolean('seen').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const extensionTokens = pgTable('extension_tokens', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: text('user_id').notNull().references(() => authUsers.id, { onDelete: 'cascade' }),
+  token: text('token').notNull().unique(),
+  createdAt: timestamp('created_at').defaultNow(),
+  lastUsedAt: timestamp('last_used_at'),
+  expiresAt: timestamp('expires_at'),  // null = never expires
+});
+
+// ── Extension application tracking ───────────────────────────────────────────
+// Tracks applications submitted via the Co-Pilot extension.
+// Separate from the main applications table (which requires a job_id FK).
+
+export const extensionApplications = pgTable('extension_applications', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: text('user_id').notNull().references(() => authUsers.id, { onDelete: 'cascade' }),
+  company: text('company').notNull(),
+  role: text('role').notNull(),
+  atsId: text('ats_id'),          // 'greenhouse' | 'lever' | 'workday' etc
+  url: text('url'),
+  status: text('status').default('in_progress'),  // 'in_progress' | 'submitted' | 'failed'
+  fieldsCount: integer('fields_count').default(0),
+  resumeVersion: text('resume_version'),
+  appliedAt: timestamp('applied_at').defaultNow(),
+  metadata: jsonb('metadata'),
 });

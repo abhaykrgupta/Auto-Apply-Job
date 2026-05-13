@@ -7,13 +7,28 @@ import { Badge } from '@/components/ui/badge';
 import { buttonVariants, Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SendHorizontal, Download, Search, CheckSquare, ChevronDown, Play, Trash2 } from 'lucide-react';
+import { SendHorizontal, Download, Search, CheckSquare, ChevronDown, Play, Trash2, Puzzle } from 'lucide-react';
 import Link from 'next/link';
 import { timeAgo } from '@/lib/utils/helpers';
 import { cn } from '@/lib/utils';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useState, useMemo } from 'react';
+
+const ATS_COLORS: Record<string, string> = {
+  greenhouse:      'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+  lever:           'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+  ashby:           'bg-violet-100 text-violet-800',
+  workday:         'bg-orange-100 text-orange-800',
+  linkedin:        'bg-sky-100 text-sky-800',
+  smartrecruiters: 'bg-teal-100 text-teal-800',
+};
+
+const EXT_STATUS_META: Record<string, { label: string; color: string }> = {
+  in_progress: { label: 'In Progress', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' },
+  submitted:   { label: 'Submitted',   color: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' },
+  failed:      { label: 'Failed',      color: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300' },
+};
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
   pending:              { label: 'Queued',             color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300' },
@@ -59,6 +74,16 @@ export default function ApplicationsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkMenuOpen, setBulkMenuOpen] = useState(false);
+  const [tab, setTab] = useState<'auto' | 'copilot'>('auto');
+
+  const { data: extApps, isLoading: extLoading } = useQuery({
+    queryKey: ['extension-applications'],
+    queryFn: async () => {
+      const res = await fetch('/api/applications/extension');
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
 
   const filtered = useMemo(() => {
     if (!applications) return [];
@@ -180,7 +205,9 @@ export default function ApplicationsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Applications</h2>
-          <p className="text-muted-foreground mt-1 text-sm">{applications?.length ?? 0} total applications</p>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {applications?.length ?? 0} auto-applied · {extApps?.length ?? 0} via Co-Pilot
+          </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {pendingCount > 0 && (
@@ -212,6 +239,93 @@ export default function ApplicationsPage() {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-border">
+        <button
+          onClick={() => setTab('auto')}
+          className={cn(
+            'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
+            tab === 'auto' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+          )}
+        >
+          Auto-Applied ({applications?.length ?? 0})
+        </button>
+        <button
+          onClick={() => setTab('copilot')}
+          className={cn(
+            'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5',
+            tab === 'copilot' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+          )}
+        >
+          <Puzzle className="h-3.5 w-3.5" />
+          Co-Pilot ({extApps?.length ?? 0})
+        </button>
+      </div>
+
+      {/* Co-Pilot Tab */}
+      {tab === 'copilot' && (
+        extLoading ? <LoadingSpinner /> :
+        !extApps?.length ? (
+          <EmptyState
+            icon={Puzzle}
+            title="No Co-Pilot applications yet"
+            description="Install the Chrome extension and use Co-Pilot to fill applications on Greenhouse, Lever, Workday and 20+ other ATS platforms."
+            action={<Link href="/settings" className={cn(buttonVariants())}>Get Chrome Extension</Link>}
+          />
+        ) : (
+          <div className="rounded-lg border border-border overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-sm">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="p-3 text-left font-medium">Role</th>
+                    <th className="p-3 text-left font-medium">Company</th>
+                    <th className="p-3 text-left font-medium">ATS</th>
+                    <th className="p-3 text-left font-medium">Status</th>
+                    <th className="p-3 text-left font-medium hidden sm:table-cell">Fields Filled</th>
+                    <th className="p-3 text-left font-medium hidden md:table-cell">Applied</th>
+                    <th className="p-3 text-left font-medium">Link</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {extApps.map((app: any) => (
+                    <tr key={app.id} className="border-t border-border hover:bg-accent/50 transition-colors">
+                      <td className="p-3 font-medium max-w-[160px] truncate">{app.role}</td>
+                      <td className="p-3 text-muted-foreground">{app.company}</td>
+                      <td className="p-3">
+                        {app.atsId ? (
+                          <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-medium capitalize', ATS_COLORS[app.atsId] ?? 'bg-gray-100 text-gray-700')}>
+                            {app.atsId}
+                          </span>
+                        ) : '—'}
+                      </td>
+                      <td className="p-3">
+                        <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap', EXT_STATUS_META[app.status ?? 'in_progress']?.color)}>
+                          {EXT_STATUS_META[app.status ?? 'in_progress']?.label ?? app.status}
+                        </span>
+                      </td>
+                      <td className="p-3 text-muted-foreground hidden sm:table-cell">{app.fieldsCount ?? '—'}</td>
+                      <td className="p-3 text-muted-foreground hidden md:table-cell">
+                        {app.appliedAt ? timeAgo(app.appliedAt) : '—'}
+                      </td>
+                      <td className="p-3">
+                        {app.url ? (
+                          <a href={app.url} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
+                            View
+                          </a>
+                        ) : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      )}
+
+      {/* Auto-Applied Tab */}
+      {tab === 'auto' && <>
       {/* Filters */}
       {applications && applications.length > 0 && (
         <div className="flex flex-col sm:flex-row gap-3">
@@ -323,6 +437,7 @@ export default function ApplicationsPage() {
       )}
 
       {/* Bulk action bar */}
+      </>}
       {selectedIds.size > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center gap-3 border-t border-border bg-background/95 backdrop-blur px-6 py-4 shadow-lg">
           <CheckSquare className="h-4 w-4 text-primary shrink-0" />

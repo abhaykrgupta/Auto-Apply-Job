@@ -4,12 +4,28 @@ import { db } from '@/lib/db';
 import { resumes, profile } from '@/lib/db/schema';
 import { parseResume } from '@/lib/openai/resume-parser';
 import { saveUploadedFile } from '@/lib/utils/file-upload';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { auth } from '@/lib/auth';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const pdfParse = require('pdf-parse/lib/pdf-parse.js') as (buf: Buffer) => Promise<{ text: string }>;
 
+/** Get the profile for the current session user, or null. */
+async function getCurrentProfile() {
+  const session = await auth();
+  if (!session?.user?.id) return null;
+  const [row] = await db
+    .select()
+    .from(profile)
+    .where(eq(profile.userId, session.user.id))
+    .limit(1);
+  return row ?? null;
+}
+
 export async function uploadResume(formData: FormData) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error('Unauthorized');
+
   const file = formData.get('resume') as File;
   if (!file) throw new Error('No file provided');
 
@@ -18,11 +34,21 @@ export async function uploadResume(formData: FormData) {
 
   const { filePath, fileUrl } = await saveUploadedFile(buffer, file.name);
 
-  let [existingProfile] = await db.select().from(profile).limit(1);
-  if (!existingProfile) {
-    [existingProfile] = await db
+  // Find or create a profile scoped to the current user
+  let [userProfile] = await db
+    .select()
+    .from(profile)
+    .where(eq(profile.userId, session.user.id))
+    .limit(1);
+
+  if (!userProfile) {
+    [userProfile] = await db
       .insert(profile)
-      .values({ name: 'User', email: 'user@example.com' })
+      .values({
+        userId: session.user.id,
+        name:   session.user.name  ?? 'User',
+        email:  session.user.email ?? 'user@example.com',
+      })
       .returning();
   }
 
@@ -40,19 +66,18 @@ export async function uploadResume(formData: FormData) {
     parseWarning = 'Resume text extraction failed. The file was saved but could not be parsed for auto-fill.';
   }
 
-  // Use filename (without extension) as default label
   const baseName = file.name.replace(/\.[^.]+$/, '');
 
   const [resume] = await db
     .insert(resumes)
     .values({
-      profileId: existingProfile.id,
-      fileName: file.name,
+      profileId: userProfile.id,
+      fileName:  file.name,
       filePath,
       fileUrl,
       parsedData,
-      label: baseName,
-      isActive: true,
+      label:     baseName,
+      isActive:  true,
     })
     .returning();
 
@@ -61,29 +86,52 @@ export async function uploadResume(formData: FormData) {
 }
 
 export async function getResumes() {
-  return db.select().from(resumes).orderBy(resumes.createdAt);
+  const p = await getCurrentProfile();
+  if (!p) return [];
+  return db.select().from(resumes).where(eq(resumes.profileId, p.id)).orderBy(resumes.createdAt);
 }
 
 export async function getActiveResumes() {
-  return db.select().from(resumes).where(eq(resumes.isActive, true));
+  const p = await getCurrentProfile();
+  if (!p) return [];
+  return db.select().from(resumes).where(and(eq(resumes.profileId, p.id), eq(resumes.isActive, true)));
 }
 
 export async function getResumeById(id: string) {
-  const [resume] = await db.select().from(resumes).where(eq(resumes.id, id));
+  const p = await getCurrentProfile();
+  if (!p) throw new Error('Unauthorized');
+  const [resume] = await db
+    .select()
+    .from(resumes)
+    .where(and(eq(resumes.id, id), eq(resumes.profileId, p.id)))
+    .limit(1);
+  if (!resume) throw new Error('Resume not found');
   return resume;
 }
 
 export async function deleteResume(id: string) {
-  await db.delete(resumes).where(eq(resumes.id, id));
+  const p = await getCurrentProfile();
+  if (!p) throw new Error('Unauthorized');
+  await db.delete(resumes).where(and(eq(resumes.id, id), eq(resumes.profileId, p.id)));
   revalidatePath('/resume');
 }
 
 export async function toggleResumeActive(id: string, isActive: boolean) {
-  await db.update(resumes).set({ isActive, updatedAt: new Date() }).where(eq(resumes.id, id));
+  const p = await getCurrentProfile();
+  if (!p) throw new Error('Unauthorized');
+  await db
+    .update(resumes)
+    .set({ isActive, updatedAt: new Date() })
+    .where(and(eq(resumes.id, id), eq(resumes.profileId, p.id)));
   revalidatePath('/resume');
 }
 
 export async function updateResumeLabel(id: string, label: string) {
-  await db.update(resumes).set({ label: label.trim() || null, updatedAt: new Date() }).where(eq(resumes.id, id));
+  const p = await getCurrentProfile();
+  if (!p) throw new Error('Unauthorized');
+  await db
+    .update(resumes)
+    .set({ label: label.trim() || null, updatedAt: new Date() })
+    .where(and(eq(resumes.id, id), eq(resumes.profileId, p.id)));
   revalidatePath('/resume');
 }

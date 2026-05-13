@@ -259,14 +259,27 @@ function profileBanner(profile) {
 
 async function syncProfile(dashboardUrl) {
   const btn = document.getElementById('sync-btn');
+
+  // Check if we have a saved token
+  const { extensionToken } = await new Promise((r) => chrome.storage.local.get('extensionToken', r));
+
+  if (!extensionToken) {
+    // Prompt user to paste token from dashboard Settings → Chrome Extension
+    const token = prompt('Paste your Extension Token from Dashboard → Settings → Chrome Extension:');
+    if (!token?.trim()) return;
+    await new Promise((r) => chrome.runtime.sendMessage({ type: 'SAVE_TOKEN', token: token.trim() }, r));
+  }
+
   if (btn) { btn.textContent = '⟳ Syncing...'; btn.disabled = true; }
 
   chrome.runtime.sendMessage({ type: 'SYNC_PROFILE' }, (res) => {
     if (res?.success) {
-      init(); // re-render with new profile
+      init();
     } else {
       if (btn) { btn.textContent = '⟳ Sync Profile'; btn.disabled = false; }
-      alert('Sync failed. Make sure dashboard is running and you are logged in.');
+      // Clear bad token so user can re-enter
+      chrome.storage.local.remove('extensionToken');
+      alert('Sync failed. Check your token in Dashboard → Settings → Chrome Extension.');
     }
   });
 }

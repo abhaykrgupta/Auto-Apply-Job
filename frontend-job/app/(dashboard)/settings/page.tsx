@@ -5,7 +5,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useState, useEffect, type ChangeEvent } from 'react';
 import { toast } from 'sonner';
-import { Key, Bot, Globe, Bell, Briefcase, CheckCircle2, Loader2, Link2, Unlink, RefreshCw } from 'lucide-react';
+import { Key, Bot, Globe, Bell, Briefcase, CheckCircle2, Loader2, Link2, Unlink, RefreshCw, Puzzle, Copy, RotateCcw } from 'lucide-react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { format } from 'date-fns';
 
@@ -221,6 +221,110 @@ function OpenAITestButton() {
   );
 }
 
+/* ─── Chrome Extension connect ─── */
+function ExtensionConnectSection() {
+  const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [revoking, setRevoking] = useState(false);
+
+  async function fetchToken() {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/copilot/token');
+      const d = await res.json();
+      setToken(d.token ?? null);
+    } catch { toast.error('Failed to generate token'); }
+    finally { setLoading(false); }
+  }
+
+  async function revokeToken() {
+    setRevoking(true);
+    try {
+      await fetch('/api/copilot/token', { method: 'DELETE' });
+      setToken(null);
+      toast.info('Extension token revoked');
+    } catch { toast.error('Failed to revoke token'); }
+    finally { setRevoking(false); }
+  }
+
+  function copyToken() {
+    if (!token) return;
+    navigator.clipboard.writeText(token);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    toast.success('Token copied — paste it in the extension popup');
+  }
+
+  return (
+    <Row title="Chrome Extension" description="Connect the Co-Pilot extension to sync your profile and track applications">
+      <div className="space-y-4">
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/30 border border-border/40">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 shrink-0">
+            <Puzzle className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <p className="text-[14px] font-medium leading-tight">Job Agent Co-Pilot</p>
+            <p className="text-[12px] text-foreground/45 mt-0.5 leading-relaxed">
+              Auto-fills job applications on Greenhouse, Lever, Workday, Ashby, LinkedIn and 15+ more platforms.
+            </p>
+          </div>
+        </div>
+
+        {!token ? (
+          <button
+            onClick={fetchToken}
+            disabled={loading}
+            className="flex items-center gap-2 h-10 px-4 rounded-xl bg-foreground text-background text-[13px] font-semibold hover:bg-foreground/88 disabled:opacity-40 transition-all duration-150"
+          >
+            {loading
+              ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Generating…</>
+              : <><Link2 className="h-3.5 w-3.5" />Generate Extension Token</>
+            }
+          </button>
+        ) : (
+          <div className="space-y-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground/50 mb-2">Your Extension Token</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 h-10 flex items-center px-3 rounded-xl bg-muted/60 border border-border/40 text-[12px] font-mono text-foreground/70 overflow-hidden text-ellipsis whitespace-nowrap">
+                  {token}
+                </code>
+                <button
+                  onClick={copyToken}
+                  title="Copy token"
+                  className="h-10 w-10 flex items-center justify-center rounded-xl border border-border/40 bg-muted/30 hover:bg-muted/60 transition-colors shrink-0"
+                >
+                  {copied
+                    ? <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    : <Copy className="h-4 w-4 text-foreground/50" />
+                  }
+                </button>
+                <button
+                  onClick={revokeToken}
+                  disabled={revoking}
+                  title="Revoke token"
+                  className="h-10 w-10 flex items-center justify-center rounded-xl border border-border/40 bg-muted/30 hover:bg-destructive/10 hover:border-destructive/30 transition-colors shrink-0"
+                >
+                  {revoking
+                    ? <Loader2 className="h-4 w-4 animate-spin text-foreground/40" />
+                    : <RotateCcw className="h-4 w-4 text-foreground/40" />
+                  }
+                </button>
+              </div>
+            </div>
+            <ol className="text-[12px] text-foreground/50 space-y-1 list-decimal list-inside leading-relaxed">
+              <li>Open the extension popup (click 🤖 in Chrome toolbar)</li>
+              <li>Click <strong className="text-foreground/70">Sync Profile</strong> — it will use this token automatically</li>
+              <li>Your profile syncs from this dashboard to the extension</li>
+            </ol>
+          </div>
+        )}
+      </div>
+    </Row>
+  );
+}
+
 export default function SettingsPage() {
   const [s, setS] = useState<AppSettings>(DEFAULTS);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -402,6 +506,9 @@ export default function SettingsPage() {
           <p className="mt-1.5 text-[12px] text-foreground/38">Delay between requests to job boards. 2000ms recommended.</p>
         </div>
       </Row>
+
+      {/* Chrome Extension */}
+      <ExtensionConnectSection />
 
       {/* Save */}
       <div className="flex justify-end pt-6">

@@ -1,12 +1,26 @@
 import { quickMatchSchema } from '@/lib/validations/jobs';
 import { NextRequest, NextResponse } from 'next/server';
-import { scoreJobMatch } from '@/lib/openai/job-matcher';
+import { scoreJobMatchEmbedding } from '@/lib/openai/embedding-matcher';
 import { getActiveResumes, getResumes } from '@/lib/actions/resume';
 import { findBestResume } from '@/lib/utils/resume-matcher';
+import { getCopilotUser } from '@/lib/copilot-auth';
+import { checkPlanLimit, incrementUsage } from '@/lib/rate-limit/plan-limits';
 
 // Called by the Chrome extension to score a job on-the-fly
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getCopilotUser(req);
+    if (userId) {
+      const limit = await checkPlanLimit(userId, 'quickMatchPerDay');
+      if (!limit.allowed) {
+        return NextResponse.json(
+          { error: `Daily match limit reached (${limit.current}/${limit.limit}). Upgrade to Pro for unlimited matches.`, plan: limit.plan },
+          { status: 429 },
+        );
+      }
+      incrementUsage(userId, 'quickMatchPerDay', 'day');
+    }
+
     const parsed = quickMatchSchema.safeParse(await req.json());
     if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     const job = parsed.data;
@@ -55,7 +69,7 @@ export async function POST(req: NextRequest) {
       updatedAt: new Date(),
     };
 
-    const match = await scoreJobMatch(jobObj, resume);
+    const match = await scoreJobMatchEmbedding(jobObj, resume.parsedData as Record<string, unknown>);
 
     return NextResponse.json({
       score: match.score,

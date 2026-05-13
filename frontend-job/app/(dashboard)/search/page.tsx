@@ -12,7 +12,7 @@ import { Search, Plus, X, Zap, Bookmark, Play } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { SearchProgressModal } from '@/components/search/SearchProgressModal';
 
-const ALL_SOURCES = [
+const GLOBAL_SOURCES = [
   { id: 'remoteok', label: 'RemoteOK' },
   { id: 'weworkremotely', label: 'WeWorkRemotely' },
   { id: 'indeed', label: 'Indeed' },
@@ -21,6 +21,17 @@ const ALL_SOURCES = [
   { id: 'greenhouse', label: 'Greenhouse' },
   { id: 'lever', label: 'Lever' },
 ];
+
+const INDIA_SOURCES = [
+  { id: 'naukri', label: 'Naukri' },
+  { id: 'internshala', label: 'Internshala' },
+  { id: 'foundit', label: 'Foundit' },
+  { id: 'timesjobs', label: 'TimesJobs' },
+  { id: 'shine', label: 'Shine' },
+  { id: 'freshersworld', label: 'Freshersworld' },
+];
+
+const ALL_SOURCES = [...GLOBAL_SOURCES, ...INDIA_SOURCES];
 
 export default function SearchPage() {
   const { mutate: scrapeJobs, isPending } = useScrapeJobs();
@@ -340,8 +351,10 @@ export default function SearchPage() {
           <p className="text-sm text-muted-foreground mb-3">
             Select which platforms to search. RemoteOK and WeWorkRemotely use free APIs (no scraping needed).
           </p>
+
+          {/* Global sources */}
           <div className="flex flex-wrap gap-2">
-            {ALL_SOURCES.map(({ id, label }) => (
+            {GLOBAL_SOURCES.map(({ id, label }) => (
               <button
                 key={id}
                 onClick={() => toggleSource(id)}
@@ -355,6 +368,29 @@ export default function SearchPage() {
               </button>
             ))}
           </div>
+
+          {/* India platforms */}
+          <div className="mt-4">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+              🇮🇳 India Platforms
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {INDIA_SOURCES.map(({ id, label }) => (
+                <button
+                  key={id}
+                  onClick={() => toggleSource(id)}
+                  className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                    selectedSources.includes(id)
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'border-border text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <p className="text-xs text-muted-foreground mt-2">
             {selectedSources.length} source{selectedSources.length !== 1 ? 's' : ''} selected
           </p>

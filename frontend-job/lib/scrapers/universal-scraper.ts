@@ -12,6 +12,11 @@ import { TheMuseScraper } from './sources/themuse';
 import { ArbeitnowScraper } from './sources/arbeitnow';
 import { GreenhouseScraper } from './greenhouse';
 import { LeverScraper } from './lever';
+import { IntershalaScraper } from './sources/internshala';
+import { FounditScraper } from './sources/foundit';
+import { TimesJobsScraper } from './sources/timesjobs';
+import { ShineScraper } from './sources/shine';
+import { FreersworldScraper } from './sources/freshersworld';
 import { type ScrapedJob } from './base-scraper';
 import { logger } from '@/lib/utils/logger';
 
@@ -26,7 +31,12 @@ export type ScraperSource =
   | 'weworkremotely'
   | 'naukri'
   | 'greenhouse'
-  | 'lever';
+  | 'lever'
+  | 'internshala'
+  | 'foundit'
+  | 'timesjobs'
+  | 'shine'
+  | 'freshersworld';
 
 export interface UniversalScrapeFilters {
   query?: string;
@@ -36,6 +46,7 @@ export interface UniversalScrapeFilters {
   boardUrls?: string[];
   limit?: number;
   datePosted?: string;
+  experience?: string;
 }
 
 export interface UniversalScrapeResult {
@@ -57,6 +68,7 @@ export class UniversalScraper {
       remote: filters.remote ? 'remote' : undefined,
       limit: filters.limit ?? 50,
       datePosted: filters.datePosted,
+      experience: filters.experience,
     };
 
     for (const source of sources) {
@@ -81,6 +93,16 @@ export class UniversalScraper {
           scraped = await new WeWorkRemotelyScraper().searchJobs(jobFilters);
         } else if (source === 'naukri') {
           scraped = await new NaukriScraper().searchJobs(jobFilters);
+        } else if (source === 'internshala') {
+          scraped = await new IntershalaScraper().searchJobs(jobFilters);
+        } else if (source === 'foundit') {
+          scraped = await new FounditScraper().searchJobs(jobFilters);
+        } else if (source === 'timesjobs') {
+          scraped = await new TimesJobsScraper().searchJobs(jobFilters);
+        } else if (source === 'shine') {
+          scraped = await new ShineScraper().searchJobs(jobFilters);
+        } else if (source === 'freshersworld') {
+          scraped = await new FreersworldScraper().searchJobs(jobFilters);
         } else if (source === 'greenhouse' && filters.boardUrls?.length) {
           const gh = new GreenhouseScraper();
           for (const url of filters.boardUrls.filter((u) => u.includes('greenhouse'))) {

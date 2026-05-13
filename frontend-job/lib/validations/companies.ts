@@ -14,7 +14,8 @@ export const companyAutoDiscoverSchema = z.object({
 export const companyDiscoverSchema = z.object({
   url: z.string().url().optional(),
   sources: z.array(z.string()).optional(),
-  skipAtsDetection: z.boolean().optional()
+  skipAtsDetection: z.boolean().optional(),
+  limit: z.number().min(1).max(200).optional(),
 }).strip();
 
 export const companyScrapeSchema = z.object({
@@ -23,4 +24,5 @@ export const companyScrapeSchema = z.object({
   query: z.string().optional(),
   experience: z.string().optional(),
   locationPref: z.string().optional(),
+  country: z.string().optional(),
 }).strip();

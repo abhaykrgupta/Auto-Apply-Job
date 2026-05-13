@@ -176,6 +176,70 @@ const migrations = [
   `ALTER TABLE profile ADD COLUMN IF NOT EXISTS user_id TEXT REFERENCES auth_users(id) ON DELETE CASCADE`,
   `ALTER TABLE profile ADD COLUMN IF NOT EXISTS avatar_url TEXT`,
   `ALTER TABLE profile ADD COLUMN IF NOT EXISTS bio TEXT`,
+
+  // ── Extension tokens ──────────────────────────────────────────────────────
+  `CREATE TABLE IF NOT EXISTS extension_tokens (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id      TEXT NOT NULL REFERENCES auth_users(id) ON DELETE CASCADE,
+    token        TEXT NOT NULL UNIQUE,
+    created_at   TIMESTAMPTZ DEFAULT NOW(),
+    last_used_at TIMESTAMPTZ,
+    expires_at   TIMESTAMPTZ
+  )`,
+  `CREATE INDEX IF NOT EXISTS extension_tokens_user_id_idx ON extension_tokens (user_id)`,
+
+  // ── Extension applications (Co-Pilot tracking) ────────────────────────────
+  `CREATE TABLE IF NOT EXISTS extension_applications (
+    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id        TEXT NOT NULL REFERENCES auth_users(id) ON DELETE CASCADE,
+    company        TEXT NOT NULL,
+    role           TEXT NOT NULL,
+    ats_id         TEXT,
+    url            TEXT,
+    status         TEXT DEFAULT 'in_progress',
+    fields_count   INTEGER DEFAULT 0,
+    resume_version TEXT,
+    applied_at     TIMESTAMPTZ DEFAULT NOW(),
+    metadata       JSONB
+  )`,
+  `CREATE INDEX IF NOT EXISTS ext_apps_user_id_idx  ON extension_applications (user_id)`,
+  `CREATE INDEX IF NOT EXISTS ext_apps_applied_at_idx ON extension_applications (applied_at DESC)`,
+
+  // ── Saved Jobs ────────────────────────────────────────────────────────────
+  `CREATE TABLE IF NOT EXISTS saved_jobs (
+    id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id  TEXT NOT NULL REFERENCES auth_users(id) ON DELETE CASCADE,
+    job_id   UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    note     TEXT,
+    saved_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, job_id)
+  )`,
+  `CREATE INDEX IF NOT EXISTS saved_jobs_user_idx ON saved_jobs (user_id)`,
+  `CREATE INDEX IF NOT EXISTS saved_jobs_job_idx  ON saved_jobs (job_id)`,
+
+  // ── Job Alerts ────────────────────────────────────────────────────────────
+  `CREATE TABLE IF NOT EXISTS job_alerts (
+    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id           TEXT NOT NULL REFERENCES auth_users(id) ON DELETE CASCADE,
+    name              TEXT NOT NULL,
+    role              TEXT,
+    location          TEXT,
+    remote            BOOLEAN DEFAULT FALSE,
+    min_score         INTEGER DEFAULT 75,
+    is_active         BOOLEAN DEFAULT TRUE,
+    last_triggered_at TIMESTAMPTZ,
+    created_at        TIMESTAMPTZ DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS job_alert_matches (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    alert_id   UUID NOT NULL REFERENCES job_alerts(id) ON DELETE CASCADE,
+    job_id     UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    score      REAL NOT NULL,
+    seen       BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )`,
+  `CREATE INDEX IF NOT EXISTS job_alert_matches_alert_idx ON job_alert_matches (alert_id)`,
+  `CREATE INDEX IF NOT EXISTS job_alert_matches_seen_idx  ON job_alert_matches (seen)`,
 ];
 
 async function run() {

@@ -51,34 +51,34 @@
 
 /* ── Light Theme — Cool Slate Tint ─────────────────── */
 :root {
-  /* Background: not pure white, slightly warm-cool tint */
-  --background: oklch(0.985 0.003 250);
-  --foreground: oklch(0.09 0.015 255);
+  /* Background: slightly off-white with cool tint */
+  --background: oklch(0.972 0.004 250);
+  --foreground: oklch(0.08 0.018 255);
 
-  --card: oklch(0.995 0.002 255);
-  --card-foreground: oklch(0.09 0.015 255);
-  --popover: oklch(0.995 0.002 255);
-  --popover-foreground: oklch(0.09 0.015 255);
+  --card: oklch(1.0 0.0 255);
+  --card-foreground: oklch(0.08 0.018 255);
+  --popover: oklch(1.0 0.0 255);
+  --popover-foreground: oklch(0.08 0.018 255);
 
-  /* Deep Indigo-Violet accent — restrained, not neon */
+  /* Deep Indigo-Violet accent */
   --primary: oklch(0.44 0.195 268);
   --primary-foreground: oklch(0.99 0.002 255);
 
-  --secondary: oklch(0.94 0.008 255);
-  --secondary-foreground: oklch(0.35 0.05 255);
+  --secondary: oklch(0.92 0.010 255);
+  --secondary-foreground: oklch(0.30 0.05 255);
 
-  /* Muted: cool-tinted gray, not flat gray */
-  --muted: oklch(0.94 0.006 255);
-  --muted-foreground: oklch(0.40 0.02 255);
+  /* Muted: cool-tinted gray */
+  --muted: oklch(0.92 0.008 255);
+  --muted-foreground: oklch(0.36 0.022 255);
 
-  --accent: oklch(0.93 0.012 268);
-  --accent-foreground: oklch(0.38 0.12 268);
+  --accent: oklch(0.91 0.014 268);
+  --accent-foreground: oklch(0.35 0.14 268);
 
   --destructive: oklch(0.58 0.22 27);
 
-  /* Borders: very subtle cool tint */
-  --border: oklch(0.88 0.008 255);
-  --input: oklch(0.88 0.008 255);
+  /* Borders: clearly visible in light mode */
+  --border: oklch(0.82 0.010 255);
+  --input: oklch(0.82 0.010 255);
   --ring: oklch(0.44 0.195 268);
 
   --chart-1: oklch(0.58 0.20 268);
@@ -89,13 +89,13 @@
 
   --radius: 0.6rem;
 
-  --sidebar: oklch(0.975 0.004 255);
-  --sidebar-foreground: oklch(0.09 0.015 255);
+  --sidebar: oklch(0.99 0.002 255);
+  --sidebar-foreground: oklch(0.08 0.018 255);
   --sidebar-primary: oklch(0.44 0.195 268);
   --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.93 0.012 268);
-  --sidebar-accent-foreground: oklch(0.38 0.12 268);
-  --sidebar-border: oklch(0.88 0.008 255);
+  --sidebar-accent: oklch(0.91 0.014 268);
+  --sidebar-accent-foreground: oklch(0.35 0.14 268);
+  --sidebar-border: oklch(0.82 0.010 255);
   --sidebar-ring: oklch(0.44 0.195 268);
 }
 
@@ -178,15 +178,42 @@
 
 /* ── Custom Scrollbar ────────────────────────────────── */
 @layer utilities {
-  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  /* Global scrollbar — thin + subtle */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    background: oklch(0.72 0 0 / 35%);
+    background: oklch(0.72 0 0 / 28%);
     border-radius: 999px;
   }
-  ::-webkit-scrollbar-thumb:hover { background: oklch(0.60 0 0 / 50%); }
-  .dark ::-webkit-scrollbar-thumb { background: oklch(1 0 0 / 12%); }
-  .dark ::-webkit-scrollbar-thumb:hover { background: oklch(1 0 0 / 22%); }
+  ::-webkit-scrollbar-thumb:hover { background: oklch(0.55 0 0 / 45%); }
+  .dark ::-webkit-scrollbar-thumb { background: oklch(1 0 0 / 10%); }
+  .dark ::-webkit-scrollbar-thumb:hover { background: oklch(1 0 0 / 20%); }
+
+  /* Sidebar scrollbar — 2px pill, only visible on hover of the sidebar */
+  .sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 200ms ease;
+  }
+  .sidebar-scroll:hover {
+    scrollbar-color: oklch(0.65 0.010 255 / 45%) transparent;
+  }
+  .sidebar-scroll::-webkit-scrollbar { width: 3px; }
+  .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+  .sidebar-scroll::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 999px;
+    transition: background 200ms ease;
+  }
+  .sidebar-scroll:hover::-webkit-scrollbar-thumb {
+    background: oklch(0.65 0.010 255 / 40%);
+  }
+  .dark .sidebar-scroll:hover {
+    scrollbar-color: oklch(1 0 0 / 15%) transparent;
+  }
+  .dark .sidebar-scroll:hover::-webkit-scrollbar-thumb {
+    background: oklch(1 0 0 / 15%);
+  }
 
   /* Dashboard page container */
   .page-container {

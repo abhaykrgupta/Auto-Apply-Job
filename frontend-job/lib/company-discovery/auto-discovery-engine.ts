@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { discoveryEngine } from './discovery-engine';
 import { logger } from '@/lib/utils/logger';
 
-export type DiscoverySource = 'yc' | 'github' | 'vc' | 'wellfound' | 'seed';
+export type DiscoverySource = 'yc' | 'github' | 'vc' | 'wellfound' | 'seed' | 'inc42' | 'india-vcs' | 'nasscom';
 
 export interface AutoDiscoveryOptions {
   sources?: DiscoverySource[];
@@ -28,7 +28,7 @@ export async function runAutoDiscovery(
   options: AutoDiscoveryOptions = {}
 ): Promise<AutoDiscoveryResult> {
   const {
-    sources = ['seed', 'yc', 'github', 'vc', 'wellfound'],
+    sources = ['seed', 'yc', 'github', 'vc', 'wellfound', 'inc42', 'india-vcs', 'nasscom'],
     skipAtsDetection = true,
     triggeredBy = 'manual',
   } = options;

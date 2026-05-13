@@ -1,8 +1,8 @@
 
 
 import { db } from '@/lib/db';
-import { companies } from '@/lib/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { companies, jobs } from '@/lib/db/schema';
+import { eq, desc, gte, count, sum } from 'drizzle-orm';
 import { discoveryEngine } from '@/lib/company-discovery/discovery-engine';
 
 export async function getCompanies() {
@@ -10,17 +10,29 @@ export async function getCompanies() {
 }
 
 export async function getCompanyStats() {
-  const all = await db.select().from(companies);
   const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  // Run all queries in parallel for performance
+  const [all, jobsThisWeek] = await Promise.all([
+    db.select().from(companies),
+    db
+      .select({ count: count() })
+      .from(jobs)
+      .where(gte(jobs.createdAt, oneWeekAgo)),
+  ]);
+
+  const totalJobs = all.reduce((s, c) => s + (c.activeJobsCount ?? 0), 0);
 
   return {
     total: all.length,
     withJobs: all.filter((c) => (c.activeJobsCount ?? 0) > 0).length,
-    totalJobs: all.reduce((sum, c) => sum + (c.activeJobsCount ?? 0), 0),
-    thisWeek: all.filter((c) => c.discoveredAt && new Date(c.discoveredAt) >= oneWeekAgo).length,
-    easyApply: all.filter(
-      (c) => c.atsType === 'greenhouse' || c.atsType === 'lever' || c.atsType === 'ashby'
-    ).length,
+    totalJobs,
+    // Jobs found (scraped/fetched) in the last 7 days — not companies discovered
+    thisWeek: jobsThisWeek[0]?.count ?? 0,
+    // Jobs at companies with streamlined apply (Greenhouse / Lever / Ashby)
+    easyApply: all
+      .filter((c) => ['greenhouse', 'lever', 'ashby'].includes(c.atsType ?? ''))
+      .reduce((s, c) => s + (c.activeJobsCount ?? 0), 0),
     bySource: all.reduce((acc, c) => {
       const src = c.source ?? 'unknown';
       acc[src] = (acc[src] ?? 0) + 1;

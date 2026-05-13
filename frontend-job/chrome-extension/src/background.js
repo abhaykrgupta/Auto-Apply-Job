@@ -181,6 +181,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   return true;
 });
 
+async function getAuthHeaders() {
+  const { extensionToken } = await chrome.storage.local.get('extensionToken');
+  return extensionToken
+    ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${extensionToken}` }
+    : { 'Content-Type': 'application/json' };
+}
+
 async function handleMessage(message, sendResponse) {
   const { dashboardUrl } = await chrome.storage.sync.get('dashboardUrl');
   const base = dashboardUrl ?? 'http://localhost:3000';
@@ -238,15 +245,24 @@ async function handleMessage(message, sendResponse) {
 
       // Syncs profile from the Next.js dashboard (called on "Connect Extension")
       case 'SYNC_PROFILE': {
+        // If a token was passed (first-time connect), save it first
+        if (message.token) {
+          await chrome.storage.local.set({ extensionToken: message.token });
+        }
+        const headers = await getAuthHeaders();
         const res = await fetch(`${base}/api/profile`, {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(message.token ? { Authorization: `Bearer ${message.token}` } : {}),
-          },
+          headers,
           signal: AbortSignal.timeout(10000),
         });
         if (!res.ok) { sendResponse({ success: false, error: 'Dashboard sync failed' }); break; }
         await saveProfile(await res.json());
+        sendResponse({ success: true });
+        break;
+      }
+
+      // Save token (called from popup after user pastes it)
+      case 'SAVE_TOKEN': {
+        await chrome.storage.local.set({ extensionToken: message.token });
         sendResponse({ success: true });
         break;
       }
@@ -260,9 +276,10 @@ async function handleMessage(message, sendResponse) {
 
         // Best-effort POST to dashboard
         try {
+          const headers = await getAuthHeaders();
           await fetch(`${base}/api/applications`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify(entry),
             signal: AbortSignal.timeout(8000),
           });

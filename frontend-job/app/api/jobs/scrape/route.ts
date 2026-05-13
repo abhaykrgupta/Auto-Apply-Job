@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
         boardUrls: body.boardUrls,
         limit: body.limit ?? 50,
         datePosted: body.datePosted,
+        experience: body.experience,
       });
       return NextResponse.json({ success: true, ...result });
     }

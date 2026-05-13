@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/db';
 import { jobs, jobMatches, resumes } from '@/lib/db/schema';
-import { scoreJobMatch } from '@/lib/openai/job-matcher';
+import { scoreJobMatchEmbedding } from '@/lib/openai/embedding-matcher';
 import { getEmbedding } from '@/lib/openai/embeddings';
 import { eq, desc, and, gte, ilike } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
@@ -32,7 +32,7 @@ export async function matchJobsToResume(resumeId: string) {
         await db.update(jobs).set({ jobEmbedding }).where(eq(jobs.id, job.id));
       }
 
-      const matchResult = await scoreJobMatch(
+      const matchResult = await scoreJobMatchEmbedding(
         {
           company: job.company,
           title: job.title,
@@ -53,7 +53,7 @@ export async function matchJobsToResume(resumeId: string) {
           weaknesses: matchResult.weaknesses,
           recommendation: matchResult.recommendation,
           confidence: matchResult.confidence,
-          reasoning: matchResult.reasoning,
+          reasoning: null,
         })
         .onConflictDoNothing()
         .returning();

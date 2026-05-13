@@ -5,6 +5,7 @@ import { logger } from '@/lib/utils/logger';
 import { GreenhouseScraper } from './greenhouse';
 import { LeverScraper } from './lever';
 import { type ScrapedJob, type JobFilters } from './base-scraper';
+import { scrapeViaAtsApi } from './ats-api-scraper';
 import { rateLimitedOpenAI } from '@/lib/openai/rate-limiter';
 import { openai } from '@/lib/openai/client';
 import { scraperMemoryService } from './scraper-memory';
@@ -27,6 +28,13 @@ export class UniversalCareerScraper {
 
   async scrape(companyName: string, websiteUrl: string, filters: JobFilters = {}): Promise<ScrapedJob[]> {
     try {
+      // ── Tier 0: free ATS public JSON APIs (no browser, no AI) ────────────
+      const apiJobs = await scrapeViaAtsApi(companyName, websiteUrl);
+      if (apiJobs && apiJobs.length > 0) {
+        logger.info({ companyName, count: apiJobs.length }, 'ATS API Tier 0 hit — skipping browser');
+        return apiJobs;
+      }
+
       await this.setup();
 
       const domain = new URL(websiteUrl).hostname.replace('www.', '');
@@ -306,7 +314,7 @@ export class UniversalCareerScraper {
       const startTime = Date.now();
       const response = await rateLimitedOpenAI(() =>
         openai.chat.completions.create({
-          model: 'gpt-4o',
+          model: 'gpt-4o-mini',
           messages: [
             {
               role: 'system',
@@ -322,7 +330,7 @@ export class UniversalCareerScraper {
         })
       );
 
-      trackUsageFromResponse('scrape_extract', 'gpt-4o', response, startTime);
+      trackUsageFromResponse('scrape_extract', 'gpt-4o-mini', response, startTime);
 
       const content = response.choices[0]?.message?.content || '{"jobs":[]}';
       let parsed: { jobs?: unknown[] };

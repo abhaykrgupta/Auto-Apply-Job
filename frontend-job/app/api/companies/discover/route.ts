@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
     const result = await discoveryEngine.runFullDiscovery({
       sources,
       skipAtsDetection: body.skipAtsDetection ?? true,
+      limit: body.limit ?? 50,
     });
 
     return NextResponse.json({ success: true, ...result, timestamp: new Date().toISOString() });

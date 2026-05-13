@@ -2,12 +2,21 @@
 
 import { db } from '@/lib/db';
 import { companies } from '@/lib/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, or, isNull } from 'drizzle-orm';
 import { discoveryEngine } from '@/lib/company-discovery/discovery-engine';
 import { revalidatePath } from 'next/cache';
 
-export async function getCompanies() {
-  return db.select().from(companies).orderBy(desc(companies.discoveredAt));
+// Returns global companies + this user's privately-added companies
+export async function getCompanies(userId?: string) {
+  return db
+    .select()
+    .from(companies)
+    .where(
+      userId
+        ? or(isNull(companies.addedByUserId), eq(companies.addedByUserId, userId))
+        : isNull(companies.addedByUserId)
+    )
+    .orderBy(desc(companies.discoveredAt));
 }
 
 export async function getCompanyStats() {
@@ -44,11 +53,11 @@ export async function runDiscovery(sources?: string[]) {
   return result;
 }
 
-export async function addCompanyManually(url: string) {
+export async function addCompanyManually(url: string, userId: string) {
   const company = await discoveryEngine.discoverFromUrl(url);
   if (!company) throw new Error('Could not detect company from URL');
 
-  const slug = discoveryEngine.slugify(company.name);
+  const slug = `${discoveryEngine.slugify(company.name)}-${userId.slice(0, 8)}`;
   await db
     .insert(companies)
     .values({
@@ -58,6 +67,7 @@ export async function addCompanyManually(url: string) {
       atsType: company.atsType,
       atsUrl: company.atsUrl,
       source: 'manual',
+      addedByUserId: userId,
     })
     .onConflictDoNothing();
 

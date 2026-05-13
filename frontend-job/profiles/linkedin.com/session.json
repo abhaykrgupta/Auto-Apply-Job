@@ -15,7 +15,7 @@
       "value": "\"v=2&23c107c3-50db-454c-825a-076b4fc8bcb3\"",
       "domain": ".linkedin.com",
       "path": "/",
-      "expires": 1809848690.616092,
+      "expires": 1810239566.019897,
       "httpOnly": false,
       "secure": true,
       "sameSite": "None"
@@ -25,7 +25,7 @@
       "value": "\"v=1&20260506204417391fe4ff-3b26-4830-89bd-7c803b5f5076AQFT9OVjd_gLeujUV9U47H0KAfNkylAz\"",
       "domain": ".www.linkedin.com",
       "path": "/",
-      "expires": 1809848690.616251,
+      "expires": 1810239566.020005,
       "httpOnly": true,
       "secure": true,
       "sameSite": "None"
@@ -196,20 +196,20 @@
     },
     {
       "name": "sdui_ver",
-      "value": "sdui-flagship:0.1.39211+SduiFlagship0",
+      "value": "sdui-flagship:0.1.39931+SduiFlagship0",
       "domain": ".linkedin.com",
       "path": "/",
-      "expires": 1809848690.615866,
+      "expires": 1810239566.019671,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
     },
     {
       "name": "lidc",
-      "value": "\"b=OB15:s=O:r=O:a=O:p=O:g=157:u=2053:x=1:i=1778312689:t=1778339333:v=2:sig=AQEyWjbKnAtL3iKOZw4OgmzjcYtu6nQY\"",
+      "value": "\"b=OB15:s=O:r=O:a=O:p=O:g=157:u=2055:x=1:i=1778703564:t=1778734768:v=2:sig=AQHKwpbvNunNNOydilMFEp3x7mmKqL7Q\"",
       "domain": ".linkedin.com",
       "path": "/",
-      "expires": 1778339333.863058,
+      "expires": 1778734768.305614,
       "httpOnly": false,
       "secure": true,
       "sameSite": "None"

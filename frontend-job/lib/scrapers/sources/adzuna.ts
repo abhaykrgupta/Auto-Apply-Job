@@ -36,8 +36,8 @@ export class AdzunaScraper extends BaseScraper {
         if (filters.location) params.set('where', filters.location);
         if (filters.remote === 'remote') params.set('what_and', 'remote');
 
-        // Use 'us' country — supports: us, gb, au, ca, de, fr, in, nz, pl, ru, sg, za
-        const country = process.env.ADZUNA_COUNTRY ?? 'us';
+        // Use 'in' country by default — supports: us, gb, au, ca, de, fr, in, nz, pl, ru, sg, za
+        const country = process.env.ADZUNA_COUNTRY ?? 'in';
         const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/${page}?${params.toString()}`;
 
         const res = await fetch(url, { headers: { Accept: 'application/json' } });

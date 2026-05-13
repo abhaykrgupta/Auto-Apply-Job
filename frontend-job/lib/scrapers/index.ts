@@ -10,6 +10,12 @@ import { AdzunaScraper } from './sources/adzuna';
 import { IndeedScraper } from './sources/indeed';
 import { NaukriScraper } from './sources/naukri';
 import { GlassdoorScraper } from './sources/glassdoor';
+import { RemotiveScraper } from './sources/remotive';
+import { JobicyScraper } from './sources/jobicy';
+import { HNHiringScraper } from './sources/hn-hiring';
+import { YCJobsScraper } from './sources/yc-jobs';
+import { WorkableScraper } from './sources/workable';
+import { WellfoundScraper } from './sources/wellfound';
 import { type ScrapedJob } from './base-scraper';
 import { logger } from '@/lib/utils/logger';
 
@@ -23,6 +29,14 @@ export interface ScrapeConfig {
 
 export async function scrapeAndSaveJobs(config: ScrapeConfig) {
   const scrapers = [
+    // ── Startup / AI-era sources (new) ─────────────────────────────────────
+    new YCJobsScraper(),       // 500+ YC companies — best startup signal
+    new HNHiringScraper(),     // HN "Who is Hiring" — pure startup, monthly
+    new WellfoundScraper(),    // AngelList — the #1 startup job board
+    new RemotiveScraper(),     // Remote + AI/ML startup heavy
+    new JobicyScraper(),       // Remote startup jobs
+    new WorkableScraper(),     // Series A–B companies
+    // ── Broad sources ───────────────────────────────────────────────────────
     new GreenhouseScraper(),
     new LeverScraper(),
     new RemoteOKScraper(),

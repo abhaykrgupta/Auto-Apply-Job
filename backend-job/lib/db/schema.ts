@@ -82,6 +82,8 @@ export const companies = pgTable(
     logoUrl: text('logo_url'),
     tags: text('tags').array(),
     source: text('source').notNull(),
+    // null = global (visible to all users); set = private to that user (manually added)
+    addedByUserId: text('added_by_user_id'),
     discoveredAt: timestamp('discovered_at').defaultNow(),
     lastScrapedAt: timestamp('last_scraped_at'),
     activeJobsCount: integer('active_jobs_count').default(0),

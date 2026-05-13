@@ -1,14 +1,21 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { getCompanies, getCompanyStats } from '@/lib/actions/companies';
 
 export async function GET() {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/companies`);
-    if (!res.ok) throw new Error(`Backend responded with status: ${res.status}`);
-    const data = await res.json();
-    return NextResponse.json(data);
+    const session = await auth();
+    const userId = session?.user?.id;
+
+    const [companiesList, stats] = await Promise.all([
+      getCompanies(userId),
+      getCompanyStats(),
+    ]);
+
+    return NextResponse.json({ companies: companiesList, stats });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error('[API Companies GET Proxy]', message);
-    return NextResponse.json({ error: `Backend proxy error: ${message}` }, { status: 500 });
+    console.error('[/api/companies GET]', message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

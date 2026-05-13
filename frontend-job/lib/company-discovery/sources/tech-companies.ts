@@ -120,6 +120,78 @@ export const KNOWN_TECH_COMPANIES: DiscoveredCompany[] = [
   { name: 'Klarna',   website: 'https://klarna.com',   atsType: 'smartrecruiters', atsUrl: 'https://careers.smartrecruiters.com/Klarna',   source: 'seed', industry: 'FinTech',        fundingStage: 'public' },
   { name: 'IKEA',     website: 'https://ikea.com',     atsType: 'smartrecruiters', atsUrl: 'https://careers.smartrecruiters.com/IKEA',     source: 'seed', industry: 'Retail',         fundingStage: 'public' },
   { name: 'Adyen',    website: 'https://adyen.com',    atsType: 'smartrecruiters', atsUrl: 'https://careers.smartrecruiters.com/Adyen',    source: 'seed', industry: 'FinTech',        fundingStage: 'public' },
+
+  // ─── 🇮🇳 India — IT Services & MNCs ─────────────────────────────────────────
+  { name: 'Infosys',         website: 'https://infosys.com',         atsType: 'custom',   atsUrl: 'https://career.infosys.com',                                       source: 'seed', industry: 'IT Services',    employeeCount: '300000+' },
+  { name: 'Wipro',           website: 'https://wipro.com',           atsType: 'workday',  atsUrl: 'https://wipro.wd3.myworkdayjobs.com/Wipro',                         source: 'seed', industry: 'IT Services',    employeeCount: '200000+' },
+  { name: 'HCL Technologies',website: 'https://hcltech.com',         atsType: 'custom',   atsUrl: 'https://www.hcltech.com/careers',                                   source: 'seed', industry: 'IT Services',    employeeCount: '200000+' },
+  { name: 'Tech Mahindra',   website: 'https://techmahindra.com',    atsType: 'custom',   atsUrl: 'https://careers.techmahindra.com',                                  source: 'seed', industry: 'IT Services',    employeeCount: '150000+' },
+  { name: 'Mphasis',         website: 'https://mphasis.com',         atsType: 'greenhouse',atsUrl: 'https://boards.greenhouse.io/mphasis',                             source: 'seed', industry: 'IT Services',    fundingStage: 'public' },
+  { name: 'LTIMindtree',     website: 'https://ltimindtree.com',     atsType: 'custom',   atsUrl: 'https://www.ltimindtree.com/careers',                               source: 'seed', industry: 'IT Services',    employeeCount: '80000+' },
+  { name: 'Cognizant',       website: 'https://cognizant.com',       atsType: 'custom',   atsUrl: 'https://careers.cognizant.com',                                     source: 'seed', industry: 'IT Services',    employeeCount: '350000+' },
+
+  // ─── 🇮🇳 India — Product Unicorns & Soonicorns ──────────────────────────────
+  { name: 'Flipkart',        website: 'https://flipkart.com',        atsType: 'lever',    atsUrl: 'https://jobs.lever.co/flipkart',                                    source: 'seed', industry: 'E-commerce',     fundingStage: 'acquired' },
+  { name: 'Zepto',           website: 'https://zeptonow.com',        atsType: 'lever',    atsUrl: 'https://jobs.lever.co/zepto',                                       source: 'seed', industry: 'Quick Commerce', fundingStage: 'series_f' },
+  { name: 'Razorpay',        website: 'https://razorpay.com',        atsType: 'lever',    atsUrl: 'https://jobs.lever.co/razorpay',                                    source: 'seed', industry: 'FinTech',        fundingStage: 'series_f' },
+  { name: 'CRED',            website: 'https://cred.club',           atsType: 'lever',    atsUrl: 'https://jobs.lever.co/cred',                                        source: 'seed', industry: 'FinTech',        fundingStage: 'series_f' },
+  { name: 'PhonePe',         website: 'https://phonepe.com',         atsType: 'greenhouse',atsUrl: 'https://boards.greenhouse.io/phonepe',                             source: 'seed', industry: 'FinTech',        fundingStage: 'series_f' },
+  { name: 'Groww',           website: 'https://groww.in',            atsType: 'lever',    atsUrl: 'https://jobs.lever.co/groww',                                       source: 'seed', industry: 'FinTech',        fundingStage: 'series_e' },
+  { name: 'Zerodha',         website: 'https://zerodha.com',         atsType: 'custom',   atsUrl: 'https://zerodha.com/careers',                                       source: 'seed', industry: 'FinTech',        fundingStage: 'bootstrapped' },
+  { name: 'Meesho',          website: 'https://meesho.com',          atsType: 'greenhouse',atsUrl: 'https://boards.greenhouse.io/meesho',                              source: 'seed', industry: 'E-commerce',     fundingStage: 'series_f' },
+  { name: 'Nykaa',           website: 'https://nykaa.com',           atsType: 'custom',   atsUrl: 'https://nykaa.com/careers',                                         source: 'seed', industry: 'E-commerce',     fundingStage: 'public' },
+  { name: 'Ola',             website: 'https://olacabs.com',         atsType: 'greenhouse',atsUrl: 'https://boards.greenhouse.io/olacabs',                             source: 'seed', industry: 'Mobility',       fundingStage: 'late-stage' },
+  { name: 'Rapido',          website: 'https://rapido.bike',         atsType: 'lever',    atsUrl: 'https://jobs.lever.co/rapido',                                      source: 'seed', industry: 'Mobility',       fundingStage: 'series_e' },
+  { name: 'Swiggy',          website: 'https://swiggy.com',          atsType: 'lever',    atsUrl: 'https://jobs.lever.co/swiggy',                                      source: 'seed', industry: 'FoodTech',       fundingStage: 'public' },
+  { name: 'Zomato',          website: 'https://zomato.com',          atsType: 'lever',    atsUrl: 'https://jobs.lever.co/zomato',                                      source: 'seed', industry: 'FoodTech',       fundingStage: 'public' },
+  { name: 'Dunzo',           website: 'https://dunzo.com',           atsType: 'lever',    atsUrl: 'https://jobs.lever.co/dunzo',                                       source: 'seed', industry: 'Quick Commerce', fundingStage: 'series_f' },
+
+  // ─── 🇮🇳 India — EdTech ─────────────────────────────────────────────────────
+  { name: 'BYJU\'S',         website: 'https://byjus.com',           atsType: 'custom',   atsUrl: 'https://byjus.com/careers',                                         source: 'seed', industry: 'EdTech',         fundingStage: 'late-stage' },
+  { name: 'Unacademy',       website: 'https://unacademy.com',       atsType: 'lever',    atsUrl: 'https://jobs.lever.co/unacademy',                                   source: 'seed', industry: 'EdTech',         fundingStage: 'series_g' },
+  { name: 'upGrad',          website: 'https://upgrad.com',          atsType: 'lever',    atsUrl: 'https://jobs.lever.co/upgrad',                                      source: 'seed', industry: 'EdTech',         fundingStage: 'series_h' },
+  { name: 'Physics Wallah',  website: 'https://pw.live',             atsType: 'greenhouse',atsUrl: 'https://boards.greenhouse.io/physicswallah',                       source: 'seed', industry: 'EdTech',         fundingStage: 'series_b' },
+  { name: 'Scaler',          website: 'https://scaler.com',          atsType: 'lever',    atsUrl: 'https://jobs.lever.co/scaler',                                      source: 'seed', industry: 'EdTech',         fundingStage: 'series_b' },
+  { name: 'Coding Ninjas',   website: 'https://codingninjas.com',    atsType: 'lever',    atsUrl: 'https://jobs.lever.co/codingninjas',                                source: 'seed', industry: 'EdTech',         fundingStage: 'acquired' },
+
+  // ─── 🇮🇳 India — HealthTech & InsurTech ─────────────────────────────────────
+  { name: 'Practo',          website: 'https://practo.com',          atsType: 'lever',    atsUrl: 'https://jobs.lever.co/practo',                                      source: 'seed', industry: 'HealthTech',     fundingStage: 'series_e' },
+  { name: 'PharmEasy',       website: 'https://pharmeasy.in',        atsType: 'lever',    atsUrl: 'https://jobs.lever.co/pharmeasy',                                   source: 'seed', industry: 'HealthTech',     fundingStage: 'series_g' },
+  { name: 'Acko',            website: 'https://acko.com',            atsType: 'greenhouse',atsUrl: 'https://boards.greenhouse.io/acko',                                source: 'seed', industry: 'InsurTech',      fundingStage: 'series_e' },
+  { name: 'PolicyBazaar',    website: 'https://policybazaar.com',    atsType: 'custom',   atsUrl: 'https://policybazaar.com/careers',                                  source: 'seed', industry: 'InsurTech',      fundingStage: 'public' },
+
+  // ─── 🇮🇳 India — SaaS & B2B ─────────────────────────────────────────────────
+  { name: 'Freshworks',      website: 'https://freshworks.com',      atsType: 'greenhouse',atsUrl: 'https://boards.greenhouse.io/freshworks',                          source: 'seed', industry: 'SaaS',           fundingStage: 'public' },
+  { name: 'Zoho',            website: 'https://zoho.com',            atsType: 'custom',   atsUrl: 'https://careers.zohocorp.com',                                      source: 'seed', industry: 'SaaS',           fundingStage: 'bootstrapped' },
+  { name: 'Chargebee',       website: 'https://chargebee.com',       atsType: 'greenhouse',atsUrl: 'https://boards.greenhouse.io/chargebee',                           source: 'seed', industry: 'SaaS',           fundingStage: 'series_i' },
+  { name: 'Postman',         website: 'https://postman.com',         atsType: 'greenhouse',atsUrl: 'https://boards.greenhouse.io/postman',                             source: 'seed', industry: 'DevTools',       fundingStage: 'series_d' },
+  { name: 'BrowserStack',    website: 'https://browserstack.com',    atsType: 'lever',    atsUrl: 'https://jobs.lever.co/browserstack',                                source: 'seed', industry: 'DevTools',       fundingStage: 'series_a' },
+  { name: 'Hasura',          website: 'https://hasura.io',           atsType: 'lever',    atsUrl: 'https://jobs.lever.co/hasura',                                      source: 'seed', industry: 'DevTools',       fundingStage: 'series_c' },
+  { name: 'CleverTap',       website: 'https://clevertap.com',       atsType: 'greenhouse',atsUrl: 'https://boards.greenhouse.io/clevertap',                           source: 'seed', industry: 'MarTech',        fundingStage: 'series_d' },
+  { name: 'MoEngage',        website: 'https://moengage.com',        atsType: 'greenhouse',atsUrl: 'https://boards.greenhouse.io/moengage',                            source: 'seed', industry: 'MarTech',        fundingStage: 'series_e' },
+  { name: 'Darwinbox',       website: 'https://darwinbox.com',       atsType: 'greenhouse',atsUrl: 'https://boards.greenhouse.io/darwinbox',                           source: 'seed', industry: 'HR Tech',        fundingStage: 'series_d' },
+  { name: 'Leadsquared',     website: 'https://leadsquared.com',     atsType: 'greenhouse',atsUrl: 'https://boards.greenhouse.io/leadsquared',                         source: 'seed', industry: 'SaaS',           fundingStage: 'series_c' },
+  { name: 'Setu',            website: 'https://setu.co',             atsType: 'lever',    atsUrl: 'https://jobs.lever.co/setu',                                        source: 'seed', industry: 'FinTech',        fundingStage: 'acquired' },
+  { name: 'Perfios',         website: 'https://perfios.com',         atsType: 'greenhouse',atsUrl: 'https://boards.greenhouse.io/perfios',                             source: 'seed', industry: 'FinTech',        fundingStage: 'series_c' },
+
+  // ─── 🇮🇳 India — D2C & Consumer ─────────────────────────────────────────────
+  { name: 'boAt',            website: 'https://boat-lifestyle.com',  atsType: 'custom',   atsUrl: 'https://boat-lifestyle.com/pages/careers',                          source: 'seed', industry: 'Consumer Tech',  fundingStage: 'series_c' },
+  { name: 'Mamaearth',       website: 'https://mamaearth.in',        atsType: 'custom',   atsUrl: 'https://mamaearth.in/careers',                                      source: 'seed', industry: 'D2C',            fundingStage: 'public' },
+  { name: 'Lenskart',        website: 'https://lenskart.com',        atsType: 'greenhouse',atsUrl: 'https://boards.greenhouse.io/lenskart',                            source: 'seed', industry: 'D2C',            fundingStage: 'series_j' },
+  { name: 'Urban Company',   website: 'https://urbancompany.com',    atsType: 'lever',    atsUrl: 'https://jobs.lever.co/urbancompany',                                source: 'seed', industry: 'Services',       fundingStage: 'series_f' },
+  { name: 'Vedantu',         website: 'https://vedantu.com',         atsType: 'lever',    atsUrl: 'https://jobs.lever.co/vedantu',                                     source: 'seed', industry: 'EdTech',         fundingStage: 'series_e' },
+
+  // ─── 🇮🇳 India — MNC India Offices (top hiring hubs) ────────────────────────
+  { name: 'Google India',    website: 'https://google.com',          atsType: 'custom',   atsUrl: 'https://careers.google.com/jobs/results/?location=India',           source: 'seed', industry: 'Technology',     employeeCount: '10000+' },
+  { name: 'Microsoft India', website: 'https://microsoft.com',       atsType: 'custom',   atsUrl: 'https://careers.microsoft.com/v2/global/en/search.html?lc=India',   source: 'seed', industry: 'Technology',     employeeCount: '20000+' },
+  { name: 'Amazon India',    website: 'https://amazon.jobs',         atsType: 'custom',   atsUrl: 'https://www.amazon.jobs/en/search?base_query=&loc_query=India',      source: 'seed', industry: 'Technology',     employeeCount: '100000+' },
+  { name: 'Adobe India',     website: 'https://adobe.com',           atsType: 'workday',  atsUrl: 'https://adobe.wd5.myworkdayjobs.com/external_experienced?Location_Country=IN', source: 'seed', industry: 'Software', employeeCount: '5000+' },
+  { name: 'Oracle India',    website: 'https://oracle.com',          atsType: 'custom',   atsUrl: 'https://careers.oracle.com/jobs/#en/sites/jobsearch/requisitions?location=India', source: 'seed', industry: 'Enterprise', employeeCount: '50000+' },
+  { name: 'SAP India',       website: 'https://sap.com',             atsType: 'custom',   atsUrl: 'https://jobs.sap.com/search/?q=&location=India',                    source: 'seed', industry: 'Enterprise',     employeeCount: '15000+' },
+  { name: 'Walmart Global Tech', website: 'https://tech.walmart.com',atsType: 'workday',  atsUrl: 'https://walmart.wd5.myworkdayjobs.com/WalmartExternal?Location_Country=IN', source: 'seed', industry: 'Technology', employeeCount: '5000+' },
+  { name: 'Intuit India',    website: 'https://intuit.com',          atsType: 'workday',  atsUrl: 'https://intuit.wd5.myworkdayjobs.com/careers?Location_Country=IN',   source: 'seed', industry: 'FinTech',        employeeCount: '4000+' },
+  { name: 'Atlassian',       website: 'https://atlassian.com',       atsType: 'greenhouse',atsUrl: 'https://boards.greenhouse.io/atlassian',                           source: 'seed', industry: 'DevTools',       fundingStage: 'public' },
+  { name: 'Salesforce India',website: 'https://salesforce.com',      atsType: 'custom',   atsUrl: 'https://careers.salesforce.com/en/jobs/?search=&location=India',     source: 'seed', industry: 'SaaS',           employeeCount: '8000+' },
 ];
 
 export function getKnownCompanies(): DiscoveredCompany[] {

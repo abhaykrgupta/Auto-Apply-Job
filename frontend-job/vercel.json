@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/discover-companies",
-      "schedule": "0 2 * * *"
+      "schedule": "0 2 * * 0"
     },
     {
       "path": "/api/cron/daily-pipeline",
@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/retry-failed",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/detect-ats",
+      "schedule": "0 3 * * *"
     },
     {
       "path": "/api/cron/weekly-summary",

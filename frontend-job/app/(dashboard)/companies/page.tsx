@@ -12,7 +12,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import {
   Building2, Zap, Plus, ExternalLink, RefreshCw,
   Briefcase, Globe, CheckCircle2, Loader2, AlertCircle, ChevronRight,
-  ChevronLeft, Sparkles, Search
+  ChevronLeft, Sparkles, Search, Filter, MapPin, Layers, X, GraduationCap
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, type ChangeEvent } from 'react';
@@ -34,11 +34,14 @@ const ATS_COLORS: Record<string, string> = {
 
 // ─── Discovery sources config ─────────────────────────────────────────────────
 const SOURCES = [
-  { key: 'seed',      label: 'Known Companies', emoji: '🏢', desc: '50+ top tech companies' },
-  { key: 'yc',        label: 'Y Combinator',    emoji: '🚀', desc: 'YC portfolio startups' },
-  { key: 'github',    label: 'GitHub Trending', emoji: '⭐', desc: 'Trending open-source companies' },
-  { key: 'vc',        label: 'VC Portfolios',   emoji: '💼', desc: 'a16z, Sequoia, Accel, etc.' },
-  { key: 'wellfound', label: 'Wellfound',        emoji: '🔍', desc: 'Startup job board' },
+  { key: 'seed',       label: 'Known Companies',  emoji: '🏢', desc: '150+ top tech companies' },
+  { key: 'yc',         label: 'Y Combinator',     emoji: '🚀', desc: 'YC portfolio startups' },
+  { key: 'github',     label: 'GitHub Trending',  emoji: '⭐', desc: 'Trending open-source companies' },
+  { key: 'vc',         label: 'VC Portfolios',    emoji: '💼', desc: 'a16z, Sequoia, Accel, etc.' },
+  { key: 'wellfound',  label: 'Wellfound',        emoji: '🔍', desc: 'Startup job board' },
+  { key: 'inc42',      label: 'Inc42',            emoji: '🇮🇳', desc: 'India startup tracker — 100+ companies' },
+  { key: 'india-vcs',  label: 'India VCs',        emoji: '🦁', desc: 'Peak XV, Blume, Kalaari, 3one4 & more' },
+  { key: 'nasscom',    label: 'Nasscom',          emoji: '💡', desc: 'India tech ecosystem — NASSCOM certified' },
 ] as const;
 
 type SourceKey = typeof SOURCES[number]['key'];
@@ -184,11 +187,14 @@ function DiscoveryProgressCard({
             <p className="text-sm font-semibold">
               {allDone ? 'Discovery complete' : 'Discovering companies…'}
             </p>
-            {allDone && (
-              <p className="text-xs text-green-600 dark:text-green-400 font-medium">
-                {total} new companies added
-              </p>
-            )}
+            <p className={cn(
+              'text-xs font-medium',
+              allDone ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground',
+            )}>
+              {allDone
+                ? `${total} new companies added`
+                : `Up to 50 new per run — run again to get the next batch`}
+            </p>
           </div>
         </div>
         {!allDone && (
@@ -343,12 +349,16 @@ const IDLE_RESULTS  = Object.fromEntries(SOURCES.map(s => [s.key, 0]))    as Rec
 
 export default function CompaniesPage() {
   const qc = useQueryClient();
-  const [search,  setSearch]  = useState('');
+  const [search,      setSearch]      = useState('');
+  const [filterAts,   setFilterAts]   = useState('all');
+  const [filterSource,setFilterSource] = useState('all');
+  const [filterCountry, setFilterCountry] = useState('all');
   const [addUrl,  setAddUrl]  = useState('');
   const [roleQuery, setRoleQuery] = useState('');
   const [experience, setExperience] = useState('any');
   const [customExp, setCustomExp] = useState('');
   const [locationPref, setLocationPref] = useState('any');
+  const [scrapeCountry, setScrapeCountry] = useState('all');
   const [isAdding,  setIsAdding]  = useState(false);
 
   const [page, setPage] = useState(1);
@@ -358,10 +368,11 @@ export default function CompaniesPage() {
   const pageSize = pageSizeMode === 'custom' ? (parseInt(customPageSize) || 15) : parseInt(pageSizeMode);
 
   // Discovery state — per-source
-  const [discovering,    setDiscovering]    = useState(false);
-  const [discProgress,   setDiscProgress]   = useState<Record<SourceKey, SourceStatus>>(IDLE_PROGRESS);
-  const [discResults,    setDiscResults]    = useState<Record<SourceKey, number>>(IDLE_RESULTS);
-  const [discDone,       setDiscDone]       = useState(false);
+  const [discovering,      setDiscovering]      = useState(false);
+  const [activeDiscGroup,  setActiveDiscGroup]  = useState<'seed' | 'india' | 'global' | 'all' | null>(null);
+  const [discProgress,     setDiscProgress]     = useState<Record<SourceKey, SourceStatus>>(IDLE_PROGRESS);
+  const [discResults,      setDiscResults]      = useState<Record<SourceKey, number>>(IDLE_RESULTS);
+  const [discDone,         setDiscDone]         = useState(false);
 
   // Scraping state
   const [isScraping,   setIsScraping]   = useState(false);
@@ -375,46 +386,84 @@ export default function CompaniesPage() {
       if (!res.ok) throw new Error('Failed');
       return res.json();
     },
+    staleTime: 5 * 60 * 1000,   // treat as fresh for 5 minutes — no background re-fetch
+    refetchOnWindowFocus: false,  // don't re-fetch when user switches tabs
+    refetchInterval: false,       // no polling at all — user triggers refresh via buttons
   });
 
   const companies: any[] = data?.companies ?? [];
   const stats: any       = data?.stats ?? {};
 
-  const filtered = companies.filter((c: any) =>
-    !search ||
-    c.name?.toLowerCase().includes(search.toLowerCase()) ||
-    c.source?.toLowerCase().includes(search.toLowerCase()) ||
-    c.industry?.toLowerCase().includes(search.toLowerCase()) ||
-    c.atsType?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = companies.filter((c: any) => {
+    if (search && !(
+      c.name?.toLowerCase().includes(search.toLowerCase()) ||
+      c.source?.toLowerCase().includes(search.toLowerCase()) ||
+      c.industry?.toLowerCase().includes(search.toLowerCase()) ||
+      c.atsType?.toLowerCase().includes(search.toLowerCase()) ||
+      c.location?.toLowerCase().includes(search.toLowerCase())
+    )) return false;
+    if (filterAts !== 'all' && (c.atsType ?? 'unknown') !== filterAts) return false;
+    if (filterSource !== 'all' && c.source !== filterSource) return false;
+    if (filterCountry !== 'all') {
+      const loc = (c.location ?? '').toLowerCase();
+      const countryMap: Record<string, string[]> = {
+        india:     ['india', 'bangalore', 'mumbai', 'delhi', 'hyderabad', 'pune', 'chennai', 'gurgaon', 'noida', 'kolkata'],
+        us:        ['united states', 'usa', 'san francisco', 'new york', 'seattle', 'austin', 'boston', 'chicago', 'los angeles'],
+        uk:        ['united kingdom', 'uk', 'london', 'manchester', 'edinburgh'],
+        germany:   ['germany', 'berlin', 'munich', 'hamburg', 'frankfurt'],
+        singapore: ['singapore'],
+        canada:    ['canada', 'toronto', 'vancouver', 'montreal'],
+        australia: ['australia', 'sydney', 'melbourne', 'brisbane'],
+        remote:    ['remote', 'worldwide', 'global'],
+      };
+      const keywords = countryMap[filterCountry] ?? [];
+      if (!keywords.some(k => loc.includes(k))) return false;
+    }
+    return true;
+  });
+
+  // Derive unique ATS types and sources for filter dropdowns
+  const atsOptions = Array.from(new Set(companies.map((c: any) => c.atsType ?? 'unknown'))).sort() as string[];
+  const sourceOptions = Array.from(new Set(companies.map((c: any) => c.source).filter(Boolean))).sort() as string[];
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paginatedCompanies = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   // ── Run discovery source-by-source for live progress ─────────────────────
-  async function runDiscovery(sourcesToRun: SourceKey[]) {
+  async function runDiscovery(
+    sourcesToRun: SourceKey[],
+    group: 'seed' | 'india' | 'global' | 'all',
+  ) {
     setDiscovering(true);
+    setActiveDiscGroup(group);
     setDiscDone(false);
     setDiscResults(IDLE_RESULTS);
     const initialProgress = { ...IDLE_PROGRESS };
     sourcesToRun.forEach(s => { initialProgress[s] = 'idle'; });
-    // Mark non-selected as skipped (keep idle)
     setDiscProgress(initialProgress);
 
     let totalNew = 0;
     for (const source of sourcesToRun) {
       setDiscProgress(prev => ({ ...prev, [source]: 'running' }));
       try {
-        const res = await fetch('/api/companies/discover', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sources: [source], skipAtsDetection: true }),
-        });
-        const data = await res.json();
-        const n = data.newCompanies ?? 0;
-        totalNew += n;
-        setDiscResults(prev => ({ ...prev, [source]: n }));
-        setDiscProgress(prev => ({ ...prev, [source]: 'done' }));
+        // 90s timeout per source — Playwright scrapers (India VCs) can be slow
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 90_000);
+        try {
+          const res = await fetch('/api/companies/discover', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sources: [source], skipAtsDetection: true }),
+            signal: controller.signal,
+          });
+          const data = await res.json();
+          const n = data.newCompanies ?? 0;
+          totalNew += n;
+          setDiscResults(prev => ({ ...prev, [source]: n }));
+          setDiscProgress(prev => ({ ...prev, [source]: 'done' }));
+        } finally {
+          clearTimeout(timer);
+        }
       } catch {
         setDiscProgress(prev => ({ ...prev, [source]: 'error' }));
       }
@@ -422,52 +471,114 @@ export default function CompaniesPage() {
 
     setDiscDone(true);
     setDiscovering(false);
+    setActiveDiscGroup(null);
     toast.success(`Discovery done — ${totalNew} new companies added`);
     qc.invalidateQueries({ queryKey: ['companies'] });
   }
 
-  // ── Scrape jobs from company ATSs ─────────────────────────────────────────
+  // ── Scrape jobs from company ATSs (real-time SSE progress) ──────────────────
   async function scrapeJobs() {
     const companyCount = companies.filter((c: any) => c.scrapingEnabled !== false && c.atsUrl).length;
+    const total = Math.min(companyCount || 10, 20);
     setIsScraping(true);
     setScrapeResult(null);
-    setScrapeStats({ scraped: 0, jobsFound: 0, total: Math.min(companyCount, 20) });
+    setScrapeStats({ scraped: 0, jobsFound: 0, total });
 
-    // Simulate incremental progress while the real request runs
-    let fakeScraped = 0;
-    const total = Math.min(companyCount || 10, 20);
-    const progressInterval = setInterval(() => {
-      if (fakeScraped < total - 1) {
-        fakeScraped++;
-        setScrapeStats({ scraped: fakeScraped, jobsFound: 0, total });
-      }
-    }, 800);
+    const body = JSON.stringify({
+      limit: 20,
+      query: roleQuery.trim(),
+      experience: experience === 'custom' ? customExp.trim() : experience,
+      locationPref,
+      country: scrapeCountry === 'all' ? undefined : scrapeCountry,
+    });
 
     try {
       const res = await fetch('/api/companies/scrape-jobs', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          limit: 20, 
-          query: roleQuery.trim(),
-          experience: experience === 'custom' ? customExp.trim() : experience,
-          locationPref
-        }),
+        headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+        body,
       });
-      clearInterval(progressInterval);
+
       if (!res.ok) throw new Error('Failed');
-      const result = await res.json();
-      setScrapeResult(result);
+
+      // Read SSE stream for real-time progress
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let scraped = 0, jobsFound = 0, errors = 0;
+
+      if (reader) {
+        let buffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+          for (const line of lines) {
+            if (line.startsWith('data:')) {
+              try {
+                const payload = JSON.parse(line.slice(5).trim());
+                if (payload.jobsFound !== undefined) {
+                  scraped = payload.done ?? scraped;
+                  jobsFound += payload.jobsFound ?? 0;
+                  setScrapeStats({ scraped, jobsFound, total: payload.total ?? total });
+                }
+                if (payload.error) errors++;
+              } catch { /* ignore parse errors */ }
+            }
+            if (line.startsWith('event: done')) {
+              // stream ended
+            }
+          }
+        }
+      }
+
+      setScrapeResult({ scraped, jobsFound, errors });
       setScrapeStats(null);
-      toast.success(`Scraped ${result.scraped} companies — found ${result.jobsFound} new jobs`);
+      toast.success(`Scraped ${scraped} companies — found ${jobsFound} new jobs`);
       qc.invalidateQueries({ queryKey: ['companies'] });
       qc.invalidateQueries({ queryKey: ['jobs'] });
     } catch {
-      clearInterval(progressInterval);
       setScrapeStats(null);
       toast.error('Job scraping failed. Check server logs.');
     } finally {
       setIsScraping(false);
+    }
+  }
+
+  // ── Fetch real jobs from Adzuna + JSearch APIs ─────────────────────────────
+  const [isFetchingApis, setIsFetchingApis] = useState(false);
+
+  async function fetchRealJobs() {
+    if (!roleQuery.trim()) {
+      toast.error('Enter a job title / role first in the Target Job Extraction section.');
+      return;
+    }
+    setIsFetchingApis(true);
+    try {
+      const res = await fetch('/api/jobs/fetch-from-apis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: roleQuery.trim(),
+          country: scrapeCountry === 'all' ? 'us' : scrapeCountry,
+          remoteOnly: locationPref === 'remote',
+          datePosted: 'week',
+        }),
+      });
+      if (!res.ok) throw new Error('API call failed');
+      const result = await res.json();
+      const total = result.totalInserted ?? 0;
+      if (total === 0) {
+        toast.info('No new jobs found via APIs — either APIs are not configured or no matches. Add ADZUNA_APP_ID + JSEARCH_API_KEY to .env.local');
+      } else {
+        toast.success(`Fetched ${total} real jobs via APIs (Adzuna + JSearch)`);
+      }
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+    } catch {
+      toast.error('API job fetch failed. Check ADZUNA_APP_ID and JSEARCH_API_KEY in .env.local');
+    } finally {
+      setIsFetchingApis(false);
     }
   }
 
@@ -506,120 +617,235 @@ export default function CompaniesPage() {
         <div>
           <h2 className="text-2xl font-bold">Company Discovery</h2>
           <p className="text-muted-foreground mt-1">
-            Auto-discover every startup & company — YC, GitHub, VC portfolios, and more
+            Auto-discover every startup & company — YC, GitHub, VC portfolios, India ecosystem & more
           </p>
         </div>
-        
+
         <div className="flex flex-wrap gap-2">
           <Button
-            onClick={() => runDiscovery(['seed'])}
+            onClick={() => runDiscovery(['seed'], 'seed')}
             disabled={discovering || isScraping}
             variant="outline"
             size="sm"
           >
-            {discovering && discProgress['seed'] === 'running'
+            {activeDiscGroup === 'seed'
               ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               : <Building2 className="mr-2 h-4 w-4" />}
-            Load Known Companies
+            {activeDiscGroup === 'seed' ? 'Loading…' : 'Load Known Companies'}
           </Button>
           <Button
-            onClick={() => runDiscovery(['yc', 'github', 'vc', 'wellfound'])}
+            onClick={() => runDiscovery(['inc42', 'india-vcs', 'nasscom'], 'india')}
+            disabled={discovering || isScraping}
+            variant="outline"
+            size="sm"
+            className="border-orange-400/50 text-orange-600 hover:bg-orange-50 dark:text-orange-400 dark:hover:bg-orange-950/30"
+          >
+            {activeDiscGroup === 'india'
+              ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              : <span className="mr-1.5">🇮🇳</span>}
+            {activeDiscGroup === 'india' ? 'Discovering…' : 'Discover India'}
+          </Button>
+          <Button
+            onClick={() => runDiscovery(['yc', 'github', 'vc', 'wellfound'], 'global')}
             disabled={discovering || isScraping}
             variant="outline"
             size="sm"
           >
-            {discovering
+            {activeDiscGroup === 'global'
               ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               : <Zap className="mr-2 h-4 w-4" />}
-            Discover Startups
+            {activeDiscGroup === 'global' ? 'Discovering…' : 'Discover Global'}
           </Button>
           <Button
-            onClick={() => runDiscovery(['seed', 'yc', 'github', 'vc', 'wellfound'])}
+            onClick={() => runDiscovery(['seed', 'yc', 'github', 'vc', 'wellfound', 'inc42', 'india-vcs', 'nasscom'], 'all')}
             disabled={discovering || isScraping}
             size="sm"
           >
-            {discovering
+            {activeDiscGroup === 'all'
               ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              : <Zap className="mr-2 h-4 w-4" />}
-            {discovering ? 'Discovering…' : 'Auto-Discover All'}
+              : <Sparkles className="mr-2 h-4 w-4" />}
+            {activeDiscGroup === 'all' ? 'Discovering…' : 'Auto-Discover All'}
           </Button>
         </div>
       </div>
 
       {/* Target Job Scraper Configuration */}
-      <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 p-5 shadow-sm relative overflow-hidden group">
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-[shimmer_2s_infinite]" />
-        
-        <div className="flex flex-col md:flex-row md:items-center gap-4 relative z-10">
-          <div className="flex-1 space-y-1.5">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-md bg-primary/10 text-primary">
-                <Briefcase className="h-4 w-4" />
-              </div>
-              <h3 className="font-semibold text-foreground">Target Job Extraction</h3>
-              <Badge variant="secondary" className="text-[10px] uppercase tracking-wider ml-1 bg-background/50 backdrop-blur-sm">Live ATS Scrape</Badge>
+      <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/5 via-background to-violet-500/5 shadow-sm overflow-hidden">
+        {/* Header strip */}
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-primary/10 bg-primary/5">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-lg bg-primary/15 text-primary">
+              <Zap className="h-4 w-4" />
             </div>
-            <p className="text-xs text-muted-foreground">Configure your target role to automatically scrape matching jobs from the discovered companies.</p>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-sm text-foreground">Target Job Extraction</h3>
+                <Badge variant="secondary" className="text-[9px] uppercase tracking-wider px-1.5 py-0">Live ATS Scrape</Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">Set filters below then hit Scrape — only matching companies will be hit</p>
+            </div>
           </div>
+          <div className="hidden sm:flex items-center gap-2 shrink-0">
+            <Button
+              onClick={fetchRealJobs}
+              disabled={isFetchingApis || isScraping || discovering}
+              size="sm"
+              variant="outline"
+              className="shadow-sm hover:shadow-md transition-all"
+            >
+              {isFetchingApis ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Globe className="mr-2 h-3.5 w-3.5" />}
+              {isFetchingApis ? 'Fetching…' : 'Fetch via APIs'}
+            </Button>
+            <Button
+              onClick={scrapeJobs}
+              disabled={isScraping || isFetchingApis || discovering || companies.length === 0}
+              size="sm"
+              className="shadow-sm hover:shadow-md transition-all"
+            >
+              {isScraping ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Zap className="mr-2 h-3.5 w-3.5" />}
+              {isScraping ? 'Scraping…' : 'Start Scrape'}
+            </Button>
+          </div>
+        </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-center">
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+        {/* Filter grid */}
+        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Job Title */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <Briefcase className="h-3 w-3" /> Job Title
+            </label>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
               <Input
-                placeholder="Job Title (or leave blank for profile preferences)"
+                placeholder="e.g. Software Engineer"
                 value={roleQuery}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setRoleQuery(e.target.value)}
-                className="h-10 pl-9 w-full bg-background/50 backdrop-blur-sm transition-all focus:bg-background"
+                className="h-9 pl-8 text-sm bg-background/70"
               />
             </div>
-            
-            <div className="flex gap-2 w-full sm:w-auto">
+          </div>
+
+          {/* Experience */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <GraduationCap className="h-3 w-3" /> Experience
+            </label>
+            <div className="flex gap-1.5">
               <Select value={experience} onValueChange={(val) => setExperience(val ?? 'any')}>
-                <SelectTrigger className="h-10 w-full sm:w-32 bg-background/50 backdrop-blur-sm transition-all focus:bg-background">
-                  <SelectValue placeholder="Experience" />
+                <SelectTrigger className="h-9 flex-1 text-sm bg-background/70">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="any">Any Exp</SelectItem>
-                  <SelectItem value="fresher">Fresher</SelectItem>
+                  <SelectItem value="any">Any level</SelectItem>
+                  <SelectItem value="fresher">Fresher / Entry</SelectItem>
                   <SelectItem value="1-2">1–2 Years</SelectItem>
                   <SelectItem value="2-3">2–3 Years</SelectItem>
                   <SelectItem value="3-5">3–5 Years</SelectItem>
                   <SelectItem value="5-7">5–7 Years</SelectItem>
                   <SelectItem value="senior">Senior (7+)</SelectItem>
-                  <SelectItem value="custom">Custom...</SelectItem>
+                  <SelectItem value="custom">Custom…</SelectItem>
                 </SelectContent>
               </Select>
-
               {experience === 'custom' && (
                 <Input
-                  className="h-10 w-20 bg-background/50 backdrop-blur-sm px-2"
-                  placeholder="Yrs..."
+                  className="h-9 w-16 px-2 text-sm bg-background/70 shrink-0"
+                  placeholder="Yrs"
                   value={customExp}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setCustomExp(e.target.value)}
                   autoFocus
                 />
               )}
-              
-              <Select value={locationPref} onValueChange={(val) => setLocationPref(val ?? 'any')}>
-                <SelectTrigger className="h-10 w-full sm:w-28 bg-background/50 backdrop-blur-sm transition-all focus:bg-background">
-                  <SelectValue placeholder="Location" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="any">Any Loc</SelectItem>
-                  <SelectItem value="remote">Remote</SelectItem>
-                  <SelectItem value="hybrid">Hybrid</SelectItem>
-                  <SelectItem value="onsite">On-site</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
+          </div>
 
+          {/* Country */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <MapPin className="h-3 w-3" /> Country
+            </label>
+            <Select value={scrapeCountry} onValueChange={(val) => setScrapeCountry(val ?? 'all')}>
+              <SelectTrigger className="h-9 w-full text-sm bg-background/70">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">🌍 All Countries</SelectItem>
+                <SelectItem value="india">🇮🇳 India</SelectItem>
+                <SelectItem value="us">🇺🇸 USA</SelectItem>
+                <SelectItem value="uk">🇬🇧 UK</SelectItem>
+                <SelectItem value="germany">🇩🇪 Germany</SelectItem>
+                <SelectItem value="singapore">🇸🇬 Singapore</SelectItem>
+                <SelectItem value="canada">🇨🇦 Canada</SelectItem>
+                <SelectItem value="australia">🇦🇺 Australia</SelectItem>
+                <SelectItem value="remote">🌐 Remote / Global</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Work Type */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <Layers className="h-3 w-3" /> Work Type
+            </label>
+            <Select value={locationPref} onValueChange={(val) => setLocationPref(val ?? 'any')}>
+              <SelectTrigger className="h-9 w-full text-sm bg-background/70">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="any">Any type</SelectItem>
+                <SelectItem value="remote">Remote</SelectItem>
+                <SelectItem value="hybrid">Hybrid</SelectItem>
+                <SelectItem value="onsite">On-site</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Active filter chips + mobile CTA */}
+        <div className="px-4 pb-4 flex flex-wrap items-center gap-2">
+          {roleQuery && (
+            <span className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary border border-primary/20 rounded-full px-2.5 py-1 font-medium">
+              <Briefcase className="h-3 w-3" /> {roleQuery}
+              <button onClick={() => setRoleQuery('')} className="ml-0.5 hover:text-primary/70"><X className="h-3 w-3" /></button>
+            </span>
+          )}
+          {experience !== 'any' && (
+            <span className="inline-flex items-center gap-1 text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 rounded-full px-2.5 py-1 font-medium">
+              <GraduationCap className="h-3 w-3" /> {experience === 'custom' ? `${customExp} yrs` : experience}
+              <button onClick={() => setExperience('any')} className="ml-0.5"><X className="h-3 w-3" /></button>
+            </span>
+          )}
+          {scrapeCountry !== 'all' && (
+            <span className="inline-flex items-center gap-1 text-xs bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 rounded-full px-2.5 py-1 font-medium">
+              <MapPin className="h-3 w-3" />
+              {({ india:'🇮🇳 India', us:'🇺🇸 USA', uk:'🇬🇧 UK', germany:'🇩🇪 Germany', singapore:'🇸🇬 Singapore', canada:'🇨🇦 Canada', australia:'🇦🇺 Australia', remote:'🌐 Remote' } as Record<string,string>)[scrapeCountry] ?? scrapeCountry}
+              <button onClick={() => setScrapeCountry('all')} className="ml-0.5"><X className="h-3 w-3" /></button>
+            </span>
+          )}
+          {locationPref !== 'any' && (
+            <span className="inline-flex items-center gap-1 text-xs bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20 rounded-full px-2.5 py-1 font-medium">
+              <Layers className="h-3 w-3" /> {locationPref}
+              <button onClick={() => setLocationPref('any')} className="ml-0.5"><X className="h-3 w-3" /></button>
+            </span>
+          )}
+          {/* Mobile CTA */}
+          <div className="sm:hidden ml-auto flex items-center gap-2">
+            <Button
+              onClick={fetchRealJobs}
+              disabled={isFetchingApis || isScraping || discovering}
+              size="sm"
+              variant="outline"
+            >
+              {isFetchingApis ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Globe className="mr-1.5 h-3.5 w-3.5" />}
+              APIs
+            </Button>
             <Button
               onClick={scrapeJobs}
-              disabled={isScraping || discovering || companies.length === 0}
-              className="h-10 w-full sm:w-auto shadow-sm hover:shadow-md transition-all"
+              disabled={isScraping || isFetchingApis || discovering || companies.length === 0}
+              size="sm"
             >
-              {isScraping ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
-              {isScraping ? 'Scraping 20 Companies…' : 'Start Target Scrape'}
+              {isScraping ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Zap className="mr-1.5 h-3.5 w-3.5" />}
+              {isScraping ? 'Scraping…' : 'Scrape'}
             </Button>
           </div>
         </div>
@@ -661,8 +887,8 @@ export default function CompaniesPage() {
         <StatsCard title="Companies"  value={stats.total    ?? 0} icon={Building2} />
         <StatsCard title="With Jobs"  value={stats.withJobs ?? 0} icon={Briefcase} variant="success" />
         <StatsCard title="Total Jobs" value={stats.totalJobs ?? 0} icon={Globe}    variant="success" />
-        <StatsCard title="This Week"  value={stats.thisWeek ?? 0} icon={Zap}       variant="warning" />
-        <StatsCard title="Easy Apply" value={stats.easyApply ?? 0} icon={RefreshCw} variant="success" />
+        <StatsCard title="Jobs This Week" value={stats.thisWeek ?? 0} icon={Zap}       variant="warning" />
+        <StatsCard title="Easy Apply Jobs" value={stats.easyApply ?? 0} icon={RefreshCw} variant="success" />
       </div>
 
       {/* ATS breakdown */}
@@ -714,15 +940,134 @@ export default function CompaniesPage() {
         </CardContent>
       </Card>
 
-      {/* Search */}
-      <div className="relative">
-        <Input
-          placeholder="Search by name, industry, ATS, or source…"
-          value={search}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
-          className="h-10 pl-9"
-        />
-        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+      {/* Search + Filters bar */}
+      <div className="rounded-xl border border-border bg-card shadow-sm p-3 space-y-3">
+        {/* Top row: search + active filter count */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Search companies by name, industry, ATS, or source…"
+              value={search}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => { setSearch(e.target.value); setPage(1); }}
+              className="h-9 pl-9 w-full text-sm"
+            />
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground font-medium hidden sm:block">Filters</span>
+            {(filterAts !== 'all' || filterSource !== 'all' || filterCountry !== 'all') && (
+              <Badge variant="secondary" className="h-5 min-w-5 px-1.5 text-[10px] tabular-nums">
+                {[filterAts !== 'all', filterSource !== 'all', filterCountry !== 'all'].filter(Boolean).length}
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom row: 3 labeled dropdowns + clear */}
+        <div className="flex flex-wrap sm:flex-nowrap gap-2">
+          {/* ATS Type */}
+          <div className="flex flex-col gap-1 flex-1 min-w-[120px]">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5 flex items-center gap-1">
+              <Layers className="h-2.5 w-2.5" /> ATS Type
+            </span>
+            <Select value={filterAts} onValueChange={v => { setFilterAts(v ?? 'all'); setPage(1); }}>
+              <SelectTrigger className={cn('h-8 text-xs', filterAts !== 'all' && 'border-primary/50 text-primary bg-primary/5')}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All ATS types</SelectItem>
+                {atsOptions.map(a => (
+                  <SelectItem key={a} value={a}>
+                    {a.charAt(0).toUpperCase() + a.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Source */}
+          <div className="flex flex-col gap-1 flex-1 min-w-[120px]">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5 flex items-center gap-1">
+              <Building2 className="h-2.5 w-2.5" /> Source
+            </span>
+            <Select value={filterSource} onValueChange={v => { setFilterSource(v ?? 'all'); setPage(1); }}>
+              <SelectTrigger className={cn('h-8 text-xs', filterSource !== 'all' && 'border-primary/50 text-primary bg-primary/5')}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All sources</SelectItem>
+                {sourceOptions.map(s => (
+                  <SelectItem key={s} value={s}>
+                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Country */}
+          <div className="flex flex-col gap-1 flex-1 min-w-[130px]">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5 flex items-center gap-1">
+              <MapPin className="h-2.5 w-2.5" /> Country
+            </span>
+            <Select value={filterCountry} onValueChange={v => { setFilterCountry(v ?? 'all'); setPage(1); }}>
+              <SelectTrigger className={cn('h-8 text-xs', filterCountry !== 'all' && 'border-orange-400/50 text-orange-600 dark:text-orange-400 bg-orange-500/5')}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All countries</SelectItem>
+                <SelectItem value="india">🇮🇳 India</SelectItem>
+                <SelectItem value="us">🇺🇸 USA</SelectItem>
+                <SelectItem value="uk">🇬🇧 UK</SelectItem>
+                <SelectItem value="germany">🇩🇪 Germany</SelectItem>
+                <SelectItem value="singapore">🇸🇬 Singapore</SelectItem>
+                <SelectItem value="canada">🇨🇦 Canada</SelectItem>
+                <SelectItem value="australia">🇦🇺 Australia</SelectItem>
+                <SelectItem value="remote">🌍 Remote / Global</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Clear button — only when filters active */}
+          {(filterAts !== 'all' || filterSource !== 'all' || filterCountry !== 'all' || search) && (
+            <div className="flex flex-col gap-1 shrink-0">
+              <span className="text-[10px] opacity-0 select-none">clear</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-3 text-xs text-muted-foreground hover:text-destructive gap-1"
+                onClick={() => { setSearch(''); setFilterAts('all'); setFilterSource('all'); setFilterCountry('all'); setPage(1); }}
+              >
+                <X className="h-3 w-3" /> Clear all
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Active filter chips */}
+        {(filterAts !== 'all' || filterSource !== 'all' || filterCountry !== 'all') && (
+          <div className="flex flex-wrap gap-1.5 pt-0.5">
+            {filterAts !== 'all' && (
+              <span className="inline-flex items-center gap-1 text-[11px] bg-primary/10 text-primary border border-primary/20 rounded-full px-2 py-0.5">
+                ATS: {filterAts}
+                <button onClick={() => { setFilterAts('all'); setPage(1); }}><X className="h-2.5 w-2.5" /></button>
+              </span>
+            )}
+            {filterSource !== 'all' && (
+              <span className="inline-flex items-center gap-1 text-[11px] bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 rounded-full px-2 py-0.5">
+                Source: {filterSource}
+                <button onClick={() => { setFilterSource('all'); setPage(1); }}><X className="h-2.5 w-2.5" /></button>
+              </span>
+            )}
+            {filterCountry !== 'all' && (
+              <span className="inline-flex items-center gap-1 text-[11px] bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 rounded-full px-2 py-0.5">
+                Country: {filterCountry}
+                <button onClick={() => { setFilterCountry('all'); setPage(1); }}><X className="h-2.5 w-2.5" /></button>
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Table / empty */}
@@ -737,7 +1082,7 @@ export default function CompaniesPage() {
           }
           action={
             !search ? (
-              <Button onClick={() => runDiscovery(['seed'])} disabled={discovering}>
+              <Button onClick={() => runDiscovery(['seed'], 'seed')} disabled={discovering}>
                 <Zap className="mr-2 h-4 w-4" /> Load Known Companies
               </Button>
             ) : (

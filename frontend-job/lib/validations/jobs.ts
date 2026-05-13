@@ -34,6 +34,7 @@ export const scrapeJobsSchema = z.object({
   datePosted: z.string().optional(),
   boardUrls: z.array(z.string()).optional(),
   limit: z.number().optional(),
+  experience: z.string().optional(), // e.g. 'fresher' | '1-2' | '3-5' | 'senior'
 }).strip();
 
 export const saveExternalJobSchema = z.object({

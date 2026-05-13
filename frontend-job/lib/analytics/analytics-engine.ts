@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { applications, jobs, jobMatches } from '@/lib/db/schema';
-import { gte, eq } from 'drizzle-orm';
+import { gte, eq, and, inArray } from 'drizzle-orm';
 
 export type TimeRange = 'week' | 'month' | 'all';
 
@@ -12,6 +12,9 @@ function getTimeRangeDate(range: TimeRange): Date {
 }
 
 export class AnalyticsEngine {
+  // resumeIds scopes all queries to the current user's data
+  constructor(private resumeIds: string[] = []) {}
+
   async getAdvancedStats(timeRange: TimeRange = 'week') {
     const since = getTimeRangeDate(timeRange);
 
@@ -28,7 +31,10 @@ export class AnalyticsEngine {
   }
 
   private async getApplicationStats(since: Date) {
-    const rows = await db.select().from(applications).where(gte(applications.createdAt, since));
+    const filter = this.resumeIds.length > 0
+      ? and(gte(applications.createdAt, since), inArray(applications.resumeId, this.resumeIds))
+      : gte(applications.createdAt, since);
+    const rows = await db.select().from(applications).where(filter);
 
     const total = rows.length;
     const applied = rows.filter((a) => a.status === 'applied').length;
@@ -51,6 +57,9 @@ export class AnalyticsEngine {
   }
 
   private async getPlatformStats(since: Date) {
+    const filter = this.resumeIds.length > 0
+      ? and(gte(applications.createdAt, since), inArray(applications.resumeId, this.resumeIds))
+      : gte(applications.createdAt, since);
     const rows = await db
       .select({
         status: applications.status,
@@ -58,7 +67,7 @@ export class AnalyticsEngine {
       })
       .from(applications)
       .leftJoin(jobs, eq(applications.jobId, jobs.id))
-      .where(gte(applications.createdAt, since));
+      .where(filter);
 
     const byPlatform: Record<string, { total: number; applied: number; failed: number }> = {};
 
@@ -96,10 +105,13 @@ export class AnalyticsEngine {
   }
 
   private async getTrends(since: Date) {
+    const filter = this.resumeIds.length > 0
+      ? and(gte(applications.createdAt, since), inArray(applications.resumeId, this.resumeIds))
+      : gte(applications.createdAt, since);
     const rows = await db
       .select({ status: applications.status, createdAt: applications.createdAt })
       .from(applications)
-      .where(gte(applications.createdAt, since))
+      .where(filter)
       .orderBy(applications.createdAt);
 
     const byDate: Record<string, { date: string; total: number; applied: number; failed: number }> = {};
@@ -117,6 +129,9 @@ export class AnalyticsEngine {
   }
 
   private async getResponseRateBySource(since: Date) {
+    const filter = this.resumeIds.length > 0
+      ? and(gte(applications.createdAt, since), inArray(applications.resumeId, this.resumeIds))
+      : gte(applications.createdAt, since);
     const rows = await db
       .select({
         status: applications.status,
@@ -124,7 +139,7 @@ export class AnalyticsEngine {
       })
       .from(applications)
       .leftJoin(jobs, eq(applications.jobId, jobs.id))
-      .where(gte(applications.createdAt, since));
+      .where(filter);
 
     const bySource: Record<string, { total: number; responded: number }> = {};
 
@@ -147,10 +162,13 @@ export class AnalyticsEngine {
   }
 
   private async getBestTimeToApply(since: Date) {
+    const filter = this.resumeIds.length > 0
+      ? and(gte(applications.createdAt, since), inArray(applications.resumeId, this.resumeIds))
+      : gte(applications.createdAt, since);
     const rows = await db
       .select({ status: applications.status, appliedAt: applications.createdAt })
       .from(applications)
-      .where(gte(applications.createdAt, since));
+      .where(filter);
 
     const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     // Index 0=Sun … 6=Sat, but we want Mon-Sun order for display

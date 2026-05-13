@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { companies as companiesTable } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { type DiscoveredCompany } from './types';
 import { detectATS, findCareerPage } from './ats-detector';
 import { scrapeYCombinator } from './sources/yc';
@@ -8,6 +8,9 @@ import { scrapeGitHubTrending } from './sources/github';
 import { scrapeVCPortfolios } from './sources/vc-portfolios';
 import { scrapeWellfound } from './sources/wellfound';
 import { getKnownCompanies } from './sources/tech-companies';
+import { scrapeInc42 } from './sources/inc42';
+import { scrapeIndiaVCs } from './sources/india-vcs';
+import { scrapeNasscom } from './sources/nasscom';
 import { logger } from '@/lib/utils/logger';
 import pLimit from 'p-limit';
 
@@ -15,10 +18,13 @@ export class DiscoveryEngine {
   private concurrencyLimit = pLimit(3);
 
   async runFullDiscovery(options?: {
-    sources?: Array<'yc' | 'github' | 'vc' | 'wellfound' | 'seed'>;
+    sources?: Array<'yc' | 'github' | 'vc' | 'wellfound' | 'seed' | 'inc42' | 'india-vcs' | 'nasscom'>;
     skipAtsDetection?: boolean;
+    /** Max new companies to add per run. Default 50. */
+    limit?: number;
   }): Promise<{ total: number; newCompanies: number; sources: Record<string, number> }> {
     const sources = options?.sources ?? ['seed', 'yc', 'github'];
+    const limit = options?.limit ?? 50;
     const sourceResults: Record<string, number> = {};
     let allDiscovered: DiscoveredCompany[] = [];
 
@@ -74,14 +80,64 @@ export class DiscoveryEngine {
       }
     }
 
+    if (sources.includes('inc42')) {
+      try {
+        const inc = await scrapeInc42();
+        allDiscovered.push(...inc);
+        sourceResults['inc42'] = inc.length;
+      } catch (err) {
+        logger.error({ err }, 'Inc42 discovery failed');
+        sourceResults['inc42'] = 0;
+      }
+    }
+
+    if (sources.includes('india-vcs')) {
+      try {
+        const ivc = await scrapeIndiaVCs();
+        allDiscovered.push(...ivc);
+        sourceResults['india-vcs'] = ivc.length;
+      } catch (err) {
+        logger.error({ err }, 'India VCs discovery failed');
+        sourceResults['india-vcs'] = 0;
+      }
+    }
+
+    if (sources.includes('nasscom')) {
+      try {
+        const nas = await scrapeNasscom();
+        allDiscovered.push(...nas);
+        sourceResults['nasscom'] = nas.length;
+      } catch (err) {
+        logger.error({ err }, 'Nasscom discovery failed');
+        sourceResults['nasscom'] = 0;
+      }
+    }
+
     const total = allDiscovered.length;
     logger.info(`Total discovered: ${total} companies`);
 
     const unique = this.deduplicate(allDiscovered);
     logger.info(`After dedup: ${unique.length} unique companies`);
 
+    // Pre-filter: check which slugs already exist in DB in one query
+    const slugs = unique.map(c => this.slugify(c.name)).filter(Boolean);
+    const existingRows = slugs.length
+      ? await db
+          .select({ slug: companiesTable.slug })
+          .from(companiesTable)
+          .where(inArray(companiesTable.slug, slugs))
+      : [];
+    const existingSlugs = new Set(existingRows.map(r => r.slug));
+
+    // Only new companies, capped at limit
+    const toInsert = unique
+      .filter(c => !existingSlugs.has(this.slugify(c.name)))
+      .slice(0, limit);
+
+    logger.info(`New companies to insert (capped at ${limit}): ${toInsert.length}`);
+
     let newCount = 0;
-    for (const company of unique) {
+    for (const company of toInsert) {
       const isNew = await this.saveCompany(company, options?.skipAtsDetection ?? true);
       if (isNew) newCount++;
     }
