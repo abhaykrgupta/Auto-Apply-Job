@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "applications_job_resume_uidx" ON "applications" USING btree ("job_id","resume_id");

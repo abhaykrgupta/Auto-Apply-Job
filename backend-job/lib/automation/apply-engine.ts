@@ -89,15 +89,15 @@ export async function applyToJob(
       const resumeSummary = buildResumeSummary(resume.parsedData);
       const preflight = await preflightScreen(job.title, job.description, resumeSummary);
 
-      // Log preflight result (fire-and-forget)
-      db.insert(preflightLog).values({
+      // Log preflight result
+      await db.insert(preflightLog).values({
         jobId: job.id,
         resumeId: resume.id,
         score: preflight.score,
         passed: preflight.pass,
         reason: preflight.reason,
         tokensUsed: preflight.tokensUsed,
-      }).catch(() => {});
+      }).catch((err) => logger.warn({ err }, '[ApplyEngine] Failed to write preflight log'));
 
       if (!preflight.pass) {
         const msg = `[Preflight SKIP] Score ${preflight.score}/100: ${preflight.reason}`;

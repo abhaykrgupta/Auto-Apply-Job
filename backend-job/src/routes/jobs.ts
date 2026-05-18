@@ -33,11 +33,14 @@ export default async function jobsRoutes(server: FastifyInstance) {
     }
   });
 
-  server.get<{ Querystring: { resumeId?: string } }>('/api/jobs/matches', async (request, reply) => {
+  server.get<{ Querystring: { resumeId?: string; limit?: string; offset?: string } }>('/api/jobs/matches', async (request, reply) => {
     try {
-      const resumeId = request.query.resumeId;
+      const { resumeId, limit, offset } = request.query;
       if (!resumeId) return reply.status(400).send({ error: 'resumeId is required' });
-      const matches = await getJobMatches(resumeId);
+      const matches = await getJobMatches(resumeId, {
+        limit:  limit  ? parseInt(limit,  10) : 50,
+        offset: offset ? parseInt(offset, 10) : 0,
+      });
       return matches;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

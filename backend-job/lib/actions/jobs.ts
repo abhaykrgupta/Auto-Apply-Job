@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 import { jobs, jobMatches, resumes } from '@/lib/db/schema';
 import { scoreJobMatch } from '@/lib/openai/job-matcher';
 import { getEmbedding } from '@/lib/openai/embeddings';
-import { eq, desc, and, gte, ilike } from 'drizzle-orm';
+import { eq, desc, and, gte, ilike, sql } from 'drizzle-orm';
 
 
 export async function getJobs(filters?: { status?: string; source?: string }) {
@@ -68,14 +68,27 @@ export async function matchJobsToResume(resumeId: string) {
   return results;
 }
 
-export async function getJobMatches(resumeId: string) {
-  return db
-    .select({
-      match: jobMatches,
-      job: jobs,
-    })
-    .from(jobMatches)
-    .innerJoin(jobs, eq(jobMatches.jobId, jobs.id))
-    .where(eq(jobMatches.resumeId, resumeId))
-    .orderBy(desc(jobMatches.score));
+export async function getJobMatches(
+  resumeId: string,
+  { limit = 50, offset = 0 }: { limit?: number; offset?: number } = {},
+) {
+  const safeLimit  = Math.min(Math.max(1, limit),  200); // cap at 200
+  const safeOffset = Math.max(0, offset);
+
+  const [rows, [{ total }]] = await Promise.all([
+    db
+      .select({ match: jobMatches, job: jobs })
+      .from(jobMatches)
+      .innerJoin(jobs, eq(jobMatches.jobId, jobs.id))
+      .where(eq(jobMatches.resumeId, resumeId))
+      .orderBy(desc(jobMatches.score))
+      .limit(safeLimit)
+      .offset(safeOffset),
+    db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(jobMatches)
+      .where(eq(jobMatches.resumeId, resumeId)),
+  ]);
+
+  return { data: rows, total, limit: safeLimit, offset: safeOffset };
 }

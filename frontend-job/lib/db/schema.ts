@@ -9,6 +9,7 @@ import {
   real,
   pgEnum,
   index,
+  uniqueIndex,
   customType,
   primaryKey,
 } from 'drizzle-orm/pg-core';
@@ -219,7 +220,9 @@ export const applications = pgTable('applications', {
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-});
+}, (t) => [
+  uniqueIndex('applications_job_resume_uidx').on(t.jobId, t.resumeId),
+]);
 
 export const applicationLogs = pgTable('application_logs', {
   id: uuid('id').primaryKey().defaultRandom(),
