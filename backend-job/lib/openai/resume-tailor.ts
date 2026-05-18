@@ -3,6 +3,7 @@ import { rateLimitedOpenAI } from './rate-limiter';
 import { logger } from '@/lib/utils/logger';
 import { trackUsageFromResponse } from './usage-tracker';
 import { validateTailoredResume } from '@/lib/automation/resume-truth-validator';
+import { wrapUntrusted, INJECTION_GUARD_INSTRUCTION, scanForInjection } from './prompt-guard';
 
 export interface TailoredResume {
   summary: string;
@@ -46,18 +47,26 @@ export async function tailorResumeToJob(
     }
   }
 
-  const prompt = `You are an expert resume coach and ATS optimization specialist.
+  // Scan job content for injection attempts
+  const descScan = scanForInjection(job.description);
+  const reqScan  = scanForInjection(job.requirements ?? '');
+  if (!descScan.clean || !reqScan.clean) {
+    logger.warn({ company: job.company, title: job.title, flagged: [...descScan.flaggedPatterns, ...reqScan.flaggedPatterns] },
+      '[ResumeTailor] Prompt injection pattern detected in job posting');
+  }
 
-RESUME DATA:
-${JSON.stringify(resumeData, null, 2)}
+  const systemPrompt = `You are an expert resume coach and ATS optimization specialist.
+Your task: tailor a candidate's resume for a specific job to maximize ATS score and recruiter appeal.
+${INJECTION_GUARD_INSTRUCTION}`;
+
+  const userPrompt = `RESUME DATA:
+${wrapUntrusted('resume_data', JSON.stringify(resumeData, null, 2))}
 
 TARGET JOB:
 Title: ${job.title}
 Company: ${job.company}
-Description: ${job.description}
-Requirements: ${job.requirements ?? 'Not provided'}
-
-Your task: Tailor this resume specifically for this job to maximize ATS score and recruiter appeal.
+${wrapUntrusted('job_description', job.description)}
+${wrapUntrusted('job_requirements', job.requirements ?? 'Not provided')}
 
 Return ONLY valid JSON (no markdown, no code blocks):
 {
@@ -85,7 +94,10 @@ Rules:
   const startTime = Date.now();
   const response = await rateLimitedOpenAI(() => openai.chat.completions.create({
     model: 'gpt-4o',
-    messages: [{ role: 'user', content: prompt }],
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user',   content: userPrompt },
+    ],
     temperature: 0.3,
     max_tokens: 2000,
   }));

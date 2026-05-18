@@ -19,6 +19,7 @@ import { answerCache } from '@/lib/db/schema';
 import { eq, like } from 'drizzle-orm';
 import { openai } from '@/lib/openai/client';
 import { logger } from '@/lib/utils/logger';
+import { INJECTION_GUARD_INSTRUCTION, scanForInjection } from '@/lib/openai/prompt-guard';
 import crypto from 'crypto';
 
 /**
@@ -121,8 +122,15 @@ export async function generateAnswers(
   const results: Record<string, string> = {};
   const uncachedQuestions: AtsQuestion[] = [];
 
-  // Pass 1: Cache lookup
+  // Pass 1: Cache lookup (also scan question labels for injection)
   for (const q of questions) {
+    const scan = scanForInjection(q.label);
+    if (!scan.clean) {
+      logger.warn({ label: q.label.slice(0, 100), flagged: scan.flaggedPatterns },
+        '[AnswerCache] Injection pattern detected in form question label — skipping');
+      results[q.label] = ''; // return empty so the user fills manually
+      continue;
+    }
     const cached = await getCachedAnswer(q.label);
     if (cached !== null) {
       results[q.label] = cached;
@@ -145,14 +153,18 @@ export async function generateAnswers(
     }))
   );
 
-  const systemPrompt = `You are filling out a job application form on behalf of a candidate. 
+  const systemPrompt = `You are filling out a job application form on behalf of a candidate.
 Given their resume summary and a list of form questions, generate realistic, professional answers.
 For select/radio/checkbox fields, pick from the provided options.
-Output ONLY a valid JSON object mapping each question label to its answer string. No markdown.`;
+Output ONLY a valid JSON object mapping each question label to its answer string. No markdown.
+${INJECTION_GUARD_INSTRUCTION}`;
 
   const userPrompt = `APPLYING FOR: ${jobTitle} at ${companyName}
 RESUME SUMMARY: ${resumeSummary.slice(0, 600)}
-QUESTIONS: ${questionsJson}`;
+QUESTIONS:
+<form_questions>
+${questionsJson}
+</form_questions>`;
 
   try {
     const response = await openai.chat.completions.create({

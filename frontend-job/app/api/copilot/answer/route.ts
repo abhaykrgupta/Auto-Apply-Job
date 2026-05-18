@@ -18,6 +18,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCopilotUser } from '@/lib/copilot-auth';
 import { openai } from '@/lib/openai/client';
 import { checkPlanLimit, incrementUsage } from '@/lib/rate-limit/plan-limits';
+import { wrapUntrusted, INJECTION_GUARD_INSTRUCTION, scanForInjection } from '@/lib/openai/prompt-guard';
 
 const MAX_JD_CHARS    = 2000;
 const MAX_ANSWER_CHARS = 400;
@@ -45,9 +46,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'question is required' }, { status: 400 });
   }
 
+  // Scan untrusted inputs (from web page) for injection attempts
+  const jdRaw   = (context?.jd ?? '').slice(0, MAX_JD_CHARS);
+  const jdScan  = scanForInjection(jdRaw);
+  const qScan   = scanForInjection(question);
+  if (!jdScan.clean || !qScan.clean) {
+    // Log and return empty — user fills manually, no LLM call made
+    console.warn('[copilot/answer] Injection pattern in input — blocked', {
+      userId,
+      flagged: [...jdScan.flaggedPatterns, ...qScan.flaggedPatterns],
+    });
+    return NextResponse.json({ answer: '' }, { status: 200 });
+  }
+
   const title   = context?.title   ?? 'this role';
   const company = context?.company ?? 'this company';
-  const jd      = (context?.jd ?? '').slice(0, MAX_JD_CHARS);
   const summary = profile?.summary ?? '';
   const name    = [profile?.firstName, profile?.lastName].filter(Boolean).join(' ') || 'the applicant';
 
@@ -56,12 +69,13 @@ Write in first person, professional tone, 1–3 sentences maximum.
 Never include placeholder brackets like [X years]. Use real information from the profile when available.
 If the question is a yes/no, answer with just "Yes" or "No".
 If the question asks for a number (years, salary), give a single number or short range.
-If you don't have enough information, write a confident, generic but honest answer.`;
+If you don't have enough information, write a confident, generic but honest answer.
+${INJECTION_GUARD_INSTRUCTION}`;
 
   const userPrompt = `Job: ${title} at ${company}
-${jd ? `\nJob description excerpt:\n${jd}\n` : ''}
+${jdRaw ? `\n${wrapUntrusted('job_description', jdRaw)}\n` : ''}
 ${summary ? `\nMy background: ${summary}\n` : ''}
-Question: "${question}"
+${wrapUntrusted('form_question', question)}
 
 Write a concise answer (max ${MAX_ANSWER_CHARS} characters):`;
 
