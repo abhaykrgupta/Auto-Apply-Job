@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { applications, jobs, profile, resumes } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { applications, jobs, profile, resumes, applicationLogs } from '@/lib/db/schema';
+import { eq, asc } from 'drizzle-orm';
 
 /** Verify the application belongs to the current user. Returns row or null. */
 async function getOwnedApplication(userId: string, applicationId: string) {
@@ -44,7 +44,14 @@ export async function GET(
   const row = await getOwnedApplication(session.user.id, id);
   if (!row) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  return NextResponse.json(row);
+  // Fetch step-by-step bot activity logs for this application
+  const logs = await db
+    .select()
+    .from(applicationLogs)
+    .where(eq(applicationLogs.applicationId, id))
+    .orderBy(asc(applicationLogs.createdAt));
+
+  return NextResponse.json({ ...row, logs });
 }
 
 export async function PATCH(

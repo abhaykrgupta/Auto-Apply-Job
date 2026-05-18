@@ -7,10 +7,6 @@
     "dev": "node --env-file=.env --import tsx --watch src/server.ts",
     "build": "tsc",
     "start": "node dist/src/server.js",
-    "worker:automation": "node --env-file=.env --import tsx workers/automation-worker.ts",
-    "worker:scraper": "node --env-file=.env --import tsx workers/scraper-worker.ts",
-    "worker:ai": "node --env-file=.env --import tsx workers/ai-worker.ts",
-    "workers": "npx concurrently \"npm run worker:automation\" \"npm run worker:scraper\" \"npm run worker:ai\"",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"
