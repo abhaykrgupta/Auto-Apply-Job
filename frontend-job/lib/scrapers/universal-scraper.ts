@@ -17,6 +17,8 @@ import { FounditScraper } from './sources/foundit';
 import { TimesJobsScraper } from './sources/timesjobs';
 import { ShineScraper } from './sources/shine';
 import { FreersworldScraper } from './sources/freshersworld';
+import { UnstopScraper } from './sources/unstop';
+import { BaytScraper } from './sources/bayt';
 import { type ScrapedJob } from './base-scraper';
 import { logger } from '@/lib/utils/logger';
 
@@ -36,7 +38,9 @@ export type ScraperSource =
   | 'foundit'
   | 'timesjobs'
   | 'shine'
-  | 'freshersworld';
+  | 'freshersworld'
+  | 'unstop'    // India — campus + fresher hiring
+  | 'bayt';     // Gulf/UAE — Indian diaspora
 
 export interface UniversalScrapeFilters {
   query?: string;
@@ -103,6 +107,10 @@ export class UniversalScraper {
           scraped = await new ShineScraper().searchJobs(jobFilters);
         } else if (source === 'freshersworld') {
           scraped = await new FreersworldScraper().searchJobs(jobFilters);
+        } else if (source === 'unstop') {
+          scraped = await new UnstopScraper().searchJobs(jobFilters);
+        } else if (source === 'bayt') {
+          scraped = await new BaytScraper().searchJobs(jobFilters);
         } else if (source === 'greenhouse' && filters.boardUrls?.length) {
           const gh = new GreenhouseScraper();
           for (const url of filters.boardUrls.filter((u) => u.includes('greenhouse'))) {

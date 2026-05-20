@@ -4,6 +4,7 @@ import { detectCaptcha } from './captcha-detector';
 import { classifyFailure, computeCooldownUntil } from './retry-classifier';
 import { preflightScreen, buildResumeSummary } from './preflight-screener';
 import { warmupPage, humanFill, humanClick, humanScroll, humanSubmit } from './human-mimicry';
+import { tryDirectApply } from './direct-apply';
 import { db } from '@/lib/db';
 import { applications, applicationLogs, settings, preflightLog } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -115,6 +116,7 @@ export async function applyToJob(
     }
 
     // Validate URL before navigating — prevents file://, javascript:, data: attacks
+    // Done before direct-apply attempt too so we never hit a bad URL either way.
     let parsedUrl: URL;
     try {
       parsedUrl = new URL(job.applyUrl);
@@ -123,6 +125,51 @@ export async function applyToJob(
     }
     if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
       throw new Error(`Blocked unsafe URL protocol: ${parsedUrl.protocol}`);
+    }
+
+    // ── Phase 1.5: Direct API Apply (Lever / Ashby) ───────────────────────────
+    // Try submitting via ATS public API first — no browser, no CAPTCHA.
+    // Only falls through to Playwright if the ATS is unsupported or the API call fails.
+    if (resume.parsedData) {
+      const parsed = resume.parsedData as {
+        name?: string; email?: string; phone?: string;
+        experience?: Array<{ company: string }>;
+        links?: { linkedin?: string; github?: string };
+      };
+      const nameParts = (parsed.name ?? '').split(' ');
+
+      const directResult = await tryDirectApply(job.applyUrl, {
+        firstName:      nameParts[0] ?? '',
+        lastName:       nameParts.slice(1).join(' ') ?? '',
+        email:          parsed.email ?? '',
+        phone:          parsed.phone ?? '',
+        resumeFilePath: resume.filePath,
+        linkedinUrl:    parsed.links?.linkedin,
+        githubUrl:      parsed.links?.github,
+        currentCompany: parsed.experience?.[0]?.company,
+      });
+
+      if (directResult.success) {
+        log(`[DirectApply] ${directResult.method}: application submitted (id: ${directResult.applicationId ?? 'n/a'})`);
+        await db.update(applications)
+          .set({ status: 'applied', appliedAt: new Date(), attemptCount: 1, lastAttemptAt: new Date(), method: directResult.method })
+          .where(eq(applications.id, applicationId));
+        await db.insert(applicationLogs).values({
+          applicationId, level: 'info',
+          message: `Applied via ${directResult.method} — no browser needed`,
+        });
+        telegramService.notifyApplicationStatus(job, 'applied').catch(() => {});
+        return { status: 'applied', method: directResult.method, logs };
+      }
+
+      if (directResult.method !== 'unsupported') {
+        // API was tried but failed — log and continue to Playwright fallback
+        log(`[DirectApply] ${directResult.method} failed (${directResult.error}) — falling back to Playwright`);
+        await db.insert(applicationLogs).values({
+          applicationId, level: 'warn',
+          message: `Direct API apply failed: ${directResult.error}. Trying browser automation.`,
+        });
+      }
     }
 
     log(`Navigating to ${parsedUrl.toString()}`);
