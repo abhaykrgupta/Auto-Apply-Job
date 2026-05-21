@@ -10,10 +10,21 @@ const bulkDeleteSchema = z.object({
 });
 
 export default async function jobsRoutes(server: FastifyInstance) {
-  server.get('/api/jobs', async (request, reply) => {
+  server.get<{
+    Querystring: {
+      search?: string; status?: string; source?: string;
+      country?: string; datePosted?: string;
+      limit?: string; offset?: string;
+    }
+  }>('/api/jobs', async (request, reply) => {
     try {
-      const jobs = await getJobs();
-      return jobs;
+      const { search, status, source, country, datePosted, limit, offset } = request.query;
+      const result = await getJobs({
+        search, status, source, country, datePosted,
+        limit:  limit  ? parseInt(limit,  10) : 50,
+        offset: offset ? parseInt(offset, 10) : 0,
+      });
+      return result;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       server.log.error('[API Jobs GET] ' + message);

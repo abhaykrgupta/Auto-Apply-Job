@@ -7,9 +7,90 @@ import { getEmbedding } from '@/lib/openai/embeddings';
 import { eq, desc, and, gte, ilike, sql } from 'drizzle-orm';
 
 
-export async function getJobs(filters?: { status?: string; source?: string }) {
-  const query = db.select().from(jobs).orderBy(desc(jobs.createdAt));
-  return query;
+export interface JobFilters {
+  search?:     string;   // title, company, location
+  status?:     string;   // active | expired | filled
+  source?:     string;   // greenhouse | lever | linkedin | ...
+  country?:    string;   // india | us | uk | remote | uae | ...
+  datePosted?: string;   // today | week | month
+  limit?:      number;
+  offset?:     number;
+}
+
+export async function getJobs(filters: JobFilters = {}) {
+  const {
+    search,
+    status,
+    source,
+    country,
+    datePosted,
+    limit  = 50,
+    offset = 0,
+  } = filters;
+
+  const safeLimit  = Math.min(Math.max(1, limit),  200);
+  const safeOffset = Math.max(0, offset);
+
+  const conditions = [];
+
+  if (status) {
+    conditions.push(eq(jobs.status, status as 'active' | 'expired' | 'filled'));
+  } else {
+    conditions.push(eq(jobs.status, 'active')); // default: only active
+  }
+
+  if (source) {
+    conditions.push(ilike(jobs.source, source));
+  }
+
+  // Full-text search across title, company, location
+  if (search?.trim()) {
+    const term = `%${search.trim()}%`;
+    conditions.push(
+      sql`(${jobs.title} ILIKE ${term} OR ${jobs.company} ILIKE ${term} OR ${jobs.location} ILIKE ${term})`
+    );
+  }
+
+  // Country/location filter — map common names to location patterns
+  if (country && country !== 'all') {
+    const locationMap: Record<string, string> = {
+      india:     '%india%',
+      remote:    '%remote%',
+      us:        '%united states%',
+      uk:        '%united kingdom%',
+      canada:    '%canada%',
+      germany:   '%germany%',
+      australia: '%australia%',
+      singapore: '%singapore%',
+      uae:       '%united arab emirates%',
+      dubai:     '%dubai%',
+    };
+    const pattern = locationMap[country.toLowerCase()] ?? `%${country}%`;
+    conditions.push(ilike(jobs.location, pattern));
+  }
+
+  // Date posted filter
+  if (datePosted && datePosted !== 'all') {
+    const daysMap: Record<string, number> = { today: 1, yesterday: 2, week: 7, month: 30 };
+    const days = daysMap[datePosted];
+    if (days) {
+      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      conditions.push(gte(jobs.createdAt, cutoff));
+    }
+  }
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [rows, [{ total }]] = await Promise.all([
+    db.select().from(jobs)
+      .where(where)
+      .orderBy(desc(jobs.createdAt))
+      .limit(safeLimit)
+      .offset(safeOffset),
+    db.select({ total: sql<number>`count(*)::int` }).from(jobs).where(where),
+  ]);
+
+  return { data: rows, total, limit: safeLimit, offset: safeOffset };
 }
 
 export async function getJobById(id: string) {

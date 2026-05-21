@@ -2,21 +2,75 @@
 
 import { db } from '@/lib/db';
 import { companies } from '@/lib/db/schema';
-import { eq, desc, or, isNull } from 'drizzle-orm';
+import { eq, desc, or, isNull, and, ilike, sql } from 'drizzle-orm';
 import { discoveryEngine } from '@/lib/company-discovery/discovery-engine';
 import { revalidatePath } from 'next/cache';
 
-// Returns global companies + this user's privately-added companies
-export async function getCompanies(userId?: string) {
-  return db
-    .select()
-    .from(companies)
-    .where(
-      userId
-        ? or(isNull(companies.addedByUserId), eq(companies.addedByUserId, userId))
-        : isNull(companies.addedByUserId)
-    )
-    .orderBy(desc(companies.discoveredAt));
+export interface CompanyFilters {
+  search?:  string;   // name, industry, location
+  atsType?: string;   // greenhouse | lever | ashby | workday | ...
+  source?:  string;   // yc | github | wellfound | ...
+  country?: string;   // india | us | uk | remote | uae | ...
+  limit?:   number;
+  offset?:  number;
+}
+
+// Returns global companies + this user's privately-added companies, with filtering
+export async function getCompanies(userId?: string, filters: CompanyFilters = {}) {
+  const { search, atsType, source, country, limit = 50, offset = 0 } = filters;
+
+  const safeLimit  = Math.min(Math.max(1, limit),  200);
+  const safeOffset = Math.max(0, offset);
+
+  const ownershipCondition = userId
+    ? or(isNull(companies.addedByUserId), eq(companies.addedByUserId, userId))
+    : isNull(companies.addedByUserId);
+
+  const conditions = [ownershipCondition!];
+
+  if (search?.trim()) {
+    const term = `%${search.trim()}%`;
+    conditions.push(
+      sql`(${companies.name} ILIKE ${term} OR ${companies.industry} ILIKE ${term} OR ${companies.location} ILIKE ${term})`
+    );
+  }
+
+  if (atsType && atsType !== 'all') {
+    conditions.push(ilike(companies.atsType, atsType));
+  }
+
+  if (source && source !== 'all') {
+    conditions.push(ilike(companies.source, source));
+  }
+
+  if (country && country !== 'all') {
+    const locationMap: Record<string, string> = {
+      india:     '%india%',
+      remote:    '%remote%',
+      us:        '%united states%',
+      uk:        '%united kingdom%',
+      canada:    '%canada%',
+      germany:   '%germany%',
+      australia: '%australia%',
+      singapore: '%singapore%',
+      uae:       '%united arab emirates%',
+    };
+    const pattern = locationMap[country.toLowerCase()] ?? `%${country}%`;
+    conditions.push(ilike(companies.location, pattern));
+  }
+
+  const where = and(...conditions);
+
+  const [rows, [{ total }]] = await Promise.all([
+    db.select().from(companies)
+      .where(where)
+      .orderBy(desc(companies.discoveredAt))
+      .limit(safeLimit)
+      .offset(safeOffset),
+    db.select({ total: sql<number>`count(*)::int` }).from(companies).where(where),
+  ]);
+
+  return { data: rows, total, limit: safeLimit, offset: safeOffset };
 }
 
 export async function getCompanyStats() {
