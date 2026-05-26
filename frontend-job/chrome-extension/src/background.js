@@ -1,5 +1,24 @@
 'use strict';
 
+// Validates that a URL is from an allowed dashboard origin (prevents open redirect)
+function validateDashboardUrl(url) {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    const allowed = ['localhost', '127.0.0.1', 'vercel.app'];
+    const ok = parsed.protocol === 'https:' ||
+               allowed.some(h => parsed.hostname === h || parsed.hostname.endsWith('.' + h));
+    return ok ? url.replace(/\/$/, '') : null;
+  } catch { return null; }
+}
+
+// Validates notification job ID — must be a UUID to prevent URL injection
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function validateJobId(raw) {
+  return UUID_RE.test(raw) ? raw : null;
+}
+
+
 const KEEPALIVE_ALARM = 'keepalive';
 const POLL_ALARM      = 'poll-matches';
 const POLL_INTERVAL   = 30; // minutes
@@ -50,9 +69,10 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 async function pollMatchCount() {
   try {
     const { dashboardUrl } = await chrome.storage.sync.get('dashboardUrl');
-    if (!dashboardUrl) return;
+    const safeUrl = validateDashboardUrl(dashboardUrl);
+    if (!safeUrl) return;
 
-    const res = await fetch(`${dashboardUrl}/api/jobs/matches?limit=100`, {
+    const res = await fetch(`${safeUrl}/api/jobs/matches?limit=100`, {
       signal: AbortSignal.timeout(10000),
     });
     if (!res.ok) return;
@@ -137,7 +157,9 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       if (!jobData) { notify('No job detected on this page.'); return; }
 
       const { dashboardUrl } = await chrome.storage.sync.get('dashboardUrl');
-      const res = await fetch(`${dashboardUrl}/api/jobs/save-external`, {
+      const safeBase = validateDashboardUrl(dashboardUrl);
+      if (!safeBase) return;
+      const res = await fetch(`${safeBase}/api/jobs/save-external`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ job: jobData }),
@@ -166,9 +188,11 @@ function notify(message, title = 'Job Agent') {
 chrome.notifications.onClicked.addListener(async (notificationId) => {
   chrome.notifications.clear(notificationId);
   const { dashboardUrl } = await chrome.storage.sync.get('dashboardUrl');
-  const url = dashboardUrl ?? 'http://localhost:3000';
+  const url = validateDashboardUrl(dashboardUrl) ?? 'http://localhost:3000';
   if (notificationId.startsWith('job-') && !notificationId.startsWith('job-agent-')) {
-    chrome.tabs.create({ url: `${url}/jobs/${notificationId.replace('job-', '')}` });
+    const jobId = validateJobId(notificationId.replace('job-', ''));
+    if (!jobId) { chrome.tabs.create({ url: `${url}/matches` }); return; }
+    chrome.tabs.create({ url: `${url}/jobs/${jobId}` });
   } else {
     chrome.tabs.create({ url: `${url}/matches` });
   }

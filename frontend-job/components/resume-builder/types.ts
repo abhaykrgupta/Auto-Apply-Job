@@ -7,6 +7,7 @@ export interface PersonalInfo {
   github: string;
   website: string;
   headline: string; // editable job title / tagline below name
+  photo?: string;   // base64 or URL — shown in template header when set
 }
 
 export interface Summary {
@@ -83,7 +84,8 @@ export interface ResumeData {
   // UI metadata — not rendered in resume output
   sectionOrder: SectionKey[];
   sectionVisibility: Record<SectionKey, boolean>;
-  customAccentColor?: string; // overrides template accent when set
+  customAccentColor?: string;                    // overrides template accent color
+  fontOverride?: 'serif' | 'sans-serif';         // overrides template font family
 }
 
 export const DEFAULT_SECTION_ORDER: SectionKey[] = [
@@ -91,7 +93,7 @@ export const DEFAULT_SECTION_ORDER: SectionKey[] = [
 ];
 
 export const defaultResumeData: ResumeData = {
-  personal: { name: '', email: '', phone: '', location: '', linkedin: '', github: '', website: '', headline: '' },
+  personal: { name: '', email: '', phone: '', location: '', linkedin: '', github: '', website: '', headline: '', photo: undefined },
   summary: { text: '' },
   experience: [],
   education: [],

@@ -5,11 +5,23 @@ import { telegramService } from '@/lib/notifications/telegram-service';
 import { db } from '@/lib/db';
 import { profile } from '@/lib/db/schema';
 import { desc } from 'drizzle-orm';
+import { timingSafeEqual } from 'crypto';
 
 // Vercel cron: 0 4 * * * (4 AM UTC daily)
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const expected = process.env.CRON_SECRET;
+  if (!expected) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const token = (authHeader ?? '').replace(/^Bearer /, '');
+  let authorized = false;
+  try {
+    const a = Buffer.from(token.padEnd(expected.length));
+    const b = Buffer.from(expected);
+    authorized = a.length === b.length && timingSafeEqual(a, b);
+  } catch { authorized = false; }
+  if (!authorized) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -52,3 +64,4 @@ export async function GET(request: NextRequest) {
     timestamp: new Date().toISOString(),
   });
 }
+

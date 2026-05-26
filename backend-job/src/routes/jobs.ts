@@ -13,14 +13,14 @@ export default async function jobsRoutes(server: FastifyInstance) {
   server.get<{
     Querystring: {
       search?: string; status?: string; source?: string;
-      country?: string; datePosted?: string;
+      country?: string; location?: string; datePosted?: string;
       limit?: string; offset?: string;
     }
   }>('/api/jobs', async (request, reply) => {
     try {
-      const { search, status, source, country, datePosted, limit, offset } = request.query;
+      const { search, status, source, country, location, datePosted, limit, offset } = request.query;
       const result = await getJobs({
-        search, status, source, country, datePosted,
+        search, status, source, country, location, datePosted,
         limit:  limit  ? parseInt(limit,  10) : 50,
         offset: offset ? parseInt(offset, 10) : 0,
       });

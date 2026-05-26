@@ -45,6 +45,9 @@ export async function POST(req: NextRequest) {
   if (!question?.trim()) {
     return NextResponse.json({ error: 'question is required' }, { status: 400 });
   }
+  if (question.length > 500) {
+    return NextResponse.json({ error: 'Question too long (max 500 chars)' }, { status: 400 });
+  }
 
   // Scan untrusted inputs (from web page) for injection attempts
   const jdRaw   = (context?.jd ?? '').slice(0, MAX_JD_CHARS);

@@ -11,16 +11,17 @@ export class RemoteOKScraper extends BaseScraper {
 
     try {
       const response = await fetch('https://remoteok.com/api', {
-        headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/json' },
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; JobAgent/1.0)', Accept: 'application/json' },
+        signal: AbortSignal.timeout(15_000),
       });
 
       if (!response.ok) {
-        logger.warn(`RemoteOK API returned ${response.status}`);
+        logger.warn({ status: response.status }, 'RemoteOK API error');
         return [];
       }
 
       const data: any[] = await response.json();
-      const limit = filters.limit ?? 50;
+      const limit = filters.limit ?? 100; // increased from 50
       const items = data.slice(1, limit + 1); // first item is metadata
 
       for (const item of items) {

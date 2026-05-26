@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
 import {
   ArrowLeft, Rocket, Download, LayoutTemplate,
@@ -94,6 +95,8 @@ export default function BuilderPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
+  const { data: session } = useSession();
+  const isLoggedIn = !!session?.user;
 
   const [project, setProject] = useState<any>(null);
   const [data, setData] = useState<ResumeData>(defaultResumeData);
@@ -102,6 +105,36 @@ export default function BuilderPage() {
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
   const [rightTab, setRightTab] = useState<RightTab>('preview');
   const [deploying, setDeploying] = useState(false);
+
+  // Resizable split panel — default 50% of viewport width
+  const [leftWidth, setLeftWidth] = useState(() =>
+    typeof window !== 'undefined' ? Math.floor(window.innerWidth * 0.5) : 600
+  );
+  const isDragging = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartWidth = useRef(0);
+
+  const onDragStart = (e: React.MouseEvent) => {
+    isDragging.current = true;
+    dragStartX.current = e.clientX;
+    dragStartWidth.current = leftWidth;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    const onMove = (e: MouseEvent) => {
+      if (!isDragging.current) return;
+      const delta = e.clientX - dragStartX.current;
+      setLeftWidth(Math.min(900, Math.max(280, dragStartWidth.current + delta)));
+    };
+    const onUp = () => {
+      isDragging.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
   const [deployed, setDeployed] = useState(false);
   const [downloading, setDownloading] = useState(false);
   // Mobile: which panel is active
@@ -344,13 +377,13 @@ export default function BuilderPage() {
 
       {/* ── Top Bar ─────────────────────────────────── */}
       <div className="flex items-center gap-3 px-4 h-14 border-b border-border bg-card/80 backdrop-blur-sm shrink-0 shadow-sm">
-        {/* Back */}
+        {/* Back — guests go home, logged-in go to resume list */}
         <button
-          onClick={() => router.push('/resume-builder')}
+          onClick={() => router.push(isLoggedIn ? '/resume-builder' : '/')}
           className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm"
         >
           <ArrowLeft className="h-4 w-4" />
-          <span className="hidden sm:inline">Resumes</span>
+          <span className="hidden sm:inline">{isLoggedIn ? 'Resumes' : 'Home'}</span>
         </button>
 
         <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40" />
@@ -368,29 +401,40 @@ export default function BuilderPage() {
           </div>
         </div>
 
-        {/* Save button */}
-        <Button
-          variant={saveStatus === 'unsaved' ? 'default' : 'outline'}
-          size="sm"
-          onClick={handleManualSave}
-          disabled={saveStatus === 'saving' || saveStatus === 'saved'}
-          className={cn(
-            "h-8 text-xs shrink-0 transition-all",
-            saveStatus === 'saved' && "text-green-600 border-green-200 dark:text-green-400 dark:border-green-900 bg-green-50/50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/40"
-          )}
-        >
-          {saveStatus === 'saving' && <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />}
-          {saveStatus === 'saved'  && <Check className="h-3 w-3 mr-1.5" />}
-          {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved' : 'Save Changes'}
-        </Button>
+        {/* Save button — only for logged-in users */}
+        {isLoggedIn ? (
+          <Button
+            variant={saveStatus === 'unsaved' ? 'default' : 'outline'}
+            size="sm"
+            onClick={handleManualSave}
+            disabled={saveStatus === 'saving' || saveStatus === 'saved'}
+            className={cn(
+              "h-8 text-xs shrink-0 transition-all",
+              saveStatus === 'saved' && "text-green-600 border-green-200 dark:text-green-400 dark:border-green-900 bg-green-50/50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/40"
+            )}
+          >
+            {saveStatus === 'saving' && <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />}
+            {saveStatus === 'saved'  && <Check className="h-3 w-3 mr-1.5" />}
+            {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved' : 'Save Changes'}
+          </Button>
+        ) : (
+          <a
+            href="/login"
+            className="inline-flex items-center h-8 px-3 rounded-md border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors shrink-0"
+          >
+            Sign in to save
+          </a>
+        )}
 
         {/* Action buttons */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* Duplicate */}
-          <Button variant="outline" size="sm" onClick={duplicateResume} disabled={duplicating || id === 'new'} title="Duplicate this resume" className="h-8 text-xs px-2.5">
-            {duplicating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Copy className="h-3.5 w-3.5" />}
-            <span className="hidden sm:inline ml-1">{duplicating ? 'Copying...' : 'Duplicate'}</span>
-          </Button>
+          {/* Duplicate — logged-in only */}
+          {isLoggedIn && (
+            <Button variant="outline" size="sm" onClick={duplicateResume} disabled={duplicating || id === 'new'} title="Duplicate this resume" className="h-8 text-xs px-2.5">
+              {duplicating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Copy className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline ml-1">{duplicating ? 'Copying...' : 'Duplicate'}</span>
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={downloadPdf} disabled={downloading} className="h-8 text-xs px-2.5">
             {downloading
               ? <Loader2 className="h-3.5 w-3.5 sm:mr-1.5 animate-spin" />
@@ -398,31 +442,33 @@ export default function BuilderPage() {
             <span className="hidden sm:inline">{downloading ? 'Generating…' : 'Download PDF'}</span>
           </Button>
 
-          <Button
-            size="sm"
-            onClick={() => {
-              if (!isResumeReady) {
-                toast.error('Complete your resume first — add your name, email, and at least one experience or education entry.');
-                return;
-              }
-              deploy();
-            }}
-            disabled={deploying}
-            title={!isResumeReady ? 'Fill in your name, email, and at least one experience or education entry first' : undefined}
-            className={cn(
-              'h-8 text-xs px-2.5 transition-all',
-              !isResumeReady
-                ? 'opacity-40 cursor-not-allowed'
-                : deployed
-                  ? 'bg-green-600 hover:bg-green-700 text-white'
-                  : ''
-            )}
-          >
-            {deploying
-              ? <Loader2 className="h-3.5 w-3.5 sm:mr-1.5 animate-spin" />
-              : <Rocket className="h-3.5 w-3.5 sm:mr-1.5" />}
-            <span className="hidden sm:inline">{deploying ? 'Deploying…' : deployed ? 'Re-Deploy' : 'Use for Auto-Apply'}</span>
-          </Button>
+          {isLoggedIn && (
+            <Button
+              size="sm"
+              onClick={() => {
+                if (!isResumeReady) {
+                  toast.error('Complete your resume first — add your name, email, and at least one experience or education entry.');
+                  return;
+                }
+                deploy();
+              }}
+              disabled={deploying}
+              title={!isResumeReady ? 'Fill in your name, email, and at least one experience or education entry first' : undefined}
+              className={cn(
+                'h-8 text-xs px-2.5 transition-all',
+                !isResumeReady
+                  ? 'opacity-40 cursor-not-allowed'
+                  : deployed
+                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                    : ''
+              )}
+            >
+              {deploying
+                ? <Loader2 className="h-3.5 w-3.5 sm:mr-1.5 animate-spin" />
+                : <Rocket className="h-3.5 w-3.5 sm:mr-1.5" />}
+              <span className="hidden sm:inline">{deploying ? 'Deploying…' : deployed ? 'Re-Deploy' : 'Use for Auto-Apply'}</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -452,20 +498,31 @@ export default function BuilderPage() {
       <div className="flex flex-1 overflow-hidden">
 
         {/* LEFT — Form panel: always visible on desktop, conditionally on mobile */}
-        <div className={cn(
-          'flex flex-col border-r border-border bg-card overflow-hidden',
-          'md:w-[400px] xl:w-[440px] md:shrink-0',
-          // Mobile: show/hide based on mobilePanel
-          mobilePanel === 'form' ? 'flex w-full' : 'hidden md:flex'
-        )}>
+        <div
+          className={cn(
+            'flex flex-col bg-card overflow-hidden shrink-0',
+            mobilePanel === 'form' ? 'flex w-full' : 'hidden md:flex'
+          )}
+          style={{ width: leftWidth }}
+        >
           <div className="flex-1 overflow-hidden">
-            <BuilderForm 
-              data={data} 
-              onChange={handleDataChange} 
+            <BuilderForm
+              data={data}
+              onChange={handleDataChange}
               projectName={projectName}
               onProjectNameChange={handleNameChange}
+              isLoggedIn={isLoggedIn}
             />
           </div>
+        </div>
+
+        {/* ── Drag handle (desktop only) ── */}
+        <div
+          onMouseDown={onDragStart}
+          className="hidden md:flex w-1.5 shrink-0 cursor-col-resize items-center justify-center bg-border/40 hover:bg-primary/30 active:bg-primary/50 transition-colors group relative"
+          title="Drag to resize"
+        >
+          <div className="w-0.5 h-8 rounded-full bg-border group-hover:bg-primary/60 transition-colors" />
         </div>
 
         {/* RIGHT — Preview / Templates: visible on desktop or when mobile tab is active */}
@@ -516,6 +573,7 @@ export default function BuilderPage() {
             >
               <Sparkles className="h-3.5 w-3.5" />
               AI Tailor
+              {!isLoggedIn && <span className="ml-1 text-[9px] bg-violet-100 dark:bg-violet-900 text-violet-600 dark:text-violet-400 px-1.5 py-0.5 rounded-full font-semibold">PRO</span>}
             </button>
           </div>
 
@@ -538,7 +596,26 @@ export default function BuilderPage() {
           )}
 
           {/* AI Tailor panel — desktop: rightTab === 'tailor', mobile: mobilePanel === 'tailor' */}
-          {(rightTab === 'tailor' || mobilePanel === 'tailor') && (
+          {(rightTab === 'tailor' || mobilePanel === 'tailor') && !isLoggedIn && (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 gap-4 text-center">
+              <div className="h-14 w-14 rounded-2xl bg-violet-100 dark:bg-violet-950 flex items-center justify-center">
+                <Sparkles className="h-6 w-6 text-violet-600 dark:text-violet-400" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-base">AI Features require sign in</h3>
+                <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+                  Create a free account to tailor your resume with AI, generate summaries, and improve bullet points.
+                </p>
+              </div>
+              <a
+                href="/login"
+                className="inline-flex items-center gap-2 h-10 px-6 rounded-lg bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition-colors"
+              >
+                <Sparkles className="h-4 w-4" /> Sign in to unlock AI
+              </a>
+            </div>
+          )}
+          {(rightTab === 'tailor' || mobilePanel === 'tailor') && isLoggedIn && (
             <div className="flex-1 overflow-y-auto p-5 space-y-5">
               {/* Header */}
               <div className="flex items-start gap-3">

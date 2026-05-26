@@ -28,18 +28,22 @@ export async function GET() {
     .limit(1);
 
   if (existing) {
-    // Update lastUsedAt
-    await db
-      .update(extensionTokens)
-      .set({ lastUsedAt: new Date() })
-      .where(eq(extensionTokens.userId, userId));
-
-    return NextResponse.json({ token: existing.token });
+    // If expired, delete and fall through to create a new one
+    if (existing.expiresAt && existing.expiresAt < new Date()) {
+      await db.delete(extensionTokens).where(eq(extensionTokens.userId, userId));
+    } else {
+      await db
+        .update(extensionTokens)
+        .set({ lastUsedAt: new Date() })
+        .where(eq(extensionTokens.userId, userId));
+      return NextResponse.json({ token: existing.token });
+    }
   }
 
-  // Create a new token
+  // Create a new token with 90-day expiry
   const token = `ja_ext_${randomBytes(32).toString('hex')}`;
-  await db.insert(extensionTokens).values({ userId, token });
+  const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+  await db.insert(extensionTokens).values({ userId, token, expiresAt });
 
   return NextResponse.json({ token });
 }

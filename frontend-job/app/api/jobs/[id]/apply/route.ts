@@ -33,6 +33,6 @@ export async function POST(
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Apply failed';
     console.error('[/api/jobs/[id]/apply proxy]', message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Apply request failed' }, { status: 500 });
   }
 }

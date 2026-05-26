@@ -105,7 +105,9 @@
         "src/adapters/generic.js",
         "src/content.js"
       ],
-      "css": ["src/content.css"],
+      "css": [
+        "src/content.css"
+      ],
       "run_at": "document_idle"
     }
   ],
@@ -119,8 +121,16 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["src/filler.js", "src/overlay.css"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "src/filler.js",
+        "src/overlay.css"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
-  ]
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://*.vercel.app http://localhost:3000;"
+  }
 }

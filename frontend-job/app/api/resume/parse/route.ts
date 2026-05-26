@@ -79,7 +79,10 @@ export async function POST(req: NextRequest) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const pdfParse = require('pdf-parse/lib/pdf-parse.js') as (buf: Buffer) => Promise<{ text: string }>;
-      const pdf = await pdfParse(buffer);
+      const pdfTimeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('PDF parse timeout')), 8000)
+      );
+      const pdf = await Promise.race([pdfParse(buffer), pdfTimeout]);
       if (!pdf.text?.trim()) {
         parseWarning = 'Could not extract text — PDF may be image-only. Auto-fill will be limited.';
       } else {
@@ -95,7 +98,8 @@ export async function POST(req: NextRequest) {
     }
 
     // 8. Save file to disk
-    const { filePath, fileUrl } = await saveUploadedFile(buffer, file.name);
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 200);
+    const { filePath, fileUrl } = await saveUploadedFile(buffer, safeName);
 
     // 9. Find or create profile scoped to current user
     let [userProfile] = await db
@@ -120,7 +124,7 @@ export async function POST(req: NextRequest) {
       .insert(resumes)
       .values({
         profileId: userProfile.id,
-        fileName:  file.name,
+        fileName:  file.name.replace(/[^a-zA-Z0-9._ -]/g, '_').slice(0, 200),
         filePath,
         fileUrl,
         parsedData,

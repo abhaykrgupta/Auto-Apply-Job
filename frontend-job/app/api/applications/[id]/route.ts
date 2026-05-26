@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { applications, jobs, profile, resumes, applicationLogs } from '@/lib/db/schema';
 import { eq, asc } from 'drizzle-orm';
+import { recordMatchFeedback } from '@/lib/actions/jobs';
 
 /** Verify the application belongs to the current user. Returns row or null. */
 async function getOwnedApplication(userId: string, applicationId: string) {
@@ -82,6 +83,17 @@ export async function PATCH(
     .set(allowed)
     .where(eq(applications.id, id))
     .returning();
+
+  // ── Feedback loop: record signal when status changes to terminal state ──
+  if (body.status && row.application.resumeId && row.application.jobId) {
+    const positiveStatuses = ['interviewing', 'accepted'];
+    const negativeStatuses = ['rejected'];
+    if (positiveStatuses.includes(body.status)) {
+      recordMatchFeedback(row.application.jobId, row.application.resumeId, 'positive').catch(() => {});
+    } else if (negativeStatuses.includes(body.status)) {
+      recordMatchFeedback(row.application.jobId, row.application.resumeId, 'negative').catch(() => {});
+    }
+  }
 
   return NextResponse.json(updated);
 }

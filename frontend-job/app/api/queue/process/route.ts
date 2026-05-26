@@ -1,22 +1,33 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { applications, jobs, resumes, settings } from '@/lib/db/schema';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, and } from 'drizzle-orm';
 import { applyToJob } from '@/lib/automation/apply-engine';
 import { logger } from '@/lib/utils/logger';
 
+const MAX_CONCURRENT_GLOBAL = 10; // hard cap regardless of settings
+const MAX_PER_USER = 5;           // per-user cap to prevent abuse
+
 export async function POST() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const userId = session.user.id;
+
   try {
-    // Get maxConcurrent setting
+    // Get maxConcurrent setting (user-scoped, capped at MAX_PER_USER)
     const maxConcurrentSetting = await db
       .select()
       .from(settings)
-      .where(eq(settings.key, 'maxConcurrent'));
-    const maxConcurrent = maxConcurrentSetting.length > 0
+      .where(eq(settings.key, `${userId}:maxConcurrent`));
+    const requestedConcurrency = maxConcurrentSetting.length > 0
       ? Number(maxConcurrentSetting[0].value)
       : 3;
+    const maxConcurrent = Math.min(requestedConcurrency, MAX_PER_USER);
 
-    // Fetch all pending applications with their job and resume
+    // Fetch only THIS user's pending applications (user isolation)
     const pending = await db
       .select({
         applicationId: applications.id,
@@ -33,7 +44,11 @@ export async function POST() {
       .from(applications)
       .innerJoin(jobs, eq(applications.jobId, jobs.id))
       .innerJoin(resumes, eq(applications.resumeId, resumes.id))
-      .where(eq(applications.status, 'pending'));
+      .where(and(
+        eq(applications.status, 'pending'),
+        eq(resumes.profileId, userId), // only this user's resumes
+      ))
+      .limit(50); // prevent runaway queue
 
     if (pending.length === 0) {
       return NextResponse.json({ total: 0, message: 'No pending applications in queue.' });
@@ -41,7 +56,6 @@ export async function POST() {
 
     const total = pending.length;
 
-    // Run in background so the response returns immediately
     processQueue(pending, maxConcurrent).catch(err => {
       logger.error({ err }, 'Queue processing failed');
     });
@@ -52,7 +66,7 @@ export async function POST() {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to start queue';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Queue start failed' }, { status: 500 });
   }
 }
 

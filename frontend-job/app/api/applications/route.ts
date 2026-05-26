@@ -14,14 +14,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const url = new URL(req.url);
+  const limit  = Math.min(parseInt(url.searchParams.get('limit')  ?? '50'), 200);
+  const offset = Math.max(parseInt(url.searchParams.get('offset') ?? '0'),  0);
+
   // Resolve the user's resume IDs
   const [userProfile] = await db.select().from(profile).where(eq(profile.userId, userId)).limit(1);
-  if (!userProfile) return NextResponse.json([]);
+  if (!userProfile) return NextResponse.json({ data: [], total: 0, limit, offset });
 
   const userResumes = await db.select({ id: resumes.id }).from(resumes).where(eq(resumes.profileId, userProfile.id));
   const resumeIds = userResumes.map((r) => r.id);
-  // No resumes in Drizzle yet — user hasn't applied to anything, return empty list
-  if (resumeIds.length === 0) return NextResponse.json([]);
+  if (resumeIds.length === 0) return NextResponse.json({ data: [], total: 0, limit, offset });
 
   const rows = await db
     .select({
@@ -32,9 +35,10 @@ export async function GET(req: NextRequest) {
     .leftJoin(jobs, eq(applications.jobId, jobs.id))
     .where(inArray(applications.resumeId, resumeIds))
     .orderBy(desc(applications.createdAt))
-    .limit(200);
+    .limit(limit)
+    .offset(offset);
 
-  return NextResponse.json(rows);
+  return NextResponse.json({ data: rows, limit, offset });
 }
 
 // POST — track a new application submitted via Co-Pilot extension

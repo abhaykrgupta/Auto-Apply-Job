@@ -19,6 +19,7 @@ export function SiteHeader() {
             {[
               { href: '/features', label: 'Features' },
               { href: '/how-it-works', label: 'How it works' },
+              { href: '/resume-builder', label: 'Resume Builder' },
               { href: '/resume-ai', label: 'Resume AI' },
               { href: '/pricing', label: 'Pricing' },
             ].map(link => (

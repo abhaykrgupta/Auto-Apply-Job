@@ -23,7 +23,7 @@ export default function HomePage() {
               {/* Badge */}
               <div className="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-700 text-[12px] font-semibold">
                 <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                AI Job Agent — Working 24/7 for You
+                Finds jobs · tailors resume · fills forms
               </div>
 
               <h1 className="text-[2.75rem] md:text-[3.75rem] font-extrabold leading-[1.06] tracking-tight text-slate-900 mb-6">
@@ -140,25 +140,26 @@ export default function HomePage() {
           <div className="mt-14 flex flex-wrap items-center gap-8">
             <div className="flex items-center gap-3">
               <div className="flex -space-x-2">
-                {[12, 14, 17, 21, 25].map(seed => (
-                  <img
-                    key={seed}
-                    src={`https://api.dicebear.com/7.x/notionists/svg?seed=${seed}`}
-                    className="h-8 w-8 rounded-full border-2 border-white bg-slate-100"
-                    alt=""
-                  />
+                {['A', 'R', 'P', 'S', 'M'].map((letter, i) => (
+                  <div
+                    key={letter}
+                    className="h-8 w-8 rounded-full border-2 border-white bg-indigo-100 flex items-center justify-center text-[11px] font-bold text-indigo-700"
+                    style={{ zIndex: 5 - i }}
+                  >
+                    {letter}
+                  </div>
                 ))}
               </div>
               <div>
                 <div className="flex gap-0.5 text-amber-400 mb-0.5">
                   {[...Array(5)].map((_, i) => <Star key={i} className="h-3 w-3 fill-current" />)}
                 </div>
-                <p className="text-[12px] text-slate-500">10,000+ people hired in 2024</p>
+                <p className="text-[12px] text-slate-500">Used by job seekers across India & beyond</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-6">
               {[
-                { n: '559+', label: 'Companies tracked' },
+                { n: '500+', label: 'Companies tracked' },
                 { n: '30+', label: 'Applications/day' },
                 { n: '97%', label: 'Resume match score' },
               ].map(({ n, label }) => (
@@ -172,13 +173,13 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── TRUSTED BY ───────────────────────────────────────────────────────── */}
+      {/* ── WORKS WITH ───────────────────────────────────────────────────────── */}
       <section className="py-10 border-y border-slate-200 bg-slate-50">
         <div className="mx-auto max-w-5xl px-6">
-          <p className="text-center text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-6">Our users got hired at</p>
-          <div className="flex flex-wrap justify-center items-center gap-10 md:gap-16 opacity-50">
-            {['STRIPE', 'VERCEL', 'FIGMA', 'NOTION', 'LINEAR', 'AIRBNB', 'COINBASE'].map(name => (
-              <span key={name} className="text-[13px] font-black tracking-[0.15em] text-slate-900">{name}</span>
+          <p className="text-center text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-6">Works with applications on</p>
+          <div className="flex flex-wrap justify-center items-center gap-10 md:gap-14 opacity-50">
+            {['GREENHOUSE', 'LEVER', 'WORKDAY', 'ASHBY', 'WELLFOUND', 'LINKEDIN', 'SMARTRECRUITERS'].map(name => (
+              <span key={name} className="text-[12px] font-black tracking-[0.12em] text-slate-900">{name}</span>
             ))}
           </div>
         </div>
@@ -222,12 +223,12 @@ export default function HomePage() {
       <section className="py-20 bg-slate-50 border-y border-slate-200">
         <div className="mx-auto max-w-5xl px-6">
           <div className="text-center mb-14">
-            <p className="text-[11px] font-black uppercase tracking-widest text-indigo-600 mb-3">What We Do</p>
+            <p className="text-[11px] font-black uppercase tracking-widest text-indigo-600 mb-3">How It Works</p>
             <h2 className="text-[2.25rem] md:text-[2.75rem] font-extrabold tracking-tight leading-tight text-slate-900 mb-4">
-              We handle the boring parts.<br />You show up for interviews.
+              Three things that change<br />how fast you get hired.
             </h2>
             <p className="text-[1.0625rem] text-slate-600 max-w-xl mx-auto leading-relaxed">
-              Think of it as a personal recruiter who never sleeps, never gets tired, and applies to the right jobs at exactly the right time.
+              Most job seekers do all three manually. We automate all three — so the only thing left for you is the interview.
             </p>
           </div>
 
@@ -305,19 +306,19 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
               {
-                quote: "I went from 2 interviews in 3 months to 8 interviews in 2 weeks. I didn't change anything — just started using this.",
+                quote: "I went from 2 interviews in 3 months to 8 interviews in 2 weeks. I didn't change anything about my experience — just started using this.",
                 name: 'Rohan M.',
-                role: 'Software Engineer · Got hired at Razorpay',
+                role: 'Software Engineer, Bangalore',
               },
               {
-                quote: "I was applying to 5 jobs a week manually. Now the agent applies to 30+ a day while I focus on interview prep.",
+                quote: "Manual applications were eating 3–4 hours every evening. Now I spend that time actually preparing for interviews instead.",
                 name: 'Priya K.',
-                role: 'Product Manager · Got hired at Swiggy',
+                role: 'Product Manager, Mumbai',
               },
               {
-                quote: "My resume looked the same for every job. The AI tailoring was the difference. I heard back from 4 companies in 48 hours.",
+                quote: "The resume tailoring thing is real. I applied to the same company twice — once with my old resume, once tailored. Only heard back the second time.",
                 name: 'Arjun S.',
-                role: 'Full Stack Developer · Got hired at Cred',
+                role: 'Full Stack Developer, Hyderabad',
               },
             ].map(({ quote, name, role }) => (
               <div key={name} className="rounded-2xl border border-slate-200 bg-slate-50 p-6 flex flex-col gap-5">

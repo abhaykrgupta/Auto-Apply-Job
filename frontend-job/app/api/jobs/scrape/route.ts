@@ -1,8 +1,19 @@
 import { scrapeJobsSchema } from '@/lib/validations/jobs';
 import { NextRequest, NextResponse } from 'next/server';
 import { scrapeAndSaveJobs } from '@/lib/scrapers';
+import { auth } from '@/lib/auth';
+import { checkRateLimit } from '@/lib/rate-limit/simple-rate-limiter';
 
 export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  // Max 5 scrape runs per hour — each run spawns many scrapers and can hit many external APIs
+  if (!checkRateLimit(`scrape:${session.user.id}`, 5, 60 * 60 * 1000)) {
+    return NextResponse.json({ error: 'Rate limit: max 5 scrape runs per hour.' }, { status: 429 });
+  }
+
   try {
     const parsed = scrapeJobsSchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {

@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
       atsType: q.get('atsType') ?? undefined,
       source:  q.get('source')  ?? undefined,
       country: q.get('country') ?? undefined,
-      limit:   q.get('limit')   ? parseInt(q.get('limit')!,  10) : 50,
+      limit:   q.get('limit')   ? parseInt(q.get('limit')!,  10) : 200,
       offset:  q.get('offset')  ? parseInt(q.get('offset')!, 10) : 0,
     };
 
@@ -22,10 +22,11 @@ export async function GET(req: NextRequest) {
       getCompanyStats(),
     ]);
 
-    return NextResponse.json({ companies: companiesList, stats });
+    return NextResponse.json({ companies: companiesList.data, total: companiesList.total, stats });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error('[/api/companies GET]', message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    const cause   = (err as any)?.cause instanceof Error ? (err as any).cause.message : undefined;
+    console.error('[/api/companies GET]', message, cause ?? '');
+    return NextResponse.json({ error: cause ?? message }, { status: 500 });
   }
 }

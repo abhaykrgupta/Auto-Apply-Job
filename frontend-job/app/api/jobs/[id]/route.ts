@@ -30,8 +30,7 @@ export async function DELETE(
     
     return NextResponse.json({ deleted: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(`[DELETE /api/jobs/${params}]`, message);
-    return NextResponse.json({ error: `Database error: ${message}` }, { status: 500 });
+    console.error(`[DELETE /api/jobs]`, err);
+    return NextResponse.json({ error: 'Failed to delete job' }, { status: 500 });
   }
 }

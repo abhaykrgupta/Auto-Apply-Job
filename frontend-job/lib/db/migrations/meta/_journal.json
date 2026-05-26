@@ -22,6 +22,34 @@
       "when": 1778709547778,
       "tag": "0002_confused_sentry",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1779124520853,
+      "tag": "0003_secret_smiling_tiger",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1779323896856,
+      "tag": "0004_thin_daimon_hellstrom",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1779326822894,
+      "tag": "0005_chubby_dracula",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1779345167648,
+      "tag": "0006_bored_masked_marvel",
+      "breakpoints": true
     }
   ]
 }

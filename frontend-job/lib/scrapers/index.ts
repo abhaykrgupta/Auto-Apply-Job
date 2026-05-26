@@ -1,7 +1,7 @@
 import { db } from '@/lib/db';
 import { jobs } from '@/lib/db/schema';
-import { GreenhouseScraper } from './greenhouse';
-import { LeverScraper } from './lever';
+import { GreenhouseScraper } from './greenhouse'; // now uses public API for 120+ companies
+import { LeverScraper } from './lever';           // now uses public API for 80+ companies
 import { RemoteOKScraper } from './sources/remoteok';
 import { WeWorkRemotelyScraper } from './sources/weworkremotely';
 import { TheMuseScraper } from './sources/themuse';
@@ -17,6 +17,7 @@ import { YCJobsScraper } from './sources/yc-jobs';
 import { WorkableScraper } from './sources/workable';
 import { WellfoundScraper } from './sources/wellfound';
 import { type ScrapedJob } from './base-scraper';
+import { expandRole } from './role-expander';
 import { logger } from '@/lib/utils/logger';
 
 export interface ScrapeConfig {
@@ -29,45 +30,89 @@ export interface ScrapeConfig {
 
 export async function scrapeAndSaveJobs(config: ScrapeConfig) {
   const scrapers = [
-    // ── Startup / AI-era sources (new) ─────────────────────────────────────
-    new YCJobsScraper(),       // 500+ YC companies — best startup signal
-    new HNHiringScraper(),     // HN "Who is Hiring" — pure startup, monthly
-    new WellfoundScraper(),    // AngelList — the #1 startup job board
-    new RemotiveScraper(),     // Remote + AI/ML startup heavy
-    new JobicyScraper(),       // Remote startup jobs
-    new WorkableScraper(),     // Series A–B companies
-    // ── Broad sources ───────────────────────────────────────────────────────
-    new GreenhouseScraper(),
-    new LeverScraper(),
-    new RemoteOKScraper(),
-    new WeWorkRemotelyScraper(),
-    new TheMuseScraper(),
-    new ArbeitnowScraper(),
-    new IndeedScraper(),
-    new NaukriScraper(),
-    new GlassdoorScraper(),
+    // ── Tier 1: Pure API, no browser, no ban risk ───────────────────────────
+    new YCJobsScraper(),          // ~100 jobs — YC portfolio (Algolia API)
+    new HNHiringScraper(),        // ~100 jobs — HN "Who is Hiring" (Algolia API)
+    new WellfoundScraper(),       // ~100 jobs — AngelList / Wellfound (GraphQL)
+    new RemotiveScraper(),        // ~100 jobs — remote + AI/ML (JSON API)
+    new JobicyScraper(),          // ~50  jobs — 100% remote (JSON API)
+    new WorkableScraper(),        // ~50  jobs — Series A–B (REST API)
+    new RemoteOKScraper(),        // ~100 jobs — remote-only (JSON API)
+    new ArbeitnowScraper(),       // ~100 jobs — European + remote (paginated)
+    new GreenhouseScraper(),      // ~200 jobs — 120 top companies (public ATS API)
+    new LeverScraper(),           // ~200 jobs — 80 top companies (public ATS API)
+    // ── Tier 2: Browser-based (bot-detection risk, combined query) ──────────
+    new WeWorkRemotelyScraper(),  // ~25  jobs — remote programming category
+    new TheMuseScraper(),         // ~50  jobs — curated employer network
+    new IndeedScraper(),          // ~20  jobs — CAPTCHA risk ~30% of runs
+    new NaukriScraper(),          // ~20  jobs — India-focused
+    new GlassdoorScraper(),       // ~20  jobs — moderate bot detection
   ];
 
-  // Only run Adzuna if API keys are present
+  // Only run Adzuna if API keys are present (~150 jobs, highly reliable)
   if (process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY) {
     scrapers.push(new AdzunaScraper());
   }
 
-  // 1. Run all scrapers in parallel
+  // 1. Expand the role into aliases (e.g. "Software Engineer" → also searches
+  //    "Full Stack Developer", "Backend Developer", etc.)
+  //
+  // API-based scrapers (no browser) are safe to run per alias in parallel.
+  // Browser-based scrapers get ONE combined query to avoid IP bans from
+  // launching too many concurrent browser instances.
+  const roleAliases = expandRole(config.role ?? '');
+  const primaryRole = config.role ?? '';
+  // Combined query for browser scrapers (most job sites accept OR / space-separated terms)
+  const combinedRole = roleAliases.length > 1
+    ? roleAliases.slice(0, 3).join(' OR ')
+    : primaryRole;
+
+  if (roleAliases.length > 1) {
+    logger.info(`[role-expander] "${config.role}" → [${roleAliases.join(', ')}]`);
+  }
+
+  // API-based scrapers — safe to run once per alias (no browser spin-up cost)
+  const API_SCRAPERS = new Set([
+    'RemoteOKScraper',
+    'WellfoundScraper',
+    'RemotiveScraper',
+    'JobicyScraper',
+    'ArbeitnowScraper',
+  ]);
+
+  const buildFilters = (role: string) => ({
+    role,
+    location: config.location,
+    remote: config.remote,
+    datePosted: config.datePosted,
+  });
+
+  // 2. Run scrapers in parallel — API scrapers expand across aliases, browser scrapers use combined query
   const results = await Promise.allSettled(
-    scrapers.map(async (scraper) => {
-      try {
-        const result = await scraper.searchJobs({
-          role: config.role,
-          location: config.location,
-          remote: config.remote,
-          datePosted: config.datePosted,
+    scrapers.flatMap((scraper) => {
+      const name = scraper.constructor.name;
+      if (API_SCRAPERS.has(name) && roleAliases.length > 1) {
+        // Run once per alias (safe — no browser)
+        return roleAliases.map(async (role) => {
+          try {
+            const result = await scraper.searchJobs(buildFilters(role));
+            return { scraperName: name, jobs: result };
+          } catch (err) {
+            logger.error({ err, scraper: name }, 'Scraper failed');
+            return { scraperName: name, jobs: [] as ScrapedJob[] };
+          }
         });
-        return { scraperName: scraper.constructor.name, jobs: result };
-      } catch (err) {
-        logger.error({ err, scraper: scraper.constructor.name }, 'Scraper failed');
-        return { scraperName: scraper.constructor.name, jobs: [] as ScrapedJob[] };
       }
+      // Browser scrapers — single run with combined query to avoid ban risk
+      return [async () => {
+        try {
+          const result = await scraper.searchJobs(buildFilters(combinedRole));
+          return { scraperName: name, jobs: result };
+        } catch (err) {
+          logger.error({ err, scraper: name }, 'Scraper failed');
+          return { scraperName: name, jobs: [] as ScrapedJob[] };
+        }
+      }].map(fn => fn());
     })
   );
 

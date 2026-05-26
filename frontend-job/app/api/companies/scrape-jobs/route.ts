@@ -453,21 +453,47 @@ async function _doScrape({
           }
         }
 
-        // Apply experience filtering
+        // Apply experience filtering.
+        // Strategy: search title + description for explicit year ranges first.
+        // If none found, fall back to seniority keywords in title.
+        // Jobs with no experience signal at all are KEPT (inclusive by default)
+        // because most postings don't mention years — excluding them would kill results.
         if (exp !== 'any') {
           const originalCount = foundJobs.length;
           foundJobs = foundJobs.filter(j => {
+            const searchable = j.title.toLowerCase();
             const title = j.title.toLowerCase();
-            if (exp === 'fresher') {
-              return title.includes('junior') || title.includes('entry') || title.includes('associate') || title.includes('grad') || title.includes('intern');
+
+            // Detect explicit year mentions in description: "2+ years", "1-3 years", "at least 2 years"
+            const yearMatches = [...searchable.matchAll(/(\d+)\s*[-–to]+\s*(\d+)\s*years?|(\d+)\+?\s*years?\s*(of\s+)?(experience|exp)/gi)];
+            const mentionedYears = yearMatches.flatMap(m => {
+              const min = parseInt(m[1] || m[3] || '0');
+              const max = parseInt(m[2] || m[3] || '0');
+              return [min, max].filter(n => n > 0);
+            });
+
+            // If explicit years are mentioned, filter precisely
+            if (mentionedYears.length > 0) {
+              const minYears = Math.min(...mentionedYears);
+              if (exp === 'fresher') return minYears <= 1;
+              if (exp === '1-2')     return minYears <= 2;
+              if (exp === '2-3')     return minYears >= 1 && minYears <= 3;
+              if (exp === '3-5')     return minYears >= 2 && minYears <= 5;
+              if (exp === '5-7')     return minYears >= 4 && minYears <= 7;
+              if (exp === 'senior')  return minYears >= 5;
             }
-            if (exp === 'senior') {
-              return title.includes('senior') || title.includes('lead') || title.includes('staff') || title.includes('principal') || title.includes('sr.');
-            }
-            if (['1-2', '2-3', '3-5', '5-7'].includes(exp)) {
-              if (exp === '1-2' || exp === '2-3') return !title.includes('senior') && !title.includes('staff') && !title.includes('principal');
-              if (exp === '3-5' || exp === '5-7') return title.includes('senior') || (!title.includes('junior') && !title.includes('intern'));
-            }
+
+            // No explicit year range in the posting — fall back to title seniority signals
+            const isSenior = title.includes('senior') || title.includes('lead') || title.includes('staff') || title.includes('principal') || title.includes(' sr ') || title.includes('sr.');
+            const isJunior = title.includes('junior') || title.includes('entry') || title.includes('associate') || title.includes('grad') || title.includes('intern');
+
+            if (exp === 'fresher') return isJunior;
+            if (exp === 'senior')  return isSenior;
+            // For mid-level ranges: keep all jobs with no seniority signal (unlabeled = open level)
+            // and exclude clear senior/junior mismatches
+            if (exp === '1-2' || exp === '2-3') return !isSenior;
+            if (exp === '3-5' || exp === '5-7') return !isJunior;
+
             return true;
           });
           if (originalCount > 0 && foundJobs.length < originalCount) {

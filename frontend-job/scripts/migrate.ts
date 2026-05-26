@@ -84,6 +84,14 @@ const migrations = [
   `CREATE INDEX IF NOT EXISTS worker_tasks_type_idx     ON worker_tasks (task_type)`,
   `CREATE INDEX IF NOT EXISTS worker_tasks_priority_idx ON worker_tasks (priority DESC)`,
 
+  // ── Job Matches: scoredAt + feedbackSignal (cache + feedback loop) ────────
+  `ALTER TABLE job_matches ADD COLUMN IF NOT EXISTS scored_at TIMESTAMPTZ DEFAULT NOW()`,
+  `ALTER TABLE job_matches ADD COLUMN IF NOT EXISTS feedback_signal TEXT`,
+  `CREATE INDEX IF NOT EXISTS job_matches_scored_at_idx ON job_matches (scored_at)`,
+
+  // ── Companies: added_by_user_id column (migration 0002) ──────────────────
+  `ALTER TABLE companies ADD COLUMN IF NOT EXISTS added_by_user_id TEXT REFERENCES auth_users(id) ON DELETE CASCADE`,
+
   // ── Applications: retry intelligence columns ──────────────────────────────
   `ALTER TABLE applications ADD COLUMN IF NOT EXISTS last_failure_type TEXT`,
   `ALTER TABLE applications ADD COLUMN IF NOT EXISTS cooldown_until    TIMESTAMPTZ`,

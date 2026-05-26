@@ -5,22 +5,56 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Card, CardContent } from '@/components/ui/card';
 import { buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { ClipboardList, ExternalLink } from 'lucide-react';
+import { ClipboardList, ExternalLink, Trash2 } from 'lucide-react';
 import { timeAgo } from '@/lib/utils/helpers';
+import { toast } from 'sonner';
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function ManualReviewPage() {
   const { data: applications, isLoading } = useApplications();
   const manualApps = applications?.filter((a: any) => a.application.status === 'manual_review') ?? [];
+  const [clearing, setClearing] = useState(false);
+  const qc = useQueryClient();
+
+  async function clearAll() {
+    if (!manualApps.length) return;
+    setClearing(true);
+    try {
+      const res = await fetch('/api/applications/clear-manual-review', { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed');
+      toast.success('Manual review queue cleared');
+      qc.invalidateQueries({ queryKey: ['applications'] });
+    } catch {
+      toast.error('Failed to clear queue');
+    } finally {
+      setClearing(false);
+    }
+  }
 
   if (isLoading) return <LoadingSpinner />;
 
   return (
     <div className="p-4 md:p-8 space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Manual Review</h2>
-        <p className="text-muted-foreground">{manualApps.length} jobs need your attention</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Manual Review</h2>
+          <p className="text-muted-foreground">{manualApps.length} jobs need your attention</p>
+        </div>
+        {manualApps.length > 0 && (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={clearAll}
+            disabled={clearing}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            {clearing ? 'Clearing...' : 'Clear All'}
+          </Button>
+        )}
       </div>
 
       {!manualApps.length ? (

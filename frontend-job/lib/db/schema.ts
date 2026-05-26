@@ -100,7 +100,9 @@ export const profile = pgTable('profile', {
   salaryMax: integer('salary_max'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-});
+}, (t) => [
+  index('profile_user_id_idx').on(t.userId),
+]);
 
 export const resumes = pgTable('resumes', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -176,7 +178,12 @@ export const jobs = pgTable('jobs', {
   expiresAt: timestamp('expires_at'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-});
+}, (t) => [
+  index('jobs_company_id_idx').on(t.companyId),
+  index('jobs_status_idx').on(t.status),
+  index('jobs_posted_at_idx').on(t.postedAt),
+  index('jobs_source_idx').on(t.source),
+]);
 
 export const jobMatches = pgTable('job_matches', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -188,8 +195,17 @@ export const jobMatches = pgTable('job_matches', {
   recommendation: text('recommendation'),
   confidence: real('confidence'),
   reasoning: text('reasoning'),
+  // ── Cache: skip re-scoring if scored within 24h ──────────────────────────
+  scoredAt: timestamp('scored_at').defaultNow(),
+  // ── Feedback loop: did this application get a response? ──────────────────
+  // 'positive' = got interview/offer, 'negative' = rejected, null = unknown
+  feedbackSignal: text('feedback_signal'),
   createdAt: timestamp('created_at').defaultNow(),
-});
+}, (t) => [
+  uniqueIndex('job_matches_job_resume_uidx').on(t.jobId, t.resumeId),
+  index('job_matches_resume_score_idx').on(t.resumeId, t.score),
+  index('job_matches_scored_at_idx').on(t.scoredAt),
+]);
 
 export const generatedContent = pgTable('generated_content', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -222,6 +238,9 @@ export const applications = pgTable('applications', {
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (t) => [
   uniqueIndex('applications_job_resume_uidx').on(t.jobId, t.resumeId),
+  index('applications_status_idx').on(t.status),
+  index('applications_resume_id_idx').on(t.resumeId),
+  index('applications_created_at_idx').on(t.createdAt),
 ]);
 
 export const applicationLogs = pgTable('application_logs', {

@@ -326,78 +326,148 @@ function SkillsBlock({ skills, t, dark = false }: { skills: ResumeData['skills']
 
 function SingleLayout({ data, t }: { data: ResumeData; t: TemplateConfig }) {
   const { personal, summary, experience, education, skills, projects } = data;
+  const awards    = data.awards    ?? [];
+  const volunteer = data.volunteer ?? [];
   const font = fontStack(t);
   const PAD = 32;
-  const EG = sp(t, 12); // entry gap
-  const SG = sp(t, 14); // section gap
+  const EG = sp(t, 12);
+  const SG = sp(t, 14);
   const [r1, r2] = contactRows(personal);
   const hasSkills = skills.technical.length + skills.soft.length + skills.languages.length + skills.certifications.length > 0;
+
+  // Respect section visibility (default visible if not set)
+  const vis   = data.sectionVisibility ?? {};
+  const show  = (key: string) => vis[key as keyof typeof vis] !== false;
+  // Respect section order
+  const order = data.sectionOrder ?? ['summary', 'experience', 'education', 'skills', 'projects', 'awards', 'volunteer'];
+
+  const sections: Record<string, React.ReactNode> = {
+    summary: show('summary') && summary.text ? (
+      <React.Fragment key="summary">
+        <SectionTitle label="Professional Summary" t={t} mt={0} />
+        <p style={{ margin: `0 0 ${SG}px`, fontSize: 10, color: '#374151', lineHeight: 1.68, fontFamily: font }}>{summary.text}</p>
+      </React.Fragment>
+    ) : null,
+
+    experience: show('experience') && experience.length > 0 ? (
+      <React.Fragment key="experience">
+        <SectionTitle label="Work Experience" t={t} />
+        <div style={{ marginBottom: SG }}>
+          {experience.map(exp => <ExpEntry key={exp.id} exp={exp} t={t} gap={EG} />)}
+        </div>
+      </React.Fragment>
+    ) : null,
+
+    education: show('education') && education.length > 0 ? (
+      <React.Fragment key="education">
+        <SectionTitle label="Education" t={t} />
+        <div style={{ marginBottom: SG }}>
+          {education.map(edu => <EduEntry key={edu.id} edu={edu} t={t} gap={sp(t, 9)} />)}
+        </div>
+      </React.Fragment>
+    ) : null,
+
+    skills: show('skills') && hasSkills ? (
+      <React.Fragment key="skills">
+        <SectionTitle label="Skills" t={t} />
+        <div style={{ marginBottom: SG }}><SkillsBlock skills={skills} t={t} /></div>
+      </React.Fragment>
+    ) : null,
+
+    projects: show('projects') && projects.length > 0 ? (
+      <React.Fragment key="projects">
+        <SectionTitle label="Projects" t={t} />
+        <div style={{ marginBottom: SG }}>
+          {projects.map(proj => <ProjEntry key={proj.id} proj={proj} t={t} gap={EG} />)}
+        </div>
+      </React.Fragment>
+    ) : null,
+
+    awards: show('awards') && awards.length > 0 ? (
+      <React.Fragment key="awards">
+        <SectionTitle label="Awards & Honors" t={t} />
+        <div style={{ marginBottom: SG }}>
+          {awards.map(a => (
+            <div key={a.id} style={{ marginBottom: EG }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 10.5, color: '#111827', lineHeight: 1.3, fontFamily: font }}>{a.title}</div>
+                  {a.issuer && <div style={{ fontSize: 10, color: t.accentColor, fontWeight: 500, fontFamily: font }}>{a.issuer}</div>}
+                  {a.description && <div style={{ fontSize: 10, color: '#374151', lineHeight: 1.55, marginTop: 2, fontFamily: font }}>{a.description}</div>}
+                </div>
+                {a.date && <div style={{ fontSize: 9.5, color: '#6b7280', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: font }}>{a.date}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </React.Fragment>
+    ) : null,
+
+    volunteer: show('volunteer') && volunteer.length > 0 ? (
+      <React.Fragment key="volunteer">
+        <SectionTitle label="Volunteer Work" t={t} />
+        <div style={{ marginBottom: SG }}>
+          {volunteer.map(v => (
+            <div key={v.id} style={{ marginBottom: EG }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 10.5, color: '#111827', fontFamily: font }}>{v.role}</div>
+                  {v.organization && <div style={{ fontSize: 10, color: t.accentColor, fontWeight: 500, fontFamily: font }}>{v.organization}</div>}
+                  {v.description && <div style={{ fontSize: 10, color: '#374151', lineHeight: 1.55, marginTop: 2, fontFamily: font }}>{v.description}</div>}
+                </div>
+                {(v.startDate || v.endDate) && (
+                  <div style={{ fontSize: 9.5, color: '#6b7280', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: font }}>
+                    {dateRange(v.startDate, v.endDate, v.current)}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </React.Fragment>
+    ) : null,
+  };
 
   return (
     <div style={{ fontFamily: font, fontSize: 10.5, color: '#111827', lineHeight: 1.6, padding: PAD, backgroundColor: '#ffffff' }}>
 
       {/* ── Header ── */}
       <div style={{
+        display: 'flex', alignItems: 'flex-start', gap: 16,
         textAlign: t.headerAlign === 'center' ? 'center' : 'left',
         marginBottom: sp(t, 12),
         paddingBottom: sp(t, 10),
         borderBottom: `1px solid #e2e8f0`,
+        justifyContent: t.headerAlign === 'center' ? 'center' : 'flex-start',
       }}>
-        <div style={{ fontSize: 22, fontWeight: 800, color: t.accentColor, letterSpacing: '-0.5px', lineHeight: 1.15, marginBottom: 3, fontFamily: font }}>
-          {personal.name || 'Your Name'}
-        </div>
-        {experience[0]?.title && (
-          <div style={{ fontSize: 11, fontWeight: 500, color: '#64748b', marginBottom: 5, fontFamily: font }}>
-            {experience[0].title}
-          </div>
+        {personal.photo && (
+          <img
+            src={personal.photo}
+            alt={personal.name}
+            style={{ width: 60, height: 60, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: `2px solid ${t.accentColor}30` }}
+          />
         )}
-        {r1 && <div style={{ fontSize: 9.5, color: '#4b5563', lineHeight: 1.75, fontFamily: font }}>{r1}</div>}
-        {r2 && <div style={{ fontSize: 9.5, color: '#4b5563', lineHeight: 1.75, fontFamily: font }}>{r2}</div>}
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: t.accentColor, letterSpacing: '-0.5px', lineHeight: 1.15, marginBottom: 3, fontFamily: font }}>
+            {personal.name || 'Your Name'}
+          </div>
+          {personal.headline && (
+            <div style={{ fontSize: 11, fontWeight: 500, color: '#64748b', marginBottom: 4, fontFamily: font }}>
+              {personal.headline}
+            </div>
+          )}
+          {!personal.headline && experience[0]?.title && (
+            <div style={{ fontSize: 11, fontWeight: 500, color: '#64748b', marginBottom: 4, fontFamily: font }}>
+              {experience[0].title}
+            </div>
+          )}
+          {r1 && <div style={{ fontSize: 9.5, color: '#4b5563', lineHeight: 1.75, fontFamily: font, wordBreak: 'break-word' }}>{r1}</div>}
+          {r2 && <div style={{ fontSize: 9.5, color: '#4b5563', lineHeight: 1.75, fontFamily: font, wordBreak: 'break-word' }}>{r2}</div>}
+        </div>
       </div>
 
-      {/* ── Summary ── */}
-      {summary.text && (
-        <>
-          <SectionTitle label="Professional Summary" t={t} mt={0} />
-          <p style={{ margin: `0 0 ${SG}px`, fontSize: 10, color: '#374151', lineHeight: 1.68, fontFamily: font }}>{summary.text}</p>
-        </>
-      )}
-
-      {/* ── Experience ── */}
-      {experience.length > 0 && (
-        <>
-          <SectionTitle label="Work Experience" t={t} mt={summary.text ? undefined : 0} />
-          <div style={{ marginBottom: SG }}>
-            {experience.map(exp => <ExpEntry key={exp.id} exp={exp} t={t} gap={EG} />)}
-          </div>
-        </>
-      )}
-
-      {/* ── Skills ── */}
-      {hasSkills && (
-        <>
-          <SectionTitle label="Skills" t={t} />
-          <div style={{ marginBottom: SG }}><SkillsBlock skills={skills} t={t} /></div>
-        </>
-      )}
-
-      {/* ── Education ── */}
-      {education.length > 0 && (
-        <>
-          <SectionTitle label="Education" t={t} />
-          <div style={{ marginBottom: SG }}>
-            {education.map(edu => <EduEntry key={edu.id} edu={edu} t={t} gap={sp(t, 9)} />)}
-          </div>
-        </>
-      )}
-
-      {/* ── Projects ── */}
-      {projects.length > 0 && (
-        <>
-          <SectionTitle label="Projects" t={t} />
-          {projects.map(proj => <ProjEntry key={proj.id} proj={proj} t={t} gap={EG} />)}
-        </>
-      )}
+      {/* ── Sections in user-defined order ── */}
+      {order.map(key => sections[key] ?? null)}
     </div>
   );
 }
@@ -406,73 +476,104 @@ function SingleLayout({ data, t }: { data: ResumeData; t: TemplateConfig }) {
 
 function BannerLayout({ data, t }: { data: ResumeData; t: TemplateConfig }) {
   const { personal, summary, experience, education, skills, projects } = data;
+  const awards    = data.awards    ?? [];
+  const volunteer = data.volunteer ?? [];
   const font = fontStack(t);
   const EG = sp(t, 12);
   const SG = sp(t, 14);
   const [r1, r2] = contactRows(personal);
   const hasSkills = skills.technical.length + skills.soft.length + skills.languages.length + skills.certifications.length > 0;
+  const vis   = data.sectionVisibility ?? {};
+  const show  = (key: string) => vis[key as keyof typeof vis] !== false;
+  const order = data.sectionOrder ?? ['summary', 'experience', 'education', 'skills', 'projects', 'awards', 'volunteer'];
+
+  const sectionMap: Record<string, React.ReactNode> = {
+    summary: show('summary') && summary.text ? (
+      <React.Fragment key="summary">
+        <SectionTitle label="Profile" t={t} mt={0} />
+        <p style={{ margin: `0 0 ${SG}px`, fontSize: 10, color: '#374151', lineHeight: 1.68, fontFamily: font }}>{summary.text}</p>
+      </React.Fragment>
+    ) : null,
+    experience: show('experience') && experience.length > 0 ? (
+      <React.Fragment key="experience">
+        <SectionTitle label="Work Experience" t={t} />
+        <div style={{ marginBottom: SG }}>{experience.map(exp => <ExpEntry key={exp.id} exp={exp} t={t} gap={EG} />)}</div>
+      </React.Fragment>
+    ) : null,
+    education: show('education') && education.length > 0 ? (
+      <React.Fragment key="education">
+        <SectionTitle label="Education" t={t} />
+        <div style={{ marginBottom: SG }}>{education.map(edu => <EduEntry key={edu.id} edu={edu} t={t} gap={sp(t, 9)} />)}</div>
+      </React.Fragment>
+    ) : null,
+    skills: show('skills') && hasSkills ? (
+      <React.Fragment key="skills">
+        <SectionTitle label="Skills" t={t} />
+        <div style={{ marginBottom: SG }}><SkillsBlock skills={skills} t={t} /></div>
+      </React.Fragment>
+    ) : null,
+    projects: show('projects') && projects.length > 0 ? (
+      <React.Fragment key="projects">
+        <SectionTitle label="Projects" t={t} />
+        <div style={{ marginBottom: SG }}>{projects.map(proj => <ProjEntry key={proj.id} proj={proj} t={t} gap={EG} />)}</div>
+      </React.Fragment>
+    ) : null,
+    awards: show('awards') && awards.length > 0 ? (
+      <React.Fragment key="awards">
+        <SectionTitle label="Awards & Honors" t={t} />
+        <div style={{ marginBottom: SG }}>
+          {awards.map(a => (
+            <div key={a.id} style={{ marginBottom: EG }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 10.5, color: '#111827', fontFamily: font }}>{a.title}</div>
+                  {a.issuer && <div style={{ fontSize: 10, color: t.accentColor, fontWeight: 500, fontFamily: font }}>{a.issuer}</div>}
+                  {a.description && <div style={{ fontSize: 10, color: '#374151', lineHeight: 1.55, fontFamily: font }}>{a.description}</div>}
+                </div>
+                {a.date && <div style={{ fontSize: 9.5, color: '#6b7280', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: font }}>{a.date}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </React.Fragment>
+    ) : null,
+    volunteer: show('volunteer') && volunteer.length > 0 ? (
+      <React.Fragment key="volunteer">
+        <SectionTitle label="Volunteer Work" t={t} />
+        <div style={{ marginBottom: SG }}>
+          {volunteer.map(v => (
+            <div key={v.id} style={{ marginBottom: EG }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 10.5, color: '#111827', fontFamily: font }}>{v.role}</div>
+                  {v.organization && <div style={{ fontSize: 10, color: t.accentColor, fontWeight: 500, fontFamily: font }}>{v.organization}</div>}
+                  {v.description && <div style={{ fontSize: 10, color: '#374151', lineHeight: 1.55, fontFamily: font }}>{v.description}</div>}
+                </div>
+                {(v.startDate || v.endDate) && <div style={{ fontSize: 9.5, color: '#6b7280', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: font }}>{dateRange(v.startDate, v.endDate, v.current)}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </React.Fragment>
+    ) : null,
+  };
 
   return (
     <div style={{ fontFamily: font, fontSize: 10.5, color: '#111827', lineHeight: 1.6, backgroundColor: '#ffffff' }}>
-
-      {/* ── Banner header ── */}
-      <div style={{
-        backgroundColor: t.accentColor,
-        padding: '24px 32px 20px',
-        textAlign: t.headerAlign === 'center' ? 'center' : 'left',
-      }}>
+      <div style={{ backgroundColor: t.accentColor, padding: '24px 32px 20px', textAlign: t.headerAlign === 'center' ? 'center' : 'left' }}>
         <div style={{ fontSize: 24, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.4px', lineHeight: 1.15, marginBottom: 3, fontFamily: font }}>
           {personal.name || 'Your Name'}
         </div>
-        {experience[0]?.title && (
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', fontWeight: 400, marginBottom: 6, fontFamily: font }}>
-            {experience[0].title}
+        {(personal.headline || experience[0]?.title) && (
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.80)', fontWeight: 400, marginBottom: 6, fontFamily: font }}>
+            {personal.headline || experience[0]?.title}
           </div>
         )}
-        {r1 && <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.72)', lineHeight: 1.75, fontFamily: font }}>{r1}</div>}
-        {r2 && <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.72)', lineHeight: 1.75, fontFamily: font }}>{r2}</div>}
+        {r1 && <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.75)', lineHeight: 1.75, fontFamily: font, wordBreak: 'break-word' }}>{r1}</div>}
+        {r2 && <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.75)', lineHeight: 1.75, fontFamily: font, wordBreak: 'break-word' }}>{r2}</div>}
       </div>
-
-      {/* ── Body ── */}
       <div style={{ padding: '22px 32px 32px' }}>
-        {summary.text && (
-          <>
-            <SectionTitle label="Profile" t={t} mt={0} />
-            <p style={{ margin: `0 0 ${SG}px`, fontSize: 10, color: '#374151', lineHeight: 1.68, fontFamily: font }}>{summary.text}</p>
-          </>
-        )}
-
-        {experience.length > 0 && (
-          <>
-            <SectionTitle label="Work Experience" t={t} mt={summary.text ? undefined : 0} />
-            <div style={{ marginBottom: SG }}>
-              {experience.map(exp => <ExpEntry key={exp.id} exp={exp} t={t} gap={EG} />)}
-            </div>
-          </>
-        )}
-
-        {hasSkills && (
-          <>
-            <SectionTitle label="Skills" t={t} />
-            <div style={{ marginBottom: SG }}><SkillsBlock skills={skills} t={t} /></div>
-          </>
-        )}
-
-        {education.length > 0 && (
-          <>
-            <SectionTitle label="Education" t={t} />
-            <div style={{ marginBottom: SG }}>
-              {education.map(edu => <EduEntry key={edu.id} edu={edu} t={t} gap={sp(t, 9)} />)}
-            </div>
-          </>
-        )}
-
-        {projects.length > 0 && (
-          <>
-            <SectionTitle label="Projects" t={t} />
-            {projects.map(proj => <ProjEntry key={proj.id} proj={proj} t={t} gap={EG} />)}
-          </>
-        )}
+        {order.map(key => sectionMap[key] ?? null)}
       </div>
     </div>
   );
@@ -1006,7 +1107,13 @@ function TraditionalLayout({ data }: { data: ResumeData }) {
 // ─── Main export ──────────────────────────────────────────────────────────────
 
 export function HtmlPreview({ data, templateId }: Props) {
-  const t = getTemplate(templateId);
+  const base = getTemplate(templateId);
+  // Apply user overrides (color + font) on top of template defaults
+  const t: TemplateConfig = {
+    ...base,
+    accentColor: data.customAccentColor ?? base.accentColor,
+    fontFamily:  (data.fontOverride ?? base.fontFamily) as 'serif' | 'sans-serif',
+  };
   switch (t.layout) {
     case 'sidebar':     return <SidebarLayout data={data} t={t} />;
     case 'banner':      return <BannerLayout data={data} t={t} />;

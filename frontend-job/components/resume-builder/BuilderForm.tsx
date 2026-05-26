@@ -104,11 +104,12 @@ function TagInput({ value, onChange, placeholder }: { value: string[]; onChange:
 const TABS = ['Personal', 'Summary', 'Experience', 'Education', 'Skills', 'Projects', 'Awards', 'Volunteer', 'Settings'] as const;
 type Tab = typeof TABS[number];
 
-interface Props { 
-  data: ResumeData; 
-  onChange: (data: ResumeData) => void; 
+interface Props {
+  data: ResumeData;
+  onChange: (data: ResumeData) => void;
   projectName: string;
   onProjectNameChange: (name: string) => void;
+  isLoggedIn?: boolean;
 }
 
 function AtsHealthScore({ data }: { data: ResumeData }) {
@@ -223,7 +224,7 @@ function AtsHealthScore({ data }: { data: ResumeData }) {
   );
 }
 
-export function BuilderForm({ data, onChange, projectName, onProjectNameChange }: Props) {
+export function BuilderForm({ data, onChange, projectName, onProjectNameChange, isLoggedIn = true }: Props) {
   const [openEntries, setOpenEntries] = useState<Record<string, boolean>>({});
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const dragSrc = useRef<{ section: 'experience' | 'education' | 'projects'; idx: number } | null>(null);
@@ -306,6 +307,43 @@ export function BuilderForm({ data, onChange, projectName, onProjectNameChange }
 
       <div className="sm:col-span-2 h-px bg-border my-2" />
 
+      {/* Photo upload */}
+      <div className="sm:col-span-2 flex items-center gap-4 py-1">
+        <div className="relative shrink-0">
+          {data.personal.photo ? (
+            <img src={data.personal.photo} alt="photo" className="h-14 w-14 rounded-full object-cover border-2 border-border" />
+          ) : (
+            <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center border-2 border-dashed border-border text-muted-foreground text-xs font-medium">
+              Photo
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="inline-flex items-center gap-1.5 h-7 px-3 rounded-md border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:border-foreground/40 cursor-pointer transition-colors bg-background">
+            {data.personal.photo ? 'Change Photo' : 'Upload Photo'}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={e => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                if (file.size > 2 * 1024 * 1024) { toast.error('Photo must be under 2 MB'); return; }
+                const reader = new FileReader();
+                reader.onload = ev => update({ personal: { ...data.personal, photo: ev.target?.result as string } });
+                reader.readAsDataURL(file);
+              }}
+            />
+          </label>
+          {data.personal.photo && (
+            <button onClick={() => update({ personal: { ...data.personal, photo: undefined } })} className="text-[11px] text-destructive hover:underline text-left">Remove photo</button>
+          )}
+          <p className="text-[10px] text-muted-foreground">Optional · max 2 MB · shown in header for supported templates</p>
+        </div>
+      </div>
+
+      <div className="sm:col-span-2 h-px bg-border my-1" />
+
       <Field label="Full Name" className="sm:col-span-2">
         <Input
           value={data.personal.name}
@@ -385,16 +423,25 @@ export function BuilderForm({ data, onChange, projectName, onProjectNameChange }
         <p className="text-xs text-muted-foreground leading-relaxed">
           Write 2–3 sentences highlighting your expertise, key achievements, and career goals.
         </p>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={generateSummary}
-          disabled={summaryLoading}
-          className="shrink-0 ml-3 h-7 text-xs gap-1.5 border-violet-200 text-violet-700 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-400 dark:hover:bg-violet-950"
-        >
-          {summaryLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-          {summaryLoading ? 'Writing…' : 'Write with AI'}
-        </Button>
+        {isLoggedIn ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={generateSummary}
+            disabled={summaryLoading}
+            className="shrink-0 ml-3 h-7 text-xs gap-1.5 border-violet-200 text-violet-700 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-400 dark:hover:bg-violet-950"
+          >
+            {summaryLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+            {summaryLoading ? 'Writing…' : 'Write with AI'}
+          </Button>
+        ) : (
+          <a
+            href="/login"
+            className="shrink-0 ml-3 h-7 px-2.5 inline-flex items-center gap-1.5 text-xs font-medium rounded-md border border-violet-200 text-violet-500 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-400 dark:hover:bg-violet-950 transition-colors"
+          >
+            <Sparkles className="h-3 w-3" /> Sign in for AI
+          </a>
+        )}
       </div>
       <Textarea
         rows={7}
@@ -501,27 +548,33 @@ export function BuilderForm({ data, onChange, projectName, onProjectNameChange }
               <div className="flex flex-col gap-1.5 mb-4">
                 <div className="flex items-center justify-between">
                   <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Bullet Points — one per line</Label>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const bullets = exp.bullets.filter(Boolean);
-                      if (!bullets.length) { toast.error('Add at least one bullet first'); return; }
-                      setImprovingBullets(exp.id);
-                      try {
-                        const improved = await aiCall('improve-bullets', { title: exp.title, company: exp.company, bullets });
-                        updateExp(exp.id, { bullets: improved });
-                        toast.success('Bullets improved!');
-                      } catch (e: any) { toast.error(e.message); }
-                      finally { setImprovingBullets(null); }
-                    }}
-                    disabled={improvingBullets === exp.id}
-                    className="flex items-center gap-1 text-[11px] font-medium text-violet-600 hover:text-violet-700 dark:text-violet-400 disabled:opacity-50 transition-colors"
-                  >
-                    {improvingBullets === exp.id
-                      ? <Loader2 className="h-3 w-3 animate-spin" />
-                      : <Sparkles className="h-3 w-3" />}
-                    {improvingBullets === exp.id ? 'Improving…' : '✨ Improve with AI'}
-                  </button>
+                  {isLoggedIn ? (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const bullets = exp.bullets.filter(Boolean);
+                        if (!bullets.length) { toast.error('Add at least one bullet first'); return; }
+                        setImprovingBullets(exp.id);
+                        try {
+                          const improved = await aiCall('improve-bullets', { title: exp.title, company: exp.company, bullets });
+                          updateExp(exp.id, { bullets: improved });
+                          toast.success('Bullets improved!');
+                        } catch (e: any) { toast.error(e.message); }
+                        finally { setImprovingBullets(null); }
+                      }}
+                      disabled={improvingBullets === exp.id}
+                      className="flex items-center gap-1 text-[11px] font-medium text-violet-600 hover:text-violet-700 dark:text-violet-400 disabled:opacity-50 transition-colors"
+                    >
+                      {improvingBullets === exp.id
+                        ? <Loader2 className="h-3 w-3 animate-spin" />
+                        : <Sparkles className="h-3 w-3" />}
+                      {improvingBullets === exp.id ? 'Improving…' : '✨ Improve with AI'}
+                    </button>
+                  ) : (
+                    <a href="/login" className="flex items-center gap-1 text-[11px] font-medium text-violet-500 hover:text-violet-700 dark:text-violet-400 transition-colors">
+                      <Sparkles className="h-3 w-3" /> Sign in for AI
+                    </a>
+                  )}
                 </div>
                 <Textarea
                   rows={4}
@@ -939,8 +992,36 @@ export function BuilderForm({ data, onChange, projectName, onProjectNameChange }
 
       {/* Custom Accent Color */}
       <div>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Custom Accent Color</p>
-        <p className="text-xs text-muted-foreground mb-4">Override the template's color with your own brand color.</p>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Accent Color</p>
+        <p className="text-xs text-muted-foreground mb-3">Pick a preset or use a custom color.</p>
+        {/* Preset swatches */}
+        <div className="flex flex-wrap gap-2 mb-3">
+          {[
+            { color: '#1e3a5f', label: 'Navy' },
+            { color: '#111827', label: 'Black' },
+            { color: '#4f46e5', label: 'Indigo' },
+            { color: '#0f766e', label: 'Teal' },
+            { color: '#059669', label: 'Emerald' },
+            { color: '#1d4ed8', label: 'Blue' },
+            { color: '#7c3aed', label: 'Purple' },
+            { color: '#be123c', label: 'Rose' },
+            { color: '#b45309', label: 'Amber' },
+            { color: '#374151', label: 'Gray' },
+          ].map(({ color, label }) => (
+            <button
+              key={color}
+              title={label}
+              onClick={() => update({ customAccentColor: color })}
+              className="relative h-7 w-7 rounded-full border-2 transition-all hover:scale-110"
+              style={{
+                backgroundColor: color,
+                borderColor: data.customAccentColor === color ? '#fff' : 'transparent',
+                boxShadow: data.customAccentColor === color ? `0 0 0 2px ${color}` : undefined,
+              }}
+            />
+          ))}
+        </div>
+        {/* Custom color picker */}
         <div className="flex items-center gap-3">
           <div className="relative">
             <Palette className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -948,13 +1029,39 @@ export function BuilderForm({ data, onChange, projectName, onProjectNameChange }
               type="color"
               value={data.customAccentColor ?? '#4f46e5'}
               onChange={e => update({ customAccentColor: e.target.value })}
-              className="h-10 w-28 pl-8 pr-2 rounded-lg border border-input bg-background cursor-pointer text-sm"
+              className="h-9 w-24 pl-8 pr-2 rounded-lg border border-input bg-background cursor-pointer text-sm"
             />
           </div>
-          <span className="text-sm font-mono text-muted-foreground">{data.customAccentColor ?? 'Template default'}</span>
+          <span className="text-xs font-mono text-muted-foreground">{data.customAccentColor ?? 'Template default'}</span>
           {data.customAccentColor && (
-            <button onClick={() => update({ customAccentColor: undefined })} className="text-xs text-destructive hover:underline ml-auto">Reset</button>
+            <button onClick={() => update({ customAccentColor: undefined })} className="text-xs text-destructive hover:underline ml-auto">Reset to template</button>
           )}
+        </div>
+      </div>
+
+      {/* Font Override */}
+      <div>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Font Style</p>
+        <p className="text-xs text-muted-foreground mb-3">Override the template's font.</p>
+        <div className="flex gap-2">
+          {[
+            { value: undefined,     label: 'Template Default', sub: 'Auto' },
+            { value: 'sans-serif',  label: 'Modern Sans',      sub: 'Clean & minimal' },
+            { value: 'serif',       label: 'Classic Serif',    sub: 'Traditional & formal' },
+          ].map(({ value, label, sub }) => (
+            <button
+              key={String(value)}
+              onClick={() => update({ fontOverride: value as 'serif' | 'sans-serif' | undefined })}
+              className={`flex-1 px-3 py-2.5 rounded-xl border text-left transition-all ${
+                data.fontOverride === value
+                  ? 'border-primary bg-primary/5 text-primary'
+                  : 'border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground'
+              }`}
+            >
+              <div className="text-xs font-semibold">{label}</div>
+              <div className="text-[10px] mt-0.5 opacity-70">{sub}</div>
+            </button>
+          ))}
         </div>
       </div>
     </div>

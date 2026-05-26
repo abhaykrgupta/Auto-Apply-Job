@@ -12,21 +12,32 @@ export class ArbeitnowScraper extends BaseScraper {
     const jobs: ScrapedJob[] = [];
 
     try {
-      const params = new URLSearchParams({ page: '1' });
-      if (filters.role) params.set('q', filters.role);
-      if (filters.location) params.set('location', filters.location);
-      if (filters.remote === 'remote') params.set('remote', 'true');
+      // Fetch 2 pages (API returns ~100 jobs/page) to get more results
+      const allResults: any[] = [];
+      for (let page = 1; page <= 2; page++) {
+        const params = new URLSearchParams({ page: String(page) });
+        if (filters.role) params.set('q', filters.role);
+        if (filters.location) params.set('location', filters.location);
+        if (filters.remote === 'remote') params.set('remote', 'true');
 
-      const url = `https://www.arbeitnow.com/api/job-board-api?${params.toString()}`;
-      const res = await fetch(url, { headers: { Accept: 'application/json' } });
+        const url = `https://www.arbeitnow.com/api/job-board-api?${params.toString()}`;
+        const res = await fetch(url, {
+          headers: { Accept: 'application/json' },
+          signal: AbortSignal.timeout(15_000),
+        });
 
-      if (!res.ok) {
-        logger.warn({ status: res.status }, 'Arbeitnow API error');
-        return [];
+        if (!res.ok) {
+          logger.warn({ status: res.status, page }, 'Arbeitnow API error');
+          break;
+        }
+
+        const data = await res.json();
+        const pageResults: any[] = data.data ?? [];
+        allResults.push(...pageResults);
+        if (pageResults.length < 10) break; // last page
       }
 
-      const data = await res.json();
-      const results: any[] = data.data ?? [];
+      const results = allResults;
 
       for (const item of results) {
         jobs.push({

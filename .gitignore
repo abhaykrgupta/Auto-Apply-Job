@@ -29,3 +29,5 @@ build/
 
 # typescript
 *.tsbuildinfo
+resume.tex
+tech_audit_and_interview_prep.md

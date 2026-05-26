@@ -44,10 +44,13 @@ export async function GET(req: NextRequest) {
     }
 
     const matches = await getJobMatches(resumeId);
-    return NextResponse.json(matches);
+    const res = NextResponse.json(matches);
+    res.headers.set('X-RateLimit-Limit', '100');
+    res.headers.set('X-RateLimit-Window', '3600');
+    return res;
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to fetch matches';
     console.error('[/api/jobs/matches GET]', message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch matches' }, { status: 500 });
   }
 }

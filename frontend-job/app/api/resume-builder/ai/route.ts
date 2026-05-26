@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
 import { openai } from '@/lib/openai/client';
 import { rateLimitedOpenAI } from '@/lib/openai/rate-limiter';
+import { checkRateLimit } from '@/lib/rate-limit/simple-rate-limiter';
 
 export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if (!checkRateLimit(`resume-ai:${session.user.id}`, 30, 60 * 60 * 1000)) {
+    return NextResponse.json({ error: 'Rate limit exceeded. Try again later.' }, { status: 429 });
+  }
+
   try {
     const { action, data } = await req.json();
 
@@ -13,7 +23,7 @@ export async function POST(req: NextRequest) {
       const skillStr = skills?.technical?.slice(0, 10).join(', ') || '';
 
       const res = await rateLimitedOpenAI(() => openai.chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         messages: [{
           role: 'user',
           content: `Write a professional resume summary (2-3 sentences, 50-80 words) for this candidate.
@@ -43,7 +53,7 @@ Rules:
       const bulletStr = bullets.filter(Boolean).join('\n');
 
       const res = await rateLimitedOpenAI(() => openai.chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         messages: [{
           role: 'user',
           content: `Rewrite these resume bullet points for a ${title} role at ${company} to be more impactful and ATS-optimized.
@@ -93,6 +103,7 @@ Rules:
         { status: 401 }
       );
     }
-    return NextResponse.json({ error: e.message || 'AI request failed' }, { status: 500 });
+    console.error('[resume-builder/ai]', e);
+    return NextResponse.json({ error: 'AI request failed' }, { status: 500 });
   }
 }

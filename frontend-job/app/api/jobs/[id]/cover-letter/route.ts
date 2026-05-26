@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
 import { getJobById } from '@/lib/actions/jobs';
 import { getActiveResumes, getResumes } from '@/lib/actions/resume';
 import { findBestResume } from '@/lib/utils/resume-matcher';
+import { checkRateLimit } from '@/lib/rate-limit/simple-rate-limiter';
 import OpenAI from 'openai';
 
 function getOpenAI() {
@@ -9,12 +11,24 @@ function getOpenAI() {
 }
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if (!checkRateLimit(`cover-letter:${session.user.id}`, 20, 60 * 60 * 1000)) {
+    return NextResponse.json({ error: 'Rate limit exceeded. Try again in an hour.' }, { status: 429 });
+  }
+
   try {
     const { id } = await params;
-    const job = await getJobById(id);
+
+    // Fetch job and resumes in parallel
+    const [job, activeResumes] = await Promise.all([
+      getJobById(id),
+      getActiveResumes(),
+    ]);
     if (!job) return NextResponse.json({ error: 'Job not found' }, { status: 404 });
 
-    const activeResumes = await getActiveResumes();
     const candidates = activeResumes.length > 0 ? activeResumes : await getResumes();
     const picked = await findBestResume(`${job.title} ${job.description} ${job.requirements ?? ''}`, candidates);
     const resume = picked?.resume ?? candidates[0];
@@ -37,7 +51,7 @@ Experience: ${(parsed.experience ?? []).slice(0, 3).map((e: any) => `${e.title} 
 Write a genuine, non-generic cover letter. Do NOT use phrases like "I am writing to express my interest". Be direct and confident. Return ONLY the cover letter text, no subject line or date.`;
 
     const res = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 400,
     });
@@ -45,7 +59,7 @@ Write a genuine, non-generic cover letter. Do NOT use phrases like "I am writing
     const coverLetter = res.choices[0].message.content ?? '';
     return NextResponse.json({ coverLetter, jobTitle: job.title, company: job.company });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[cover-letter]', err);
+    return NextResponse.json({ error: 'Failed to generate cover letter' }, { status: 500 });
   }
 }

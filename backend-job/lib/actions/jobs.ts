@@ -1,18 +1,19 @@
 
 
-import { db } from '@/lib/db';
-import { jobs, jobMatches, resumes } from '@/lib/db/schema';
-import { scoreJobMatch } from '@/lib/openai/job-matcher';
-import { getEmbedding } from '@/lib/openai/embeddings';
+import { db } from '../db';
+import { jobs, jobMatches, resumes } from '../db/schema';
+import { scoreJobMatch } from '../openai/job-matcher';
+import { getEmbedding } from '../openai/embeddings';
 import { eq, desc, and, gte, ilike, sql } from 'drizzle-orm';
 
 
 export interface JobFilters {
-  search?:     string;   // title, company, location
+  search?:     string;   // title, company, location, description
   status?:     string;   // active | expired | filled
   source?:     string;   // greenhouse | lever | linkedin | ...
   country?:    string;   // india | us | uk | remote | uae | ...
-  datePosted?: string;   // today | week | month
+  location?:   string;   // free-text location (e.g. "Mumbai", "Bangalore")
+  datePosted?: string;   // today | yesterday | past_week | week | month
   limit?:      number;
   offset?:     number;
 }
@@ -23,6 +24,7 @@ export async function getJobs(filters: JobFilters = {}) {
     status,
     source,
     country,
+    location,
     datePosted,
     limit  = 50,
     offset = 0,
@@ -43,12 +45,17 @@ export async function getJobs(filters: JobFilters = {}) {
     conditions.push(ilike(jobs.source, source));
   }
 
-  // Full-text search across title, company, location
+  // Full-text search across title, company, location, and description
   if (search?.trim()) {
     const term = `%${search.trim()}%`;
     conditions.push(
-      sql`(${jobs.title} ILIKE ${term} OR ${jobs.company} ILIKE ${term} OR ${jobs.location} ILIKE ${term})`
+      sql`(${jobs.title} ILIKE ${term} OR ${jobs.company} ILIKE ${term} OR ${jobs.location} ILIKE ${term} OR ${jobs.description} ILIKE ${term})`
     );
+  }
+
+  // Free-text location filter (city, state, region)
+  if (location?.trim()) {
+    conditions.push(ilike(jobs.location, `%${location.trim()}%`));
   }
 
   // Country/location filter — map common names to location patterns
@@ -71,7 +78,7 @@ export async function getJobs(filters: JobFilters = {}) {
 
   // Date posted filter
   if (datePosted && datePosted !== 'all') {
-    const daysMap: Record<string, number> = { today: 1, yesterday: 2, week: 7, month: 30 };
+    const daysMap: Record<string, number> = { today: 1, yesterday: 2, week: 7, past_week: 7, month: 30 };
     const days = daysMap[datePosted];
     if (days) {
       const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);

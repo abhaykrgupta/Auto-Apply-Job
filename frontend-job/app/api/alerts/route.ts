@@ -23,7 +23,8 @@ export async function GET() {
     .select()
     .from(jobAlerts)
     .where(eq(jobAlerts.userId, userId))
-    .orderBy(desc(jobAlerts.createdAt));
+    .orderBy(desc(jobAlerts.createdAt))
+    .limit(100);
 
   // Get unseen match counts per alert
   const unseenCounts = await db

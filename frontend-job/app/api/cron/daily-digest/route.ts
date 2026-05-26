@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'crypto';
 import { EmailNotificationService } from '@/lib/notifications/email-service';
 import { telegramService } from '@/lib/notifications/telegram-service';
 import { db } from '@/lib/db';
 import { jobs, applications, jobMatches } from '@/lib/db/schema';
 import { gte, eq, and, count } from 'drizzle-orm';
 
+function verifyCronSecret(authHeader: string | null): boolean {
+  if (!process.env.CRON_SECRET || !authHeader) return false;
+  try {
+    const a = Buffer.from(authHeader);
+    const b = Buffer.from(`Bearer ${process.env.CRON_SECRET}`);
+    return a.length === b.length && timingSafeEqual(a, b);
+  } catch { return false; }
+}
+
 // Vercel cron: 0 8 * * * (8 AM UTC daily)
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyCronSecret(request.headers.get('authorization'))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

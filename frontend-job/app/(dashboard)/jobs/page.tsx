@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useJobs } from '@/lib/hooks/use-jobs';
+import { useJobs, useDebouncedValue } from '@/lib/hooks/use-jobs';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { buttonVariants, Button } from '@/components/ui/button';
@@ -30,26 +30,26 @@ const ATS_COLORS: Record<string, string> = {
 
 // Maps display label → keywords to match in title/description
 const EXP_PATTERNS: Record<string, string[]> = {
-  fresher:  ['fresher', 'entry level', 'entry-level', 'new grad', 'graduate', 'intern', '0-1', 'junior i ', 'junior 1'],
-  '1-2':    ['1-2 year', '1+ year', '1 year', '2 year', 'junior'],
-  '2-3':    ['2-3 year', '2+ year', '3 year'],
-  '3-5':    ['3-5 year', '3+ year', '4 year', 'mid-level', 'mid level', 'intermediate'],
-  '5-7':    ['5-7 year', '5+ year', '6 year', '7 year', 'senior', 'lead ', 'tech lead'],
-  'senior': ['7+ year', 'staff', 'principal', 'director', 'architect', 'vp ', 'head of'],
+  fresher:  ['fresher', 'entry level', 'entry-level', 'new grad', 'graduate', 'intern', '0-1', '0-2', 'junior i ', 'junior 1', 'trainee', 'associate i', 'no experience'],
+  '1-2':    ['1-2 year', '1-3 year', '0-2 year', '1+ year', '1 year', '2 year', 'junior', 'associate', '12 month', '24 month'],
+  '2-3':    ['2-3 year', '2-4 year', '2+ year', '3 year', 'mid level', 'mid-level'],
+  '3-5':    ['3-5 year', '3-4 year', '4-5 year', '3+ year', '4 year', '5 year', 'mid-level', 'mid level', 'intermediate', 'experienced'],
+  '5-7':    ['5-7 year', '5-6 year', '6-7 year', '5+ year', '6 year', '7 year', 'senior', 'lead ', 'team lead', 'specialist'],
+  'senior': ['7+ year', '8 year', '9 year', '10 year', 'staff', 'principal', 'director', 'architect', 'vp ', 'head of', 'manager'],
 };
 
-// Most relevant countries for Indian job seekers
+// Most relevant countries for Indian job seekers (values match backend location map keys)
 const COUNTRIES = [
-  { value: 'all',           label: 'All Countries' },
-  { value: 'india',         label: '🇮🇳 India' },
-  { value: 'remote',        label: '🌐 Remote / Worldwide' },
-  { value: 'united states', label: '🇺🇸 United States' },
-  { value: 'united kingdom',label: '🇬🇧 United Kingdom' },
-  { value: 'canada',        label: '🇨🇦 Canada' },
-  { value: 'germany',       label: '🇩🇪 Germany' },
-  { value: 'australia',     label: '🇦🇺 Australia' },
-  { value: 'singapore',     label: '🇸🇬 Singapore' },
-  { value: 'uae',           label: '🇦🇪 UAE' },
+  { value: 'all',       label: 'All Countries' },
+  { value: 'india',     label: '🇮🇳 India' },
+  { value: 'remote',    label: '🌐 Remote / Worldwide' },
+  { value: 'us',        label: '🇺🇸 United States' },
+  { value: 'uk',        label: '🇬🇧 United Kingdom' },
+  { value: 'canada',    label: '🇨🇦 Canada' },
+  { value: 'germany',   label: '🇩🇪 Germany' },
+  { value: 'australia', label: '🇦🇺 Australia' },
+  { value: 'singapore', label: '🇸🇬 Singapore' },
+  { value: 'uae',       label: '🇦🇪 UAE' },
 ];
 
 function matchesExperience(job: any, level: string): boolean {
@@ -58,19 +58,26 @@ function matchesExperience(job: any, level: string): boolean {
   return (EXP_PATTERNS[level] ?? []).some((kw) => haystack.includes(kw));
 }
 
-function matchesCountry(job: any, country: string): boolean {
-  if (country === 'all') return true;
-  const loc = (job.location ?? '').toLowerCase();
-  if (country === 'remote') return loc.includes('remote') || loc.includes('worldwide') || loc.includes('anywhere');
-  return loc.includes(country);
-}
 
 export default function JobsPage() {
-  const { data: jobs, isLoading } = useJobs();
-  const [search, setSearch]             = useState('');
-  const [dateFilter, setDateFilter]     = useState('all');
-  const [expFilter, setExpFilter]       = useState('any');
+  const [search, setSearch]               = useState('');
+  const [dateFilter, setDateFilter]       = useState('all');
+  const [expFilter, setExpFilter]         = useState('any');
   const [countryFilter, setCountryFilter] = useState('all');
+  const [locationText, setLocationText]   = useState('');
+
+  const debouncedSearch   = useDebouncedValue(search, 300);
+  const debouncedLocation = useDebouncedValue(locationText, 300);
+
+  const { data: jobsResponse, isLoading } = useJobs({
+    search:     debouncedSearch   || undefined,
+    country:    countryFilter !== 'all' ? countryFilter : undefined,
+    location:   debouncedLocation || undefined,
+    datePosted: dateFilter    !== 'all' ? dateFilter    : undefined,
+    limit: 200,
+  });
+  // jobsResponse = { data: Job[], total, limit, offset }
+  const allJobs: any[] = jobsResponse?.data ?? [];
   const [tailorJob, setTailorJob]       = useState<{ id: string; title: string; company: string } | null>(null);
   const [coverLetterJob, setCoverLetterJob] = useState<{ id: string; title: string; company: string } | null>(null);
   const [selectedIds, setSelectedIds]   = useState<Set<string>>(new Set());
@@ -79,48 +86,11 @@ export default function JobsPage() {
   const [customPageSize, setCustomPageSize] = useState('15');
   const qc = useQueryClient();
 
+  // Server handles: search, country, datePosted — client handles: experience (no server-side support)
   const filteredJobs = useMemo(() => {
-    if (!jobs) return [];
-    let result = jobs;
-
-    // Text search
-    const q = search.trim().toLowerCase();
-    if (q) {
-      result = result.filter((j: any) =>
-        j.title?.toLowerCase().includes(q) ||
-        j.company?.toLowerCase().includes(q) ||
-        j.location?.toLowerCase().includes(q)
-      );
-    }
-
-    // Date filter
-    if (dateFilter !== 'all') {
-      const now = new Date();
-      const todayStart     = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
-      const weekStart      = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000);
-      result = result.filter((j: any) => {
-        if (!j.createdAt) return false;
-        const d = new Date(j.createdAt);
-        if (dateFilter === 'today')     return d >= todayStart;
-        if (dateFilter === 'yesterday') return d >= yesterdayStart && d < todayStart;
-        if (dateFilter === 'past_week') return d >= weekStart;
-        return true;
-      });
-    }
-
-    // Experience filter
-    if (expFilter !== 'any') {
-      result = result.filter((j: any) => matchesExperience(j, expFilter));
-    }
-
-    // Country filter
-    if (countryFilter !== 'all') {
-      result = result.filter((j: any) => matchesCountry(j, countryFilter));
-    }
-
-    return result;
-  }, [jobs, search, dateFilter, expFilter, countryFilter]);
+    if (expFilter === 'any') return allJobs;
+    return allJobs.filter((j: any) => matchesExperience(j, expFilter));
+  }, [allJobs, expFilter]);
 
   const pageSize     = pageSizeMode === 'custom' ? (parseInt(customPageSize) || 15) : parseInt(pageSizeMode);
   const totalPages   = Math.max(1, Math.ceil(filteredJobs.length / pageSize));
@@ -131,10 +101,13 @@ export default function JobsPage() {
     dateFilter !== 'all' ? 1 : 0,
     expFilter !== 'any' ? 1 : 0,
     countryFilter !== 'all' ? 1 : 0,
+    locationText.trim() ? 1 : 0,
   ].reduce((a, b) => a + b, 0);
 
+  const totalJobCount = jobsResponse?.total ?? allJobs.length;
+
   function clearFilters() {
-    setSearch(''); setDateFilter('all'); setExpFilter('any'); setCountryFilter('all'); setPage(1);
+    setSearch(''); setDateFilter('all'); setExpFilter('any'); setCountryFilter('all'); setLocationText(''); setPage(1);
   }
 
   const { mutate: applyJob, isPending: applying, variables: applyingId } = useMutation({
@@ -200,7 +173,7 @@ export default function JobsPage() {
     onError: () => toast.error('Failed to delete jobs'),
   });
 
-  const allJobIds: string[] = filteredJobs?.map((j: any) => j.id) ?? [];
+  const allJobIds: string[] = allJobs?.map((j: any) => j.id) ?? [];
   const allSelected = allJobIds.length > 0 && allJobIds.every((id) => selectedIds.has(id));
   const someSelected = selectedIds.size > 0;
 
@@ -224,80 +197,56 @@ export default function JobsPage() {
         <div>
           <h2 className="text-2xl font-bold">All Jobs</h2>
           <p className="text-muted-foreground text-sm">
-            {filteredJobs.length} of {jobs?.length ?? 0} jobs
-            {activeFilterCount > 0 && (
-              <button onClick={clearFilters} className="ml-2 text-primary underline underline-offset-2 hover:text-primary/80 text-xs font-medium">
-                Clear {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''}
-              </button>
-            )}
+            {filteredJobs.length} of {totalJobCount} jobs
           </p>
         </div>
         <Link href="/search" className={cn(buttonVariants({ variant: 'outline' }), 'shrink-0')}>Search More</Link>
       </div>
 
       {/* ── Filter bar ── */}
-      <div className="rounded-xl border border-border bg-card p-4 space-y-3 shadow-sm">
-        {/* Row 1: Search + Date */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
+      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+        {/* Row 1: Full-width search */}
+        <div className="p-3 border-b border-border">
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
               placeholder="Search by title, company or location..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              className="pl-9 bg-background/60"
+              className="pl-9 h-10 bg-background/60 border-0 shadow-none focus-visible:ring-0 text-sm"
             />
           </div>
-          <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v ?? 'all'); setPage(1); }}>
-            <SelectTrigger className="w-full sm:w-[160px] bg-background/60">
-              <SelectValue placeholder="Date Posted" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Any Time</SelectItem>
-              <SelectItem value="today">Today</SelectItem>
-              <SelectItem value="yesterday">Yesterday</SelectItem>
-              <SelectItem value="past_week">Past Week</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
 
-        {/* Row 2: Experience + Country */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          {/* Experience level */}
-          <div className="flex items-center gap-2 flex-1">
-            <GraduationCap className="h-4 w-4 text-muted-foreground shrink-0" />
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                { value: 'any',    label: 'Any Level' },
-                { value: 'fresher',label: 'Fresher' },
-                { value: '1-2',    label: '1–2 yrs' },
-                { value: '2-3',    label: '2–3 yrs' },
-                { value: '3-5',    label: '3–5 yrs' },
-                { value: '5-7',    label: '5–7 yrs' },
-                { value: 'senior', label: 'Senior 7+' },
-              ].map(({ value, label }) => (
-                <button
-                  key={value}
-                  onClick={() => { setExpFilter(value); setPage(1); }}
-                  className={cn(
-                    'px-3 py-1 rounded-full text-xs font-medium border transition-all',
-                    expFilter === value
-                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                      : 'bg-background/60 text-muted-foreground border-border hover:border-primary/40 hover:text-foreground'
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+        {/* Row 2: All filters in one strip */}
+        <div className="px-3 py-2 flex flex-wrap items-center gap-x-4 gap-y-2 bg-muted/20">
+
+          {/* Date Posted */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Date</span>
+            <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v ?? 'all'); setPage(1); }}>
+              <SelectTrigger className="h-7 w-auto min-w-[90px] px-2.5 text-xs bg-background border-border gap-1">
+                <span className="truncate font-medium">
+                  {({ all: 'Any Time', today: 'Today', yesterday: 'Yesterday', past_week: 'Past Week' } as Record<string,string>)[dateFilter] ?? 'Any Time'}
+                </span>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Any Time</SelectItem>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="yesterday">Yesterday</SelectItem>
+                <SelectItem value="past_week">Past Week</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Country filter */}
-          <div className="flex items-center gap-2 shrink-0">
-            <Globe2 className="h-4 w-4 text-muted-foreground shrink-0" />
+          {/* Country */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Country</span>
             <Select value={countryFilter} onValueChange={(v) => { setCountryFilter(v ?? 'all'); setPage(1); }}>
-              <SelectTrigger className="w-full sm:w-[200px] bg-background/60">
-                <SelectValue placeholder="Country" />
+              <SelectTrigger className="h-7 w-auto min-w-[130px] px-2.5 text-xs bg-background border-border gap-1">
+                <span className="truncate font-medium">
+                  {COUNTRIES.find(c => c.value === countryFilter)?.label ?? 'All Countries'}
+                </span>
               </SelectTrigger>
               <SelectContent>
                 {COUNTRIES.map(({ value, label }) => (
@@ -306,10 +255,67 @@ export default function JobsPage() {
               </SelectContent>
             </Select>
           </div>
+
+          {/* Location text */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
+              <Globe2 className="h-2.5 w-2.5" /> City
+            </span>
+            <Input
+              placeholder="Mumbai, Delhi…"
+              value={locationText}
+              onChange={(e) => { setLocationText(e.target.value); setPage(1); }}
+              className="h-7 w-[120px] px-2.5 text-xs bg-background border-border"
+            />
+          </div>
+
+          {/* Divider */}
+          <div className="hidden sm:block w-px h-4 bg-border shrink-0" />
+
+          {/* Experience chips */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap flex items-center gap-1 shrink-0">
+              <GraduationCap className="h-2.5 w-2.5" /> Exp
+            </span>
+            {[
+              { value: 'any',     label: 'Any' },
+              { value: 'fresher', label: 'Fresher' },
+              { value: '1-2',     label: '1–2 yrs' },
+              { value: '2-3',     label: '2–3 yrs' },
+              { value: '3-5',     label: '3–5 yrs' },
+              { value: '5-7',     label: '5–7 yrs' },
+              { value: 'senior',  label: 'Senior 7+' },
+            ].map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => { setExpFilter(value); setPage(1); }}
+                className={cn(
+                  'h-7 px-2.5 rounded-full text-[11px] font-medium border transition-all whitespace-nowrap',
+                  expFilter === value
+                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                    : 'bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Clear filters */}
+          {activeFilterCount > 0 && (
+            <button
+              onClick={clearFilters}
+              className="ml-auto text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1 shrink-0"
+            >
+              <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-muted text-[10px] font-bold">{activeFilterCount}</span>
+              Clear
+            </button>
+          )}
         </div>
       </div>
 
       {/* ── Table ── */}
+
       {!filteredJobs.length ? (
         <EmptyState
           icon={Briefcase}

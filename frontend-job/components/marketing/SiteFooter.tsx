@@ -32,7 +32,7 @@ export function SiteFooter() {
               <span className="font-semibold text-[0.9375rem] tracking-[-0.02em]">JobAgent</span>
             </Link>
             <p className="text-[0.875rem] leading-[1.6] text-muted-foreground max-w-[240px] mb-6">
-              The autonomous AI agent for your entire job search pipeline.
+              Fills job applications in seconds. Tailors your resume for every job. Finds openings before anyone else.
             </p>
             <div className="flex items-center gap-4">
               <Link href="#" className="text-muted-foreground hover:text-foreground transition-colors">
@@ -58,11 +58,11 @@ export function SiteFooter() {
           </div>
 
           <div>
-            <h4 className="text-[0.8125rem] font-semibold uppercase tracking-wider text-foreground mb-4">Resources</h4>
+            <h4 className="text-[0.8125rem] font-semibold uppercase tracking-wider text-foreground mb-4">Tools</h4>
             <ul className="space-y-2.5">
-              <li><Link href="#" className="text-[0.875rem] text-muted-foreground hover:text-foreground transition-colors">Documentation</Link></li>
-              <li><Link href="#" className="text-[0.875rem] text-muted-foreground hover:text-foreground transition-colors">API Reference</Link></li>
-              <li><Link href="#" className="text-[0.875rem] text-muted-foreground hover:text-foreground transition-colors">Changelog</Link></li>
+              <li><Link href="/resume-builder" className="text-[0.875rem] text-muted-foreground hover:text-foreground transition-colors">Resume Builder</Link></li>
+              <li><Link href="/resume-ai" className="text-[0.875rem] text-muted-foreground hover:text-foreground transition-colors">Resume AI</Link></li>
+              <li><Link href="/dashboard" className="text-[0.875rem] text-muted-foreground hover:text-foreground transition-colors">Dashboard</Link></li>
             </ul>
           </div>
 
